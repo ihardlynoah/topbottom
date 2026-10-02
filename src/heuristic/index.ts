@@ -23,13 +23,14 @@ import {
   VULVA_CTX,
   type CompiledPattern,
   DIALOGUE,
+  EPITHET_TOKEN,
   FINGER_CTX,
   PATTERNS,
   PENIS_CTX,
   SEX_CTX,
-  TRIGGER,
   compilePatterns,
 } from "./patterns";
+import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
 
 type Basis = NonNullable<Instance["basis"]>;
@@ -72,16 +73,25 @@ export function maskQuotes(p: string, singleQuotes: boolean): { masked: string; 
   const quotes: Quote[] = [];
   const re = singleQuotes
     ? /(^|[\s(—–-])‘((?:[^’]|’(?=\p{L}))*)’(?=[\s,.;:!?—–)-]|$)/gu
-    : /“([^”]*)”?|"([^"]*)"?/g;
+    : // Straight and curly quotes are interchangeable: many fics open with " and close with ” (autocorrect).
+      /[“"]([^“”"]*)[”"]?/g;
   let masked = p;
   for (const m of p.matchAll(re)) {
     const lead = singleQuotes ? m[1].length : 0;
     const start = m.index! + lead;
     const end = m.index! + m[0].length;
-    const text = singleQuotes ? m[2] : (m[1] ?? m[2] ?? "");
+    const text = singleQuotes ? m[2] : (m[1] ?? "");
     quotes.push({ start, end, text });
     masked = masked.slice(0, start + 1) + " ".repeat(Math.max(0, end - start - 2)) + masked.slice(end - 1);
   }
+  // Text messages are often written in [brackets]; treat them like dialogue.
+  for (const m of masked.matchAll(/\[([^\[\]]{2,})\]/g)) {
+    const start = m.index!;
+    const end = start + m[0].length;
+    quotes.push({ start, end, text: p.slice(start + 1, end - 1) });
+    masked = masked.slice(0, start + 1) + " ".repeat(Math.max(0, end - start - 2)) + masked.slice(end - 1);
+  }
+  quotes.sort((x, y) => x.start - y.start);
   return { masked, quotes };
 }
 
@@ -107,7 +117,7 @@ const CHAPTER_RE = /^(?:chapter|ch\.?|part)\s*(\d+|[ivxlc]+|one|two|three|four|f
 
 const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
 const FANTASY =
-  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn)\b/i;
+  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn)\b/i;
 const DESIRE =
   /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to)\b/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
@@ -136,7 +146,72 @@ function pronoun(tok: string): PronounInfo | undefined {
 class Ctx {
   recent: Character[] = [];
   lastSubject?: Character;
+  /** Learned epithets ("the blond" → Draco). */
+  epithets = new Map<string, Character>();
+  /** How each unlearned epithet was resolved, for learning on a second pass. */
+  votes = new Map<string, Map<Character, number>>();
+  /** Epithets resolved in the current sentence, so they mean the same thing throughout it. */
+  private sentence = new Map<string, Character | undefined>();
+  /** The epithets replaced by "Epithet<n>" tokens in the current sentence. */
+  epiTable: string[] = [];
   constructor(private cast: Cast) {}
+
+  reset() {
+    this.recent = [];
+    this.lastSubject = undefined;
+    this.sentence.clear();
+  }
+
+  newSentence(epiTable: string[] = []) {
+    this.sentence.clear();
+    this.epiTable = epiTable;
+  }
+
+  /** Resolve an "Epithet<n>" placeholder token, if that's what this is. */
+  token(tok: string): Character | undefined | null {
+    const m = /^Epithet(\d+)$/.exec(tok);
+    if (!m) return null;
+    const text = this.epiTable[Number(m[1])];
+    return text ? this.epithet(text) : undefined;
+  }
+
+  /** "The blond", "the taller man": a learned mapping, else the person who isn't the current subject. */
+  epithet(tok: string): Character | undefined {
+    const { keys, gender, other } = canonEpithet(tok);
+    for (const k of keys) {
+      const known = this.epithets.get(k);
+      if (known && Ctx.compatible(known, gender)) return known;
+    }
+    const cacheKey = keys[0] ?? tok.toLowerCase();
+    if (this.sentence.has(cacheKey)) return this.sentence.get(cacheKey);
+    const c = this.lastSubject ? this.partnerOf(this.lastSubject, gender) : this.recent.find((r) => Ctx.compatible(r, gender));
+    this.sentence.set(cacheKey, c);
+    // "The other man" is always relative, so it never becomes a fixed mapping.
+    if (c && keys.length && !other) {
+      for (const k of keys) {
+        const v = this.votes.get(k) ?? new Map<Character, number>();
+        v.set(c, (v.get(c) ?? 0) + 1);
+        this.votes.set(k, v);
+      }
+    }
+    return c;
+  }
+
+  /** Adopt epithet mappings that were consistent on the first pass. Returns true if anything was learned. */
+  learnFromVotes(): boolean {
+    let learned = false;
+    for (const [key, v] of this.votes) {
+      if (this.epithets.has(key)) continue;
+      const total = [...v.values()].reduce((a, b) => a + b, 0);
+      const [best, n] = [...v.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (total >= 3 && n / total >= 0.7) {
+        this.epithets.set(key, best);
+        learned = true;
+      }
+    }
+    this.votes.clear();
+    return learned;
+  }
 
   mention(c: Character | undefined) {
     if (!c) return;
@@ -171,12 +246,15 @@ class Ctx {
 }
 
 function stripPoss(tok: string) {
-  return tok.replace(/['’]s$/, "");
+  return tok.replace(/['’]s?$/, "");
 }
+
 
 interface Slot {
   char?: Character;
   pron?: PronounInfo;
+  /** Came from an epithet ("the blond"), so it's less certain than a name. */
+  epithet?: boolean;
 }
 
 function readSlot(tok: string | undefined, cast: Cast, ctx: Ctx): Slot | undefined {
@@ -184,6 +262,8 @@ function readSlot(tok: string | undefined, cast: Cast, ctx: Ctx): Slot | undefin
   const name = stripPoss(tok);
   const byName = cast.byAlias.get(name);
   if (byName) return { char: byName };
+  const viaEpithet = ctx.token(name);
+  if (viaEpithet !== null) return viaEpithet ? { char: viaEpithet, epithet: true } : undefined;
   const p = pronoun(name);
   if (!p) return undefined;
   if ("fixed" in p) {
@@ -206,7 +286,10 @@ function resolvePair(
   ctx: Ctx,
   /** For elided-subject matches: the subject found earlier in the sentence. */
   subjChar?: Character,
+  /** For pronoun subjects mid-sentence: the nearest preceding clause subject. */
+  nearSubj?: Character,
 ): { top?: Character; bottom?: Character; basis: Basis } | undefined {
+  const subjectFor = (g: Gender | "any") => (nearSubj && Ctx.compatible(nearSubj, g) ? nearSubj : ctx.subjectFor(g));
   let t = readSlot(tTok, cast, ctx);
   let b = readSlot(bTok, cast, ctx);
   if (subjChar) {
@@ -229,7 +312,7 @@ function resolvePair(
       basis = "pronoun";
     } else if (!top && !bottom) {
       const [s, o] = subj === "t" ? [t, b] : [b, t];
-      const sc = ctx.subjectFor(slotGender(s));
+      const sc = subjectFor(slotGender(s));
       const oc = sc ? ctx.partnerOf(sc, slotGender(o)) : undefined;
       [top, bottom] = subj === "t" ? [sc, oc] : [oc, sc];
       basis = "pronoun";
@@ -237,15 +320,17 @@ function resolvePair(
   } else {
     // Only one side mentioned ("he bottomed out", "he was fucked"): the other is the scene partner.
     const only = (t ?? b)!;
-    const c = only.char ?? ctx.subjectFor(slotGender(only));
+    const c = only.char ?? subjectFor(slotGender(only));
     const other = c ? ctx.partnerOf(c) : undefined;
     if (t) [top, bottom] = [c, other];
     else [top, bottom] = [other, c];
     basis = "inferred";
   }
   if (!top || !bottom || top === bottom) return undefined;
+  if (basis === "named" && (t?.epithet || b?.epithet)) basis = "pronoun";
   return { top, bottom, basis };
 }
+
 
 function groupValue(groups: Record<string, string | undefined> | undefined, role: "t" | "b") {
   if (!groups) return undefined;
@@ -272,13 +357,21 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const patterns = compilePatterns(PATTERNS, cast.aliasPattern);
   const NAMES = cast.aliasPattern || "(?!)";
   const nameRe = new RegExp(`\\b(?:${NAMES})(?:['’]s)?\\b`, "g");
-  const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES})(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
+  const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES}|${EPITHET_TOKEN})(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
+  const epithetRe = new RegExp(EPITHET, "g");
+  const ING_NOUNS =
+    "morning|evening|wedding|building|feelings?|clothing|bedding|ceiling|thing|something|nothing|anything|everything|ring|king|wing|string|darling|sibling|stocking|ending|beginning|meaning|warning|painting|drawing|training|meeting|offering|blessing|pudding|earring|upbringing|being|wellbeing|well-being|belongings|surroundings|savings|lodgings|bring";
+  const contractionRe = new RegExp(
+    `\\b((?:${NAMES}|${EPITHET_TOKEN})|[Hh]e|[Ss]he)['’]s(?=\\s+(?:(?:\\w+ly|just|still|now|already|been|gonna|going|not|never|always|so|too)\\s+)?(?!(?:${ING_NOUNS})\\b)[a-z]+ing\\b)`,
+    "g",
+  );
   const ctx = new Ctx(cast);
+  ctx.epithets = learnEpithets(cast, meta.freeforms, narration);
 
-  const acts: ActHit[] = [];
+  let acts: ActHit[] = [];
   let ambiguousHoles = 0;
-  const desires: DesireHit[] = [];
-  const chapters: string[] = [];
+  let desires: DesireHit[] = [];
+  let chapters: string[] = [];
   let chapter = "";
   let prevSpeaker: Character | undefined;
 
@@ -288,11 +381,36 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const tok = stripPoss(m[1]);
     const named = cast.byAlias.get(tok);
     if (named) return named;
+    const viaEpithet = ctx.token(tok);
+    if (viaEpithet !== null) return viaEpithet;
     const p = pronoun(tok);
     if (!p) return undefined;
-    return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+    if ("fixed" in p) return ctx.fixed(p.fixed);
+    return notNamedLater(ctx.subjectFor(p.gender), s.slice(m.index + m[0].length), p.gender);
   };
 
+  /**
+   * A subject pronoun can't mean someone the same sentence names afterwards ("He pushed Stiles' legs
+   * open" — he isn't Stiles), so switch to the other person.
+   */
+  function notNamedLater(c: Character | undefined, rest: string, g: Gender | "any"): Character | undefined {
+    if (!c || !c.aliases.length) return c;
+    const named = new RegExp(`\\b(?:${c.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`).test(rest);
+    return named ? (ctx.partnerOf(c, g) ?? c) : c;
+  }
+
+  // Two passes when epithets are in play: the first learns which character "the blond" usually is.
+  scan();
+  if (ctx.learnFromVotes()) scan();
+
+  function scan() {
+  acts = [];
+  desires = [];
+  chapters = [];
+  chapter = "";
+  prevSpeaker = undefined;
+  ambiguousHoles = 0;
+  ctx.reset();
   for (let pi = 0; pi < paras.length; pi++) {
     const para = paras[pi];
     const { masked: mp, quotes } = masked[pi];
@@ -301,19 +419,29 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     chapters[pi] = chapter;
     const fantasyPara = FANTASY_PARA.test(mp.slice(0, 160));
+    const sexy = SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`);
 
     for (const [s0, s1] of sentenceSpans(mp)) {
-      const sent = mp.slice(s0, s1);
+      // Swap epithets for short tokens once, instead of every pattern carrying the whole epithet list.
+      const epiTable: string[] = [];
+      let sent = mp.slice(s0, s1);
+      if (/\b[Tt]he\s/.test(sent)) {
+        sent = sent.replace(epithetRe, (e) => `Epithet${epiTable.push(e) - 1}`);
+      }
+      // "Derek's licking" means "Derek is licking", not a possessive.
+      sent = sent.replace(contractionRe, (_, who: string) => `${who} is`);
       const original = para.slice(s0, s1).trim();
+      ctx.newSentence(epiTable);
       const subj = firstEntity(sent);
       if (subj) ctx.lastSubject = subj;
 
-      if (TRIGGER.test(sent)) {
-        const sexy = SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`);
+      {
         const penisy = PENIS_CTX.test(sent);
         for (const pat of patterns) {
+          if (pat.gate && !pat.gate.test(sent)) continue;
           if (pat.needsCtx && !sexy) continue;
           if (pat.needsPenis && !penisy) continue;
+          if (pat.needs && !pat.needs.test(sent)) continue;
           pat.re.lastIndex = 0;
           for (const m of sent.matchAll(pat.re)) {
             handleMatch(pat, m, sent, original, pi, fantasyPara, para);
@@ -337,25 +465,35 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     if (paraSpeaker) prevSpeaker = paraSpeaker;
   }
+  }
 
   /** The subject of an earlier verb in "X smiled and sucked him off": nearest name/he/she that isn't an object. */
-  function elidedSubject(prefix: string): Character | undefined {
-    const re = new RegExp(`(?:^|([\\w'’]+)[\\s,]+)((?:${NAMES})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
+  function elidedSubject(prefix: string, suffix = ""): Character | undefined {
+    const re = new RegExp(`(?:^|([\\w'’]+)([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
     for (let i = hits.length - 1; i >= 0; i--) {
-      const prev = (hits[i][1] ?? "").toLowerCase();
+      const h = hits[i];
+      // After a comma we're at a clause start, so whatever came before doesn't make this an object.
+      const prev = h[2]?.includes(",") ? "" : (h[1] ?? "").toLowerCase();
       // A name right after a verb or preposition is an object ("spread Draco open"), not a subject.
       const isObject =
         !!prev &&
         !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh)$/.test(prev);
-      if (isObject && !/^(?:He|She|They|I)$/.test(hits[i][2])) continue;
-      const tok = hits[i][2];
-      const named = cast.byAlias.get(tok);
-      if (named) return named;
-      const p = pronoun(tok);
-      if (p) return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+      if (isObject && !/^(?:He|She|They|I)$/.test(h[3])) continue;
+      return resolveToken(h[3], prefix.slice(h.index! + h[0].length) + suffix);
     }
     return undefined;
+  }
+
+  /** A name, epithet token, or pronoun to a character (pronouns can't mean someone named in `rest`). */
+  function resolveToken(tok: string, rest = ""): Character | undefined {
+    const named = cast.byAlias.get(stripPoss(tok));
+    if (named) return named;
+    const viaEpithet = ctx.token(stripPoss(tok));
+    if (viaEpithet !== null) return viaEpithet;
+    const p = pronoun(stripPoss(tok));
+    if (!p) return undefined;
+    return "fixed" in p ? ctx.fixed(p.fixed) : notNamedLater(ctx.subjectFor(p.gender), rest, p.gender);
   }
 
   function attributeSpeaker(para: string, mp: string, q: Quote): Character | undefined {
@@ -376,8 +514,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const b1 = new RegExp(`((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})(?:\\s+[\\w’']+){0,4}?[,:]?\\s*["“‘]?\\s*$`).exec(before);
     if (b1) return resolve(b1[1]);
     // Otherwise, whoever the narration in this paragraph is about.
-    const narr = mp.replace(/["“”‘’]\s*/g, " ").trim();
-    return narr.length > 5 ? firstEntity(narr) : undefined;
+    const narr = mp.replace(/["“”‘’\[\]]\s*/g, " ").trim();
+    const fromNarration = narr.length > 5 ? firstEntity(narr) : undefined;
+    if (fromNarration) return fromNarration;
+    // A line that addresses someone by name ("…, Dean.") was said by the other person.
+    const voc = new RegExp(`(?:^|[,.!?]\\s+|\\b(?:hey|oh|please|yes|no|god),?\\s+)(${NAMES})(?=\\s*[,.!?…]|\\s*$)|,\\s*(${NAMES})\\b`).exec(q.text);
+    const addressed = voc ? cast.byAlias.get(voc[1] ?? voc[2]) : undefined;
+    return addressed ? ctx.partnerOf(addressed) : undefined;
   }
 
   function scanDialogue(line: string, speaker: Character, pi: number) {
@@ -391,7 +534,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (seen.has(key)) continue;
       seen.add(key);
       const before = lower.slice(Math.max(0, m.index - 30), m.index);
-      const negated = /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before);
+      // "Won't you fuck me?" / "Sure you won't fuck me?" are requests, not refusals.
+      const question = /\?\s*$/.test(lower.slice(m.index)) && !/[.!]/.test(lower.slice(m.index, m.index + m[0].length + 40).split("?")[0]);
+      const negated =
+        (!question && /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before)) ||
+        /\bas if\b[^.!?]*$/.test(before);
       desires.push({
         cat: d.cat,
         act: d.act,
@@ -400,7 +547,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         role: d.role,
         wants: !negated,
         kind: d.kind,
-        weight: d.kind === "ogling" ? 0.6 : 1,
+        weight: d.weight ?? (d.kind === "ogling" ? 0.6 : 1),
         para: pi,
         sentence: `“${line.trim()}”`,
       });
@@ -420,10 +567,27 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const bTok = groupValue(m.groups, "b");
     let subjChar: Character | undefined;
     if (pat.elided) {
-      subjChar = elidedSubject(sent.slice(0, m.index));
+      const before = sent.slice(0, m.index);
+      const trigger = /^\W*(\w+)/.exec(m[0])?.[1]?.toLowerCase() ?? "";
+      const lastWord = (before.trim().split(/\s+/).pop() ?? "").replace(/[,;]$/, "");
+      if (/^(?:kept|started|began|continued|finished|enjoyed|loved|tried|resumed)$/.test(trigger)) {
+        // "…began pushing into him": whoever began must be right before it ("a finger began…" isn't a person).
+        subjChar = resolveToken(lastWord, sent.slice(m.index!));
+      } else if (trigger === "to") {
+        // "asked Draco to fuck him" → Draco; "rose up on his knees to slide into him" → the clause's subject.
+        const clauseSubj = elidedSubject(before, sent.slice(m.index!));
+        subjChar = /^(?:him|her|them)$/.test(lastWord)
+          ? clauseSubj && ctx.partnerOf(clauseSubj)
+          : (resolveToken(lastWord, sent.slice(m.index!)) ?? clauseSubj);
+      } else {
+        subjChar = elidedSubject(before, sent.slice(m.index!));
+      }
       if (!subjChar) return;
     }
-    const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar);
+    // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
+    const subjTok = pat.subj === "t" ? tTok : bTok;
+    const nearSubj = !pat.elided && subjTok && pronoun(subjTok) && m.index! > 0 ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!)) : undefined;
+    const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
     if (!resolved) return;
     let { top, bottom } = resolved as { top: Character; bottom: Character };
     let { basis } = resolved;
@@ -440,7 +604,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       else if (/^\s+(?:[\w']+\s+){0,3}?(?:between|with)\s+(?:his|her|their|my|your)\s+(?:thighs|breasts|tits|hand|fist)\b/.test(after)) return;
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:a|the|her|his|their|my|your)\s+(?:strap|dildo|toy|vibrator|plug)/.test(after)) act = "anal sex (strap-on/toy)";
     }
-    if (cat === "anal" && act.startsWith("anal sex") && FINGER_CTX.test(matchText) && !PENIS_CTX.test(matchText)) act = "fingering";
+    // "…when a second finger began pushing into him": fingers named in the sentence (and no cock) mean fingering.
+    if (cat === "anal" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + sent) && !PENIS_CTX.test(sent)) act = "fingering";
     if (pat.id === "prostate" && FINGER_CTX.test(sent) && !PENIS_CTX.test(sent)) act = "fingering";
 
     // Hints, not acts: checking out an ass, grabbing it, staring at a bulge...
@@ -496,6 +661,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     if (pat.id === "enter" && /\b(?:took|take|takes|taking)\b/.test(matchText)) weight *= 0.5;
 
+    // Questions ("Did Harry fuck him?") don't say it happened.
+    if (/\?\s*["”’)]*\s*$/.test(original)) return;
+
     // Act, or desire/fantasy/hypothetical?
     const prefix = sent.slice(0, m.index);
     const clause = prefix.split(/[;:]|,\s+(?:and|but|then|so)\s+|\b(?:and then|but then)\b|—/).pop() ?? "";
@@ -504,7 +672,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const negated = NEG.test(aux) || NEG.test(window.slice(-40));
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window)) kind = "fantasy";
-    else if (DESIRE.test(window) || DESIRE.test(aux)) kind = "wanted";
+    else if (DESIRE.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
     else if (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window)) kind = "hypothetical";
 
@@ -720,7 +888,7 @@ function buildAct(
     const total = scene.hits.reduce((n, h) => n + h.weight, 0);
     for (const [, hs] of dirs) {
       const w = hs.reduce((n, h) => n + h.weight, 0);
-      if (w < Math.max(0.25, total * 0.3)) continue; // a stray hit against the scene's majority
+      if (w < Math.max(0.2, total * 0.3)) continue; // a stray hit against the scene's majority
       const best = [...hs].sort((a, b) => b.weight - a.weight || (a.basis === "named" ? -1 : 1))[0];
       const acts = [...new Set(hs.map((h) => h.act))];
       instances.push({
@@ -824,7 +992,7 @@ function buildAct(
   // ── desire, fantasy & other signals ──
   // Ogling/touching/fingering hints only mean something for same-sex pairs.
   const sameSex = pair[0].gender === pair[1].gender || pair[0].gender === "u" || pair[1].gender === "u";
-  const sig: DesireHit[] = des.filter((d) => sameSex || (d.kind !== "ogling" && d.kind !== "touch"));
+  const sig: DesireHit[] = des.filter((d) => sameSex || (d.kind !== "ogling" && d.kind !== "touch" && d.kind !== "prep"));
   if (cat === "anal" && sameSex) {
     for (const f of fingering) {
       sig.push({ cat, act: "fingering", who: f.top, partner: f.bottom, role: "top", wants: true, kind: "fingering", weight: 0.8, para: f.para, sentence: f.sentence });
@@ -843,7 +1011,7 @@ function buildAct(
     }));
   // Every hint "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
   const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
-  const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering";
+  const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep";
   const tally = { desAgree: 0, desConflict: 0, behAgree: 0, behConflict: 0, wAgree: 0, wConflict: 0 };
   for (const d of sig) {
     const pointsTo = desireTop(d);
@@ -856,8 +1024,8 @@ function buildAct(
   if (verdict !== "none") {
     if (tally.desAgree) reasons.push(`${plural(tally.desAgree, "desire/fantasy line")} ${tally.desAgree === 1 ? "points" : "point"} the same way`);
     if (tally.desConflict) reasons.push(`${plural(tally.desConflict, "desire/fantasy line")} ${tally.desConflict === 1 ? "points" : "point"} the other way`);
-    if (tally.behAgree) reasons.push(`${plural(tally.behAgree, "other signal")} (fingering, ogling, touching) ${tally.behAgree === 1 ? "agrees" : "agree"}`);
-    if (tally.behConflict) reasons.push(`${plural(tally.behConflict, "other signal")} (fingering, ogling, touching) ${tally.behConflict === 1 ? "disagrees" : "disagree"}`);
+    if (tally.behAgree) reasons.push(`${plural(tally.behAgree, "other signal")} (fingering, ogling, touching, lead-up) ${tally.behAgree === 1 ? "agrees" : "agree"}`);
+    if (tally.behConflict) reasons.push(`${plural(tally.behConflict, "other signal")} (fingering, ogling, touching, lead-up) ${tally.behConflict === 1 ? "disagrees" : "disagree"}`);
   }
 
   // ── nothing found on-page ──

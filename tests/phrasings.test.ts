@@ -141,7 +141,81 @@ const CASES: [string, Exp][] = [
   ["Draco worked his tongue into Harry's hole.", ["oral", D, H, "rimming"]],
   ["Harry worked Draco's hole with his fingers.", null], // fingering-ish but not a recognized form: must not become rimming
   ["Harry fucked his fist.", null],
+  // round 4: heat-of, up, gerunds, object-less verbs, fullness/tightness, epithets
+  ["Harry slid into the tight heat of Draco's body.", ["anal", H, D]],
+  ["Harry pushed into the tight heat of Draco.", ["anal", H, D]],
+  ["Draco slid into the wet heat of Harry's mouth.", ["oral", D, H]],
+  ["Harry's cock was up Draco's ass.", ["anal", H, D]],
+  ["Draco loved having Harry inside him.", ["anal", H, D]],
+  ["Harry spread Draco's legs and pushed in.", ["anal", H, D]],
+  ["Draco straddled Harry and sank down.", ["anal", H, D]],
+  ["Draco was so full of Harry's cock.", ["anal", H, D]],
+  ["Harry clenched around Draco.", ["anal", D, H]],
+  ["Draco was so tight around Harry's cock.", ["anal", H, D]],
+  ["Harry's head bobbed in Draco's lap.", ["oral", D, H]],
+  ["Draco's cock hit the back of Harry's throat.", ["oral", D, H]],
+  ["Harry took Draco's cock all the way to the back of his throat.", ["oral", D, H]],
+  ["Draco licked a stripe over Harry's hole.", ["oral", D, H, "rimming"]],
+  ["Harry's come dripped out of Draco's hole.", ["anal", H, D]],
+  ["Draco made love to Harry.", ["anal", D, H]],
+  ["Harry kissed Draco. The blond sucked him off.", ["oral", H, D]],
+  ["Draco pulled Harry close. The brunet's cock slid into him.", ["anal", H, D]],
+  ["Harry sheathed himself in Draco.", ["anal", H, D]],
+  ["Draco hollowed his cheeks around Harry's cock.", ["oral", H, D]],
+  ["Harry swallowed around Draco.", ["oral", D, H]],
+  ["Draco's knot swelled inside Harry.", ["anal", D, H]],
+  ["Harry kissed Draco. The other man rode him hard.", ["anal", H, D]],
+  ["Harry slid into the warmth of the kitchen.", null],
+  ["Draco was full of dinner.", null],
+  ["Harry's head bobbed in time with the music.", null],
+  ["Draco loved having Harry around.", null],
+  ["Harry pushed in the door.", null],
+  ["Before Harry could fuck him, Draco's phone rang.", null],
+  ["Did Harry fuck him last night?", null],
+  ["The blond rolled his eyes.", null],
+  ["Harry was so tight with Draco these days.", null],
+  // round 5: descriptive epithets (fallback rule: the person who isn't the current subject)
+  ["Harry kissed Draco. The taller man pushed into him.", ["anal", D, H]],
+  ["Draco pulled Harry close. The smaller man sank down on him.", ["anal", D, H]],
+  ["Harry kissed Draco. The older of the two sucked him off.", ["oral", H, D]],
+  ["Draco pinned Harry. The dark-haired wizard rode him.", ["anal", D, H]],
+  ["Harry kissed Draco. The tall blond fucked him.", ["anal", D, H]],
+  ["The older students laughed.", null],
+  ["The American flag waved over the building.", null],
+  ["The tall grass rustled.", null],
 ];
+
+// Constructions found while testing a real AO3 fic (paraphrased, not quoted). Names ending in "s" use
+// a bare apostrophe for possessives ("Stiles' cock"), so these use their own pair.
+const SD: Ao3Meta = { ...M, relationships: ["Derek Hale/Stiles Stilinski"], characters: [] };
+const DH = "Derek Hale";
+const SS = "Stiles Stilinski";
+const REAL: [string, Exp][] = [
+  ["Derek licked Stiles' rim.", ["oral", DH, SS, "rimming"]],
+  ["Derek wrapped his lips around Stiles' cock.", ["oral", SS, DH]],
+  ["Stiles watched as Derek's licking his ass clean.", ["oral", DH, SS, "rimming"]],
+  ["Derek ignored the question in favor of licking Stiles' rim.", ["oral", DH, SS, "rimming"]],
+  ["Derek was happy about eating Stiles out.", ["oral", DH, SS, "rimming"]],
+  ["Stiles came apart while Derek was swallowing him down.", ["oral", SS, DH]],
+  ["Derek took Stiles' balls into his mouth.", ["oral", SS, DH]],
+  ["Stiles lay face-down. He pushed Stiles' legs apart and pushed in.", ["anal", DH, SS]],
+  ["Derek's cock was hard. He crawled down the bed and licked at the head of Derek's cock.", ["oral", DH, SS]],
+  ['"Oh," Stiles gasped when Derek kissed his cock.', ["oral", SS, DH]], // straight open, curly-style close mix below
+  ["\"Oh,” Stiles gasped when Derek kissed his cock.", ["oral", SS, DH]],
+];
+
+it("constructions from a real fic", () => {
+  const failures: string[] = [];
+  for (const [sentence, exp] of REAL) {
+    const p = analyzeWithPatterns(`Derek and Stiles were naked in bed, hard and aching.\n\n${sentence}`, SD, { quiet: true }).pairings[0];
+    const found = [...p.anal.instances.map((i) => ["anal", i] as const), ...p.oral.instances.map((i) => ["oral", i] as const)];
+    const [cat, top, bottom, act] = exp!;
+    if (!found.some(([c, i]) => c === cat && i.top === top && i.bottom === bottom && (!act || i.act.includes(act)))) {
+      failures.push(`MISSED: ${sentence} → ${found.map(([c, i]) => `${c} ${i.top}>${i.bottom} ${i.act}`).join(", ") || "nothing"}`);
+    }
+  }
+  expect(failures).toEqual([]);
+});
 
 it("pattern engine phrasing accuracy", () => {
   const failures: string[] = [];

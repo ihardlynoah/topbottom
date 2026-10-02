@@ -39,7 +39,7 @@ const TITLE_WORDS = new Set(
 
 /** Names that are also ordinary words; only safe because matching is case-sensitive. */
 const NOT_NAMES = new Set(
-  "I I'm I'd I'll I've A An The He She They It We You His Her Their My Your Our This That There Then When What Where Why How Who Oh Ah God Christ Jesus Fuck Yes No Not But And Or So If Just Okay OK Ok Well Now Still Even Maybe Please Thank Thanks Sorry Hey Hi Hello Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December English French Chapter Mr Mrs Ms Dr Sir Lord Lady TV Christmas Halloween Mum Mom Dad Mama Papa Uncle Aunt Grandma Grandpa Instead Later Before After Once Twice Something Nothing Everything Anything Someone Everyone Nobody Neither Either Both Every Each Some Any Too Also Because While Since Until Though Although Yeah Yep Nope Shit Damn Hell Wait Look Listen Come Go Stop Don't Can't Won't Didn't Wasn't Isn't It's That's There's He's She's They're We're You're Let's".split(
+  "I I'm I'd I'll I've A An The He She They It We You His Her Their My Your Our This That There Then When What Where Why How Who Oh Ah God Christ Jesus Fuck Yes No Not But And Or So If Just Okay OK Ok Well Now Still Even Maybe Please Thank Thanks Sorry Hey Hi Hello Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December English French Chapter Mr Mrs Ms Dr Sir Lord Lady TV Christmas Halloween Mum Mom Dad Mama Papa Uncle Aunt Grandma Grandpa Instead Later Before After Once Twice Something Nothing Everything Anything Someone Everyone Nobody Neither Either Both Every Each Some Any Too Also Because While Since Until Though Although Yeah Yep Nope Shit Damn Hell Wait Look Listen Come Go Stop Don't Can't Won't Didn't Wasn't Isn't It's That's There's He's She's They're We're You're Let's Alpha Alphas Omega Omegas Beta Betas Sir Ma'am Mister Alright Yeah Hey Wow Dude Man Babe Baby Sweetheart Honey Darling Christ Lord Heaven Hell Jesus Mary Angel".split(
     " ",
   ),
 );
@@ -103,22 +103,50 @@ function makeChars(names: string[]): Character[] {
   return merged;
 }
 
-/** Guess the main characters from capitalized words when the file has no AO3 tags. */
+/**
+ * Guess the main characters when the file has no AO3 tags: words that are capitalized wherever they
+ * appear (including at sentence starts) and almost never show up in lowercase.
+ */
 export function guessNames(text: string): string[] {
-  const counts = new Map<string, number>();
-  // Capitalized words that follow a lowercase word (i.e. not sentence-initial).
-  for (const m of text.matchAll(/[a-z,;]\s+(\p{Lu}[\p{Ll}'’-]{1,20})\b/gu)) {
+  const caps = new Map<string, number>();
+  const lower = new Map<string, number>();
+  for (const m of text.matchAll(/\b([\p{L}][\p{L}'’-]{1,20})\b/gu)) {
     const w = m[1].replace(/['’]s$/, "");
-    if (NOT_NAMES.has(w) || TITLE_WORDS.has(w)) continue;
-    counts.set(w, (counts.get(w) ?? 0) + 1);
+    if (/^\p{Lu}\p{Ll}/u.test(w)) caps.set(w, (caps.get(w) ?? 0) + 1);
+    else if (/^\p{Ll}/u.test(w)) lower.set(w, (lower.get(w) ?? 0) + 1);
   }
   const words = text.split(/\s+/).length;
-  const min = Math.max(6, Math.round(words / 4000));
-  return [...counts.entries()]
-    .filter(([, n]) => n >= min)
+  const min = Math.max(4, Math.round(words / 3000));
+  const candidates = [...caps.entries()]
+    .filter(([w, n]) => n >= min && !NOT_NAMES.has(w) && !TITLE_WORDS.has(w) && (lower.get(w.toLowerCase()) ?? 0) <= n * 0.05)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
+    .slice(0, 10)
     .map(([w]) => w);
+
+  // "Dean Winchester": a candidate that mostly follows another one is that character's surname.
+  const surnameOf = new Map<string, string>();
+  for (const a of candidates) {
+    for (const b of candidates) {
+      if (a === b) continue;
+      const together = (text.match(new RegExp(`\\b${escapeRe(a)}\\s+${escapeRe(b)}\\b`, "g")) ?? []).length;
+      if (together >= 2 && together >= (caps.get(b) ?? 0) * 0.4) surnameOf.set(b, a);
+    }
+  }
+  // "Cas" for "Castiel": a short candidate that starts another, longer one is its nickname.
+  const nicknameOf = new Map<string, string>();
+  for (const a of candidates) {
+    const full = candidates.find((b) => b !== a && b.length > a.length && b.startsWith(a) && a.length >= 3);
+    if (full) nicknameOf.set(a, full);
+  }
+  const out: string[] = [];
+  for (const w of candidates) {
+    if (surnameOf.has(w) || nicknameOf.has(w)) continue;
+    const surname = [...surnameOf].find(([, first]) => first === w)?.[0];
+    const nick = [...nicknameOf].find(([, full]) => full === w)?.[0];
+    out.push([w, nick ? `"${nick}"` : "", surname ?? ""].filter(Boolean).join(" "));
+    if (out.length >= 6) break;
+  }
+  return out;
 }
 
 function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
@@ -163,8 +191,11 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
     if (sep === "/" && names.length >= 2) pairNames.push(names);
   }
   let names = [...pairNames.flat(), ...meta.characters];
-  if (!names.length) names = guessNames(narration);
+  const guessed = !names.length;
+  if (guessed) names = guessNames(narration);
   const chars = makeChars(names);
+  // Guessed names carry their nickname in quotes for alias building; show them without it.
+  if (guessed) for (const c of chars) c.name = c.name.replace(/\s*"[^"]+"/, "");
 
   const byAlias = new Map<string, Character>();
   const find = (raw: string) => {
@@ -198,6 +229,14 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   const firstPerson = (narration.match(/\bI\b/g) ?? []).length / words;
   const secondPerson = (narration.match(/\b(?:you|your|You|Your)\b/g) ?? []).length / words;
 
+  // Nicknames the tags don't mention: "Cas" for Castiel, "Ste" no (too short), "Tom" for Tomlinson-style.
+  const capCounts = new Map<string, number>();
+  for (const m of narration.matchAll(/\b(\p{Lu}\p{Ll}{2,})\b/gu)) capCounts.set(m[1], (capCounts.get(m[1]) ?? 0) + 1);
+  for (const [w, n] of capCounts) {
+    if (n < 3 || NOT_NAMES.has(w) || chars.some((c) => c.aliases.includes(w))) continue;
+    const owners = chars.filter((c) => c.aliases.some((a) => a.length > w.length && a.startsWith(w)));
+    if (owners.length === 1) owners[0].aliases.push(w);
+  }
   for (const c of chars) for (const a of c.aliases) if (!byAlias.has(a)) byAlias.set(a, c);
 
   const mentions = (c: Character) => {
@@ -229,7 +268,7 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   const femalePenis = new RegExp(`\\bher\\s+(?:[\\w-]+\\s+)?(?:${PENIS_WORDS})\\b`, "i").test(narration);
   for (const c of chars) {
     const names = c.aliases.map(escapeRe).join("|");
-    const own = (words: string) => !!names && new RegExp(`\\b(?:${names})['’]s\\s+(?:[\\w-]+\\s+)?(?:${words})\\b`).test(narration);
+    const own = (words: string) => !!names && new RegExp(`\\b(?:${names})(?:['’]s|(?<=s)['’])\\s+(?:[\\w-]+\\s+)?(?:${words})\\b`).test(narration);
     if (c.gender === "f") {
       c.vulva = true;
       c.penis = own(PENIS_WORDS) ? true : femalePenis ? "maybe" : false;

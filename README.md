@@ -11,7 +11,7 @@ A small web app: drop in an AO3 download (PDF, EPUB, HTML, or TXT) and it tells 
 
 ## How it works
 
-Everything runs in the browser; files are never uploaded.
+Everything runs in the browser (the pattern engine in a background worker); files are never uploaded.
 
 **Fandom, pairing, word count** come from the tag block AO3 puts at the top of every download (PDF, EPUB,
 HTML). Relationship tags with `/` count as pairings; `&` (platonic) tags are ignored. Without AO3 tags, the
@@ -27,15 +27,26 @@ word count is estimated and the main characters are guessed from frequently capi
    “X’s tongue in Y’s hole”, passive forms (“Y was fucked by X”), fingering, and sentences with the subject
    left out (“climbed on top and rode him”). Innocent look-alikes (“sucked in a breath”, “blew him a kiss”,
    “fingers in his hair”, “pushed into the room”) are excluded.
-3. **Pronouns**: “he”/“she” as a subject means the last subject; the other person in a two-person sex
-   scene is the partner. Each scene shows whether roles came from names or from pronouns.
+3. **Pronouns and epithets**: “he”/“she” as a subject means the last subject; the other person in a two-person
+   sex scene is the partner. Epithets are recognized for hair colour (“the blond”, “the redhead”, “the
+   dark-haired man”), height (“the taller man”, “the shorter of the two”), size (“the bigger man”, “the
+   smaller one”), age (“the older wizard”, “the younger man”, “the thirty-year-old”), nationality (“the
+   American”, “the Brit”, “the Frenchman”), roles (“the alpha”, “the auror”), and stacks of these (“the tall
+   American soldier”). Who they mean is learned from the text: “Draco’s blond hair”, “Harry was taller than
+   Draco”, “Steve towered over Tony”, “Steve was a big man”, “Draco was two years older”, “Steve’s American
+   accent”, “Bucky was from Russia”, “Draco, the blond,”, Alpha/Omega tags, and consistent use across the
+   fic (a second pass). With two main characters, the opposite is inferred (taller known → shorter is the
+   other). Otherwise an epithet falls back to “the person who isn’t the current subject”. Each scene shows
+   whether roles came from names or pronouns/epithets.
 4. **Desire / fantasy**: wanting (“he wanted Draco to fuck him”), imagining (“imagined Harry sucking him
    off”), hypotheticals, habits (“he’d always bottomed”), dialogue requests (“Fuck me,” Harry begged;
    “I want to ride you”), and negations (“didn’t want to bottom”). These are listed separately and never
    counted as acts. Negated acts (“didn’t fuck him”) are dropped.
 5. **Hints (same-sex pairs)**: behaviour short of sex counts toward confidence. Fingering someone, checking out
-   or grabbing their ass, or grinding against it suggests top; staring at someone’s crotch or bulge, a mouth
-   watering at it, or grinding one’s ass back suggests bottom. Dialogue compliments (“nice ass”) count too.
+   or grabbing their ass, grinding against it, lining up, slicking up or rolling on a condom suggests top;
+   staring at someone’s crotch or bulge, a mouth watering at it, grinding one’s ass back, spreading one’s legs,
+   getting on hands and knees, or kneeling between someone’s legs suggests bottom. Dialogue counts too
+   (“nice ass”, “you’re so tight” → speaker tops; “you feel so big”, “I need your knot” → speaker bottoms).
    With no on-page anal sex, these give an “Unclear” verdict that leans one way, at low confidence.
 6. **Verdict and confidence**: hits are grouped into scenes. “Switches” means each partner tops in at
    least one scene (a single weak contrary hit is flagged as a possible exception instead). Confidence goes
@@ -58,7 +69,7 @@ Your API key stays in your browser and is sent only to `api.anthropic.com`.
 ```sh
 npm install
 npm run dev      # http://localhost:5173
-npm test         # parser + pattern-engine tests (incl. a 110-sentence phrasing accuracy table)
+npm test         # parser + pattern-engine tests (incl. a ~150-sentence phrasing accuracy table)
 npm run build    # static site in dist/
 ```
 

@@ -16,14 +16,15 @@ export interface Instance {
 /**
  * A hint about roles that isn't a completed act: a character wanting, imagining, or asking for a role
  * (or saying they don't want it), or behaviour that suggests one, like checking out an ass (top) or a
- * bulge (bottom), grabbing an ass, or fingering someone (the fingerer is likelier to top).
+ * bulge (bottom), grabbing an ass, fingering someone (the fingerer is likelier to top), or lead-up like
+ * lining up or slicking up (top) and spreading one's legs or kneeling (bottom).
  */
 export interface Desire {
   who: string;
   role: Role;
   /** false = the character explicitly does NOT want this role. */
   wants: boolean;
-  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "ogling" | "touch" | "fingering";
+  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "ogling" | "touch" | "fingering" | "prep";
   act: string;
   where: string;
   evidence: string;
