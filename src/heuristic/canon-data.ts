@@ -904,4 +904,16 @@ export const CANON_RAW = `
   Dorothy Gale | f | Dorothy
   Wizard of Oz | m | Wizard; Oz
 
+@ dracula | dracula
+  Dracula | m | Vlad; Count Dracula; Vlad Tepes; Dracula
+  Jack Seward | m | Jack; Jackie; Seward
+  Zoe Van Helsing | f | Zoe; Van Helsing
+  Agatha Van Helsing | f | Agatha; Sister Agatha
+  Mina Harker | f | Mina
+  Jonathan Harker | m | Jonathan
+  Lucy Westenra | f | Lucy
+  Arthur Holmwood | m | Arthur
+  Frank Renfield | m | Renfield
+  Quincey Morris | m | Quincey; Quincy
+
 `;

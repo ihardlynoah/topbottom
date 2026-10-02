@@ -147,7 +147,7 @@ const ALL: Descriptor[] = [...HAIR, ...BUILD, ...NATIONALITY];
 const MALE_NOUNS = "man|boy|guy|lad|male|gentleman|fellow|bloke|dude|king|prince|wizard";
 const FEMALE_NOUNS = "woman|girl|lady|gal|queen|princess|witch";
 const ROLE_NOUNS =
-  "alpha|omega|beta|werewolf|wolf|vampire|hunter|soldier|agent|detective|captain|knight|demon|angel|hero|villain|auror|doctor|human|elf|mutant|android|god|guard|lieutenant|sergeant|commander|sheriff|deputy|student|officer|cop|pilot|sailor|pirate|assassin|mercenary|singer|idol|player|athlete|boxer|fighter|dancer|actor|writer|artist|professor|teacher|nobleman|lord|servant";
+  "alpha|omega|beta|count|duke|earl|baron|prince|king|queen|emperor|husband|lover|boyfriend|werewolf|wolf|vampire|hunter|soldier|agent|detective|captain|knight|demon|angel|hero|villain|auror|doctor|human|elf|mutant|android|god|guard|lieutenant|sergeant|commander|sheriff|deputy|student|officer|cop|pilot|sailor|pirate|assassin|mercenary|singer|idol|player|athlete|boxer|fighter|dancer|actor|writer|artist|professor|teacher|nobleman|lord|servant";
 /** Nouns that can follow a descriptor ("the tall man", "the American soldier"). */
 const NOUNS = `${MALE_NOUNS}|${FEMALE_NOUNS}|${ROLE_NOUNS}|one|kid|teen|teenager`;
 
