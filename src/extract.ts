@@ -80,10 +80,21 @@ export function extractFromText(text: string): ExtractedWork {
 }
 
 async function extractFromPdf(data: ArrayBuffer): Promise<ExtractedWork> {
-  const pdfjs = await import("pdfjs-dist");
-  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-  const pdf = await pdfjs.getDocument({ data }).promise;
+  // The legacy build includes polyfills; the modern one needs very new browsers (Math.sumPrecise etc.).
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // Bundled by Vite as a plain .js worker, so hosts that serve .mjs with the wrong MIME type still work.
+  if (!pdfjs.GlobalWorkerOptions.workerPort) {
+    const { default: PdfWorker } = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker");
+    pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
+  }
+  let pdf;
+  try {
+    pdf = await pdfjs.getDocument({ data }).promise;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/password/i.test(msg)) throw new Error("This PDF is password-protected. Try the EPUB or HTML download instead.");
+    throw new Error(`Couldn't read this PDF (${msg}). Try the EPUB or HTML download from AO3 instead.`);
+  }
   const pages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
