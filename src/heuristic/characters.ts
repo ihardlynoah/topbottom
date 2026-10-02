@@ -264,6 +264,13 @@ function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
     }
     if (/^(?:Mr|Sir|Lord|King|Prince|Father|Brother|Uncle)\b/.test(c.name)) he += 5;
     if (/^(?:Mrs|Ms|Miss|Lady|Queen|Princess|Mother|Sister|Aunt)\b/.test(c.name)) she += 5;
+    // In a work tagged only M/M (or F/F) the presumption holds unless the text is clear that someone is the other.
+    const [oppositeVotes, ownVotes, presumed] = allMale ? [she, he, "m"] : allFemale ? [he, she, "f"] : [0, 0, ""];
+    if (presumed && c.gender === "u") {
+      if (oppositeVotes >= 6 && oppositeVotes > ownVotes * 4) c.gender = presumed === "m" ? "f" : "m";
+      else c.gender = presumed as Gender;
+      continue;
+    }
     if (he >= 2 && he > she * 2) c.gender = "m";
     else if (she >= 2 && she > he * 2) c.gender = "f";
     // Nothing known and nothing clear in the text: the work's category (M/M, F/F) is the best guess.

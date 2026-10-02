@@ -63,13 +63,25 @@ describe("who does what", () => {
 });
 
 describe("women in an M/M work", () => {
-  it("keeps canon women female, so a woman riding is vaginal", () => {
-    const a = analyzeWithPatterns(`${filler}\n\nEddie and Shannon were in bed, naked, and Shannon kissed Eddie. Shannon rode him, and he braced his feet to thrust up into her.`, {
-      ...meta,
-      relationships: ["Eddie Diaz/Shannon Diaz"],
-    }, { quiet: true });
+  const text = `${filler}\n\nEddie and Shannon were in bed, naked, and Shannon kissed Eddie. Shannon rode him, and he braced his feet to thrust up into her.`;
+  const rel = { ...meta, relationships: ["Eddie Diaz/Shannon Diaz"] };
+  it("drops sex involving a woman when the work is tagged only M/M", () => {
+    const a = analyzeWithPatterns(text, rel, { quiet: true });
+    expect(a.pairings.every((p) => !/Shannon/.test(p.pairing) || (p.anal.instances.length === 0 && p.vaginal.instances.length === 0))).toBe(true);
+  });
+  it("keeps it, as vaginal, once another category (F/M) removes the presumption", () => {
+    const a = analyzeWithPatterns(text, { ...rel, categories: ["M/M", "F/M"] }, { quiet: true });
     const p = a.pairings.find((x) => /Shannon/.test(x.pairing))!;
     expect(p.anal.instances).toHaveLength(0);
     expect(p.vaginal.instances.length).toBeGreaterThan(0);
+  });
+});
+
+describe("women-only works", () => {
+  it("drops sex involving a man when the work is tagged only F/F", () => {
+    const ff: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["F/F"], fandoms: ["X"], relationships: ["Maddie Buckley/Athena Grant"], characters: ["Maddie Buckley", "Athena Grant", "Bobby Nash"] };
+    const t = `${filler}\n\nMaddie and Athena were in bed. Maddie licked Athena's pussy until she came. Bobby Nash fucked Athena in the bed.`;
+    const a = analyzeWithPatterns(t, ff, { quiet: true });
+    expect(a.pairings.some((p) => /Bobby/.test(p.pairing) && (p.anal.instances.length || p.vaginal.instances.length))).toBe(false);
   });
 });

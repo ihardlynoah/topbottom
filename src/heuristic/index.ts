@@ -1288,6 +1288,19 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     });
   }
 
+  // The work's categories set a presumption: tagged only M/M, only men have sex with each other; tagged only F/F, only
+  // women do. Any other category in the mix (F/M, Multi, Other) removes it.
+  {
+    const cats = meta.categories.map((c) => c.trim().toUpperCase());
+    const onlyOf = (c: string) => cats.includes(c) && cats.every((x) => x === c || x === "GEN");
+    const excluded: Gender | undefined = onlyOf("M/M") ? "f" : onlyOf("F/F") ? "m" : undefined;
+    if (excluded) {
+      const out = (c: Character) => c.gender === excluded && c.name !== "Reader";
+      acts = acts.filter((a) => !out(a.top) && !out(a.bottom));
+      desires = desires.filter((d) => !out(d.who) && !(d.partner && out(d.partner)));
+    }
+  }
+
   const where = (pi: number) => chapters[pi] || `~${Math.round((pi / Math.max(1, paras.length)) * 100)}% through`;
   const pairKey = (a: Character, b: Character) => [a.name, b.name].sort().join("\u0000");
   const pairOrder = new Map<string, [Character, Character]>();
