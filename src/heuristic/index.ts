@@ -23,6 +23,7 @@ import {
   VULVA_CTX,
   type CompiledPattern,
   DIALOGUE,
+  type DialogueDef,
   EPITHET_TOKEN,
   FINGER_CTX,
   PATTERNS,
@@ -123,9 +124,15 @@ const NEG = /\b(?:not|never|no longer|no way|refused to|instead of|rather than|w
 const FANTASY =
   /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
-  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
-const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
+  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|(?<!\b(?:take|takes|took|taking|taken|so|too|as|how|that|very|any|a|not|no|for|in|on|at|of)\s)long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you|[a-z][\w'’-]*) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
+/** "…see himself asking [Damen to fuck him]": the request word sits just before the match, which starts at the name. */
+const DESIRE_TAIL = /\b(?:ask|beg|plead|urg)(?:ed|s|ing)?(?:\s+[\w'’-]+)?\s*$/i;
+const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like|would be (?:one|a|an|the|so|too|more|less|better|worse|easier|harder)|would have been|would (?:feel|look|sound|taste)|imagine\w*|supposing)\b/i;
 /** "Yeah, maybe Dunk would stop his snide comments and stuff his mouth…": the whole sentence is a what-if. */
+/** Mouth words near a line of dialogue / in the line itself, and anal words that override the oral reading. */
+const ORAL_NEAR_RE = /\b(?:mouth|throat|gag\w*|choke[sd]?|lips|tongue|suck\w*|swallow\w*|blow\w*|deepthroat\w*|skull)\b/i;
+const ORAL_LINE_RE = /\b(?:swallow\w*|suck\w*|throat|gag\w*|choke|mouth|lips|tongue|blow\w*)\b/i;
+const ANAL_NEAR_RE = /\b(?:ass|arse|hole|asshole|inside him|inside me|inside you|prostate|rim|entrance|stretch\w*|lube[ds]?|slick\w*)\b/i;
 const HYPO_SENT = /^\W*(?:[\w'’]+[,!]\s+)?(?:maybe|perhaps)\b[^.!?]*?\b(?:would|could|might|['’]d)\b/i;
 /** Sentences where "was fucked / screwed" is really about sex (anatomy, how, or sex words). */
 const IDIOM_SAFE = /\b(?:cock|dick|prick|ass|arse|hole|claim\w*|alphas?|omegas?|mate[ds]?|mating|cunt|pussy|clit\w*|vagina|cunny|slick|wet|dripping|womb|heat|rut|bred|breed\w*|inside|thrust\w*|knot\w*|lube[ds]?|prostate|come|cum|bed|mattress|sheets?|moan\w*|gasp\w*|whimper\w*|beg\w*|hard|deep(?:ly)?|slow(?:ly)?|senseless|raw|open|into|against|until|over the|on (?:his|her|their|the)\b|all night|good and proper)\b/i;
@@ -634,7 +641,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const speaker = (continues ? paraSpeaker : undefined) ?? attributeSpeaker(para, mp, q) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
       if (!speaker) continue;
       paraSpeaker = speaker;
-      scanDialogue(q.text, speaker, pi, { sexy: narrationSexy, after: para.slice(q.end, q.end + 60), before: para.slice(Math.max(0, q.start - 60), q.start) });
+      scanDialogue(q.text, speaker, pi, { sexy: narrationSexy, oral: ORAL_NEAR_RE.test(near) && !ANAL_NEAR_RE.test(near), after: para.slice(q.end, q.end + 60), before: para.slice(Math.max(0, q.start - 60), q.start) });
     }
     if (paraSpeaker) prevSpeaker = paraSpeaker;
   }
@@ -658,6 +665,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const h = hits[i];
       // After a comma we're at a clause start, so whatever came before doesn't make this an object.
       const prev = h[2]?.includes(",") ? "" : (h[1] ?? "").toLowerCase();
+      // "Cas checking that Dean was ok and with a nod he lined up": "that Dean" is an embedded clause, so a later "he"
+      // goes back to the main subject, if there is one.
+      if (prev === "that" && i > 0 && /^(?:he|she|they|I)$/i.test(suffix.trim().split(/[\s,]/)[0] ?? "")) continue;
       // A name right after a verb or preposition is an object ("spread Draco open"), not a subject.
       const isObject =
         !!prev &&
@@ -667,7 +677,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // "…at Sam, who's leaning over Steve…": a relative clause makes Sam the subject of what follows.
       const relative = /^,?\s*who\b/.test(prefix.slice(h.index! + h[0].length)) ||
         // "with Cas clenched tight and rolling his hips": "with X" + participle is a subject.
-        (prev === "with" && /^\s+(?:\w+ly\s+)?\w+(?:ed|ing)\b/.test(prefix.slice(h.index! + h[0].length)));
+        (prev === "with" && /^\s+(?:\w+ly\s+)?\w+(?:ed|ing)\b/.test(prefix.slice(h.index! + h[0].length))) ||
+        // "it didn't take long for Dean to cum, spilling into his mouth": X in "for X to <verb>" is the verb's subject.
+        (prev === "for" && /^\s+to\s+\w+/.test(prefix.slice(h.index! + h[0].length)));
       if (isObject && !relative && !/^(?:He|She|They|I)$/.test(h[3])) continue;
       return resolveToken(h[3], prefix.slice(h.index! + h[0].length) + suffix);
     }
@@ -715,6 +727,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (b1) return resolve(b1[1]);
     // Otherwise, whoever the narration in this paragraph is about.
     const narr = mp.replace(/["“”‘’\[\]]\s*/g, " ").trim();
+    // "His friend listened, picking up the pace. '…'": the partner of the character whose point of view this is.
+    if (/^(?:His|Her|Their)\s+(?:friend|lover|partner|boyfriend|husband|girlfriend|wife|date|companion|boss)\b/.test(narr) && ctx.lastSubject) {
+      const other = ctx.partnerOf(ctx.lastSubject);
+      if (other) return other;
+    }
     const fromNarration = narr.length > 5 ? firstEntity(narr) : undefined;
     if (fromNarration) return fromNarration;
     // A line that addresses someone by name ("…, Dean.") was said by the other person.
@@ -723,10 +740,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return addressed ? ctx.partnerOf(addressed) : undefined;
   }
 
-  function scanDialogue(line: string, speaker: Character, pi: number, around: { sexy: boolean; after: string; before: string }) {
+  function scanDialogue(line: string, speaker: Character, pi: number, around: { sexy: boolean; oral?: boolean; after: string; before: string }) {
     const lower = line.toLowerCase().replace(/’/g, "'");
     const seen = new Set<string>();
-    for (const d of DIALOGUE) {
+    // Generic "take it" / "you're so tight" talk is oral when the line itself mentions a mouth ("swallow me down") or the
+    // scene around it is oral and not anal.
+    const oralLine = ORAL_LINE_RE.test(lower) || !!around.oral;
+    for (const d0 of DIALOGUE) {
+      const generic = d0.cat === "anal" && d0.kind === "said" && d0.weight !== undefined && d0.weight < 1;
+      const d: DialogueDef = generic && oralLine ? { ...d0, cat: "oral", act: "blowjob" } : d0;
       const m = d.re.exec(lower);
       if (!m) continue;
       // Suggestive lines ("take it", "you're so tight", "you're huge") only count when the narration around them
@@ -913,6 +935,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "He hollowed his cheeks, creating a suction for Cas": the one named after "for" is getting sucked.
     // "They were so screwed", "He was fucked": the idiom, unless a person does it ("by Dean"), it says how, or the
     // sentence has anatomy or a sex word.
+    // "his chained wrists … until they were stretched taut": things being stretched or filled, not a person.
+    if (pat.id === "passive-fucked" && /\b(?:stretched|filled)\s*$/i.test(matchText) &&
+        (/^(?:they|it|them)$/i.test(bTok ?? "") || /^\s*(?:taut|tight|thin|out|across|between|over|above|along|with (?:water|blood|light|dread|pride|joy))\b/i.test(sent.slice(m.index! + m[0].length)))) return;
     if (pat.id === "passive-fucked" && /\b(?:fucked|screwed)\b/i.test(matchText) && !/\bby\b/.test(matchText) && !IDIOM_SAFE.test(sent)) return;
     // "mimicking the way Steve had hollowed his cheeks" (smoking), "the straw", "a drag": cheeks hollowed for something else.
     if (pat.id.startsWith("hollowed-cheeks") && /\b(?:cigarettes?|smok\w*|vap\w*|drag|puff\w*|inhal\w*|exhal\w*|joint|blunt|pipe|straw|whistl\w*|fish face|kiss\w*|pout\w*|smoke)\b/i.test(para + " " + (paras[pi - 1] ?? "") + " " + (paras[pi + 1] ?? ""))) return;
@@ -999,7 +1024,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (act === "rimming" && (VULVA_CTX.test(matchText) || (bottom.vulva === true && !ANAL_CTX.test(para)))) act = "cunnilingus";
     if (pat.femaleTarget && !PENIS_CTX.test(matchText)) {
       // "went down on her": the receiver has a vagina, so it's cunnilingus and the licker is the top.
-      const receiverHasVulva = (top.vulva === true && top.penis !== true) || (top.vulva === "maybe" && VULVA_CTX.test(sent));
+      const receiverHasVulva =
+        (top.vulva === true && top.penis !== true) || (top.vulva === "maybe" && VULVA_CTX.test(sent)) || ((top.gender === "f" || /^her$/i.test(tTok ?? "")) && top.penis !== true && !PENIS_CTX.test(sent));
       if (receiverHasVulva) {
         if (pat.femaleTarget === "drop") return;
         [top, bottom] = [bottom, top];
@@ -1024,10 +1050,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       prefix.split(/[;:]|,\s+(?:and|but|then|so)\s+|\b(?:and then|but then)\b|—|\b(?:as|while|when|whenever|because|until|after|since|though|although|whereas|but|and)(?:\s+|$)/).pop() ?? "";
     const window = clause.slice(-90);
     const aux = m.groups?.aux ?? "";
-    const negated = NEG.test(aux) || NEG.test(window.slice(-40));
+    // "just not yet, not before he bottomed out" delays an act and "it didn't take long for Dean to cum" is an idiom:
+    // neither says the act doesn't happen.
+    const negWindow = window.slice(-40).replace(/\bwithout\s+(?:any\s+|much\s+|further\s+|more\s+|so much as\s+|a\s+)*(?:preamble|ado|hesitation|hesitating|warning|ceremony|delay|word|sound|protest|pause|question|complaint|fanfare|prelude|resistance|effort|being asked|asking|waiting|thought)\b|\b(?:just\s+)?not\s+(?:just\s+)?(?:yet|before|until|quite|now)\b|\b(?:did|does|do|would|will|won|could)(?:n['’]t| not)\s+take\s+(?:long|much|any time|a lot)\b/gi, " ");
+    const negated = NEG.test(aux) || NEG.test(negWindow);
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
-    else if (DESIRE.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
+    else if (DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
     else if (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix)) kind = "hypothetical";
 
@@ -1117,6 +1146,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     return true;
   });
+
+  // The same hint read by two patterns ("wanted to be full of Cas, wanted Cas spilling down his throat") counts once.
+  {
+    const seen = new Set<string>();
+    desires = desires.filter((d) => {
+      const key = [d.para, d.sentence, d.cat, d.who.name, d.role, d.wants, d.kind].join("\u0000");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
 
   const where = (pi: number) => chapters[pi] || `~${Math.round((pi / Math.max(1, paras.length)) * 100)}% through`;
   const pairKey = (a: Character, b: Character) => [a.name, b.name].sort().join("\u0000");

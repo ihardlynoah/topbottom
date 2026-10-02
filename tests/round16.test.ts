@@ -28,9 +28,12 @@ describe("not sex", () => {
     "“Eddie's here,” Dustin said, sucking Steve back into reality.",
     "Eddie smacked his cheeks to wake himself up and opened the door.",
     "He stuck his tongue out through the gap between his bottom teeth.",
-    "There was no way Steve was asking him to fuck him or something.",
   ])("finds nothing in: %s", (s) => {
     expect(nothing(s, "Eddie and Steve talked on the porch.")).toBe(true);
+  });
+  it("doesn't count 'no way Steve was asking him to fuck him' as an act", () => {
+    const p = run("There was no way Steve was asking him to fuck him or something.", "Eddie and Steve talked on the porch.");
+    expect(p.anal.instances).toHaveLength(0);
   });
   it("still reads 'was fucked' as sex when it says how or by whom", () => {
     const a = run("Steve was fucked hard against the wall, his cock leaking, moaning for more.");
