@@ -1889,6 +1889,41 @@ export const PATTERNS: PatternDef[] = [
     signal: { kind: "prep", actorRole: "top" },
     src: `\\b{T}\\s+{aux}(?:pour|squirt|drizzl|smear|slather|spread|coat|rub|dribbl)\\w*\\s+(?:some\\s+|a\\s+(?:bit|little|lot)\\s+of\\s+|the\\s+|more\\s+)?lube\\s+(?:over|onto|on|across|along)\\s+(?:his|her|their)\\s+(?:own\\s+)?(?:cock|dick|length|shaft|erection|prick)\\b`,
   },
+  // ───────────── TOYS ON ONESELF: whoever uses a dildo, plug or vibrator on themselves is bottoming ─────────────
+  {
+    // "pushed the dildo into his ass", "slid the plug inside his own hole" (no one else named: his own)
+    id: "self-toy-own-hole",
+    cat: "anal",
+    act: "using a toy on himself",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "solo", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:push|press|slid|slide|slip|work|eas|insert|guid|fed|feed|sink|sank|shov|nudg|thrust|ram|stuff)\\w*\\s+(?:(?:a|an|the|his|her|their|that|this|one|another|my)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|vibrator|vibe|butt\\s*plug|plug|beads|wand|bullet|toy)\\s+(?:(?:slowly|deep(?:er)?|all the way|gently|carefully|roughly|further|back|firmly|easily)\\s+)*(?:in(?:to)?|inside|up)\\s+(?:(?:his|her|their)\\s+(?:own\\s+)?(?:ass|arse|hole|entrance|body|pussy|cunt)|${SELF})`,
+  },
+  {
+    // "worked it into himself" (the toy named just before)
+    id: "self-toy-it",
+    cat: "anal",
+    act: "using a toy on himself",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    needs: /\b(?:dildo|vibrator|vibe|plug|beads|toy|wand)\b/i,
+    signal: { kind: "solo", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:[\\w-]+\\s+){0,6}?(?:push|press|slid|slide|slip|work|eas|insert|guid|fed|feed|sink|sank|shov|nudg|thrust)\\w*\\s+(?:it|them)\\s+(?:\\w+\\s+){0,2}?(?:in(?:to)?|inside|up)\\s+(?:(?:his|her|their)\\s+(?:own\\s+)?(?:ass|arse|hole|body)|${SELF})`,
+  },
+  {
+    // "teased his hole with the tip of the vibe before pressing it in"
+    id: "self-toy-tease",
+    cat: "anal",
+    act: "using a toy on himself",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    signal: { kind: "solo", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:teas|press|rub|trac|circl|brush|touch)\\w*\\s+(?:(?:his|her|their)\\s+(?:own\\s+)?)(?:hole|entrance|rim|ass|pucker)\\s+(?:with|against|on)\\s+(?:the\\s+(?:\\w+\\s+){0,2}?(?:tip|head|end)\\s+of\\s+)?(?:(?:a|the|his|her|their|that)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|vibrator|vibe|butt\\s*plug|plug|beads|wand|bullet|toy)\\b`,
+  },
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────
