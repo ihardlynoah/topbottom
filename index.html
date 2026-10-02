@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Top/Bottom Finder</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>" />
+  </head>
+  <body>
+    <main class="wrap">
+      <header>
+        <h1>Top/Bottom Finder</h1>
+        <p class="lede">
+          Drop in an AO3 download (PDF, EPUB, HTML, or TXT) to see the fandom, pairing, word count, and who tops
+          and bottoms — anal and oral, including any switching. Free and private: it all runs in your browser.
+        </p>
+      </header>
+
+      <label id="drop" class="drop" tabindex="0">
+        <input id="file" type="file" accept=".pdf,.epub,.html,.htm,.xhtml,.txt,application/pdf,application/epub+zip,text/html,text/plain" hidden />
+        <strong>Drop a fic here</strong>
+        <span>or click to choose a file</span>
+      </label>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <section id="results" hidden>
+        <h2 id="work-title"></h2>
+        <p id="work-byline" class="byline"></p>
+
+        <div class="grid">
+          <article class="card">
+            <h3>Fandom</h3>
+            <p id="fandom" class="value"></p>
+          </article>
+          <article class="card">
+            <h3>Pairing</h3>
+            <p id="pairing" class="value"></p>
+            <p id="other-pairings" class="sub"></p>
+          </article>
+          <article class="card">
+            <h3>Word count</h3>
+            <p id="words" class="value"></p>
+            <p id="words-sub" class="sub"></p>
+          </article>
+        </div>
+
+        <section id="roles" class="panel">
+          <div class="roles-head">
+            <h3>Top / bottom</h3>
+            <span class="source-badge">Pattern matching · free</span>
+          </div>
+          <div id="role-results"></div>
+          <p id="notes" class="notes" hidden></p>
+        </section>
+
+        <section id="claude" class="panel">
+          <div class="roles-head">
+            <h3>Second opinion from Claude <span class="optional">(optional)</span></h3>
+            <button id="analyze" type="button">Ask Claude</button>
+          </div>
+          <p class="hint">
+            Pattern matching can miss unusual phrasing or mix up who's who when both people are “he”. Claude reads the
+            whole fic like a person would. This uses your own
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic API key</a>
+            (paid per use) and sends the text to Anthropic.
+          </p>
+          <details id="settings">
+            <summary>Settings <span id="key-status" class="pill"></span></summary>
+            <label class="field">
+              <span>API key</span>
+              <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" />
+            </label>
+            <label class="check"><input id="remember-key" type="checkbox" /> Remember key on this device</label>
+            <div class="row">
+              <label class="field">
+                <span>Model</span>
+                <select id="model"></select>
+              </label>
+              <label class="field">
+                <span>What to send</span>
+                <select id="mode">
+                  <option value="auto">Auto (full text unless very long)</option>
+                  <option value="full">Full text (most accurate)</option>
+                  <option value="excerpt">Sex scenes only (cheaper)</option>
+                </select>
+              </label>
+            </div>
+            <label class="check"><input id="auto-run" type="checkbox" /> Ask Claude automatically after upload</label>
+          </details>
+          <p id="estimate" class="hint"></p>
+          <p id="progress" class="hint" hidden><span class="spinner"></span> Claude is reading the fic… long works can take a minute or two.</p>
+          <div id="claude-results"></div>
+          <p id="claude-notes" class="notes" hidden></p>
+        </section>
+      </section>
+
+      <footer>
+        Files are read in your browser and never uploaded. Only if you ask Claude is the text sent to Anthropic.
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
