@@ -894,6 +894,51 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{B}\\s+{aux}(?:press|plant|plac|drop|lay|laid)\\w*\\s+(?:a|an|one|another)\\s+(?:[\\w-]+\\s+){0,2}?kiss(?:es)?\\s+(?:to|on|against|onto)\\s+(?:the\\s+(?:\\w+\\s+)?(?:head|tip|base|shaft|length|crown|slit)\\s+of\\s+)?{T:penisReq}`,
   },
   {
+    // "opened his mouth and began to suck lazily on the head", "started sucking on the tip of Laurent's cock"
+    id: "began-to-suck",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:(?:began|begin|begins|started|starts|start|proceeded|proceeds)\\s+(?:to\\s+)?)(?:suck|lick|lap|mouth|nurs|kiss)\\w*\\s+(?:\\w+ly\\s+)?(?:(?:on|at)\\s+)?(?:the\\s+(?:\\w+\\s+)?(?:head|tip|crown|shaft|length)(?:\\s+of\\s+{T:penis})?|{T:penisReq})`,
+  },
+  {
+    // "Damen groaned around Laurent", "hummed around his length", "moaned around him"
+    id: "groaned-around",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:groan|moan|hum|mumbl|murmur|whimper|growl|purr|chuckl|laugh)\\w*\\s+around\\s+(?:{T:penis}|{T}\\b(?!['’]s))`,
+  },
+  {
+    // "dropped his head down almost fully", "lowered his head all the way", "pushed his head down deeper"
+    id: "head-down-fully",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:dropp?|lower|sank|sink|push|press|bob|duck)\\w*\\s+(?:his|her|their|my|your)\\s+head\\s+(?:down\\s+)?(?:almost\\s+|nearly\\s+)?(?:fully|all the way|deeper)\\b(?!\\s+(?:back|up|to|against|onto|into|on|and (?:laughed|sighed|groaned|closed)|then (?:laughed|sighed|looked))\\b)`,
+  },
+  {
+    // "lowered his head between Laurent's thighs", "settled between his legs and lowered his mouth"
+    id: "head-between-thighs",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.6,
+    femaleTarget: "flip",
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:lower|dip|dropp?|bent|bend|duck|settl|sank|sink)\\w*\\s+(?:his|her|their|my|your)\\s+(?:head|mouth|face|lips)\\s+(?:down\\s+)?(?:between|to|towards?)\\s+{T:poss}\\s+(?:thighs|legs|hips|lap|groin|crotch)\\b`,
+  },
+  {
     // "slowly leaned his head forward and took Eddie as deep as he could", "lowered his head and swallowed him"
     id: "head-down-took",
     dedupe: true,
@@ -1034,7 +1079,7 @@ export const PATTERNS: PatternDef[] = [
     act: "cunnilingus",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:lick|lap|suck|tongu|eat|ate|kiss|nuzzl|mouth|devour|feast|flick|circl)\\w*\\s+(?:(?:at|over|along|up|into|around|on|between|across)\\s+)*{B:vulvaReq}`,
+    src: `\\b{T}\\s+{aux}(?:lick|lap|suck|tongu|eat|ate|kiss|nuzzl|mouth|devour|feast|flick|circl)\\w*\\s+(?:(?:at|over|along|up|into|around|on|between|across)\\s+)*{B:vulvaReq}(?!\\s+with\\s+(?:his|her|their|my|your)\\s+(?:thumbs?|fingers?|fingertips?|hands?|knuckles?|palms?|cock|dick|length))`,
   },
   {
     id: "tongue-on-vulva",
