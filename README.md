@@ -32,7 +32,11 @@ word count is estimated and the main characters are guessed from frequently capi
 2. **Act patterns**: ~50 sentence patterns per act — e.g. “X fucked Y”, “X’s cock slid into Y”, “Y rode X”,
    “Y’s hole clenched around X’s cock”, “Y sucked X off”, “X’s cock between Y’s lips”, “X rimmed Y”,
    “X’s tongue in Y’s hole”, passive forms (“Y was fucked by X”), fingering, and sentences with the subject
-   left out (“climbed on top and rode him”). Innocent look-alikes (“sucked in a breath”, “blew him a kiss”,
+   left out (“climbed on top and rode him”). Words for the anus go beyond “hole” and “ass”: butthole, anus,
+   pucker, rosebud, starfish, sphincter, ring of muscle, back entrance, and (for rimming) crack and cleft.
+   The prostate counts as anal (“X nailed his prostate”, “milked”, “ground against”), and so do allusions to
+   it, which are read as “his prostate”: “that bundle of nerves inside him”, “his sweet spot” (but not the
+   sweet spot on his neck), “the spot inside Harry”, “his p-spot”, “the spot that made him see stars”. Innocent look-alikes (“sucked in a breath”, “blew him a kiss”,
    “fingers in his hair”, “pushed into the room”) are excluded.
 3. **Pronouns and epithets**: “he”/“she” as a subject means the last subject; the other person in a two-person
    sex scene is the partner. Epithets are recognized for hair colour (“the blond”, “the redhead”, “the

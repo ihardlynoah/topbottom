@@ -414,6 +414,46 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     `\\b((?:${NAMES}|${EPITHET_TOKEN})|[Hh]e|[Ss]he)['’]s(?=\\s+(?:(?:\\w+ly|just|still|now|already|been|gonna|going|not|never|always|so|too)\\s+)?(?:(?!(?:${ING_NOUNS})\\b)[a-z]+ing\\b(?!\\s+(?:cock|dick|prick|length|shaft|erection|hard-?on|hole|entrance|rim|ass|arse|body|thighs?|hips?|nipples?|chest|mouth|lips|tongue|fingers?|hands?|heat|walls|muscles?|skin|balls)\\b)|(?:held|buried|seated|sheathed|lodged|inside|deep|balls-deep|been|gonna|going|not|never|still|already|finally|fully)\\b))`,
     "g",
   );
+  // Prostate allusions. The owner comes from "inside X" or the possessive in front; otherwise "his".
+  const OWNER = `(?:him|her|them|me|you|${NAMES}|${EPITHET_TOKEN})`;
+  const POSS_FRONT = `(?:that|the|this|his|her|their|my|your|(?:${NAMES})['’]s)`;
+  const P_ADJ = "(?:little|small|sweet|tender|sensitive|secret|magic(?:al)?|perfect|swollen|hidden|special|precious|wonderful|delicious|electric|oversensitive|abused|spongy|firm|walnut-sized)";
+  const INSIDE = `(?:\\s+(?:deep\\s+|buried\\s+|hidden\\s+|tucked\\s+|right\\s+)?(?:inside|in|within)\\s+(?<in>${OWNER})\\b)`;
+  // "that bundle of nerves (inside him)", "the cluster of nerves", "his little nub of nerves"
+  const prostateRe = new RegExp(
+    `\\b(?<front>${POSS_FRONT})\\s+(?:${P_ADJ}\\s+){0,2}(?:bundle|cluster|knot|nub|bunch|ball|nest)\\s+of\\s+(?:\\w+\\s+)?nerves${INSIDE}?`,
+    "gi",
+  );
+  // "his sweet spot", "his p-spot (inside him)" — but not "the sweet spot on his neck"
+  const sweetSpotRe = new RegExp(
+    `\\b(?<front>${POSS_FRONT})\\s+(?:${P_ADJ}\\s+){0,2}(?:sweet\\s+spot|p-?spot)(?!\\s+(?:on|at|behind|below|under|just|of|along|between|beneath|where)\\b)${INSIDE}?`,
+    "gi",
+  );
+  // "the spot inside Harry", "the gland inside him"
+  const insideSpotRe = new RegExp(`\\b(?<front>${POSS_FRONT})\\s+(?:${P_ADJ}\\s+){0,2}(?:spot|place|gland|nub)${INSIDE}`, "gi");
+  // "the spot that made him see stars"
+  const seeStarsRe = new RegExp(
+    `\\b(?<front>${POSS_FRONT})\\s+(?:${P_ADJ}\\s+){0,2}spot\\s+(?:that|which)\\s+(?:always\\s+)?(?:made|makes|had|has)\\s+(?<seer>${OWNER})\\s+(?:see\\s+(?:stars|white|spots)|scream|keen|cry out|shudder|jolt|arch|buck|sob|shake|whimper|moan|writhe|tremble|go cross-eyed|melt|lose it|come apart)`,
+    "gi",
+  );
+  const PROSTATE_HINT = /\b(?:nerves|sweet\s+spot|p-?spot|spot|place|gland|nub)\b/i;
+  const possOf = (who: string): string => {
+    const w = who.toLowerCase();
+    if (w === "him") return "his";
+    if (w === "her") return "her";
+    if (w === "them") return "their";
+    if (w === "me") return "my";
+    if (w === "you") return "your";
+    return `${who}'s`;
+  };
+  function prostateOf(...args: unknown[]): string {
+    const groups = args[args.length - 1] as { front?: string; in?: string; seer?: string };
+    const front = groups.front ?? "";
+    const who = groups.in ?? groups.seer;
+    const owner = who ? possOf(who) : /^(?:that|the|this)$/i.test(front) ? "his" : front;
+    return `${owner} prostate`;
+  }
+
   const ctx = new Ctx(cast);
   ctx.epithets = learnEpithets(cast, meta.freeforms, narration);
 
@@ -494,6 +534,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       }
       // "Derek's licking" means "Derek is licking", not a possessive.
       sent = sent.replace(contractionRe, (_, who: string) => `${who} is`);
+      // "That bundle of nerves inside him", "his sweet spot": say "his prostate" so every pattern reads it.
+      // "Pushed past the tight ring of muscle": whose ring is left to the partner logic, like "his".
+      sent = sent.replace(/\b[Tt]he\s+((?:(?:tight|outer|inner|first|clenching|fluttering|puckered|furled|resisting|stubborn)\s+)?rings?\s+of\s+muscles?)\b/g, "his $1");
+      if (PROSTATE_HINT.test(sent)) {
+        sent = sent.replace(prostateRe, prostateOf).replace(seeStarsRe, prostateOf).replace(insideSpotRe, prostateOf).replace(sweetSpotRe, prostateOf);
+      }
       const original = para.slice(s0, s1).trim();
       ctx.newSentence(epiTable);
       ctx.sentMentions = [...sent.matchAll(nameRe)]
@@ -640,6 +686,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const bTok = groupValue(m.groups, "b");
     let subjChar: Character | undefined;
     if (pat.elided) {
+      // ", the plug bumps against…": a determiner after the trigger starts a new subject, not a left-out one.
+      if (/^\W*(?:(?:and|then|of|about|before|after|while|by|without|from|to)\s+)?(?:the|a|an|this|that|these|those|its)\s/i.test(m[0])) return;
       const before = sent.slice(0, m.index);
       const trigger = /^\W*(\w+)/.exec(m[0])?.[1]?.toLowerCase() ?? "";
       const lastWord = (before.trim().split(/\s+/).pop() ?? "").replace(/[,;]$/, "");
