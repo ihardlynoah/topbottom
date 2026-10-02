@@ -33,6 +33,10 @@ describe.skipIf(!dir)("AO3 evaluation", () => {
         for (const i of [...p.anal.instances, ...p.oral.instances].slice(0, 6)) out.push(`  - ${i.top} → ${i.bottom} · ${i.act} · ${i.basis} · “${i.evidence.slice(0, 140)}”`);
       }
       if (a.notes) out.push(`Notes: ${a.notes}`);
+      // Same text with its real AO3 tags (what the website does).
+      const tagged = analyzeWithPatterns(work.text, work.meta, { quiet: true });
+      out.push("### With tags");
+      for (const p of tagged.pairings.slice(0, 3)) out.push(`- **${p.pairing}** anal: ${fmtAct(p.anal)} · oral: ${fmtAct(p.oral)}${p.vaginal.applicable ? ` · vaginal: ${p.vaginal.occurs ? "yes" : "no"}` : ""}`);
       out.push("### Tags (checked afterwards)");
       out.push(`Fandom: ${work.meta.fandoms.join(", ")}`);
       out.push(`Relationships: ${work.meta.relationships.join(", ")}`);

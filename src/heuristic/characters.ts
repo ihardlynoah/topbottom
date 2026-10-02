@@ -117,8 +117,12 @@ export function guessNames(text: string): string[] {
   }
   const words = text.split(/\s+/).length;
   const min = Math.max(4, Math.round(words / 3000));
+  // "Central Park", "Grand Central": words usually followed by a place noun aren't people.
+  const placeLike = (w: string) =>
+    (text.match(new RegExp(`\\b(?:New|Los|San|Santa|Las|Saint|St|Fort|Port|Mount|Mt|North|South|East|West|Upper|Lower|Great)\\s+${escapeRe(w)}\\b`, "g")) ?? []).length >= (caps.get(w) ?? 0) * 0.5 ||
+    (text.match(new RegExp(`\\b${escapeRe(w)}\\s+(?:Park|Street|St|Avenue|Ave|Road|City|Square|Station|Tower|Hall|House|Hospital|School|Academy|University|College|Bay|Lake|River|Island|Bridge|Manor|Castle|Valley|Hills?|Heights|Center|Centre|Mall|Airport)\\b`, "g")) ?? []).length >= (caps.get(w) ?? 0) * 0.5;
   const candidates = [...caps.entries()]
-    .filter(([w, n]) => n >= min && !NOT_NAMES.has(w) && !TITLE_WORDS.has(w) && (lower.get(w.toLowerCase()) ?? 0) <= n * 0.05)
+    .filter(([w, n]) => n >= min && !NOT_NAMES.has(w) && !TITLE_WORDS.has(w) && (lower.get(w.toLowerCase()) ?? 0) <= n * 0.05 && !placeLike(w))
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([w]) => w);
@@ -227,7 +231,9 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   // POV detection, using narration only (dialogue removed).
   const words = Math.max(1, narration.split(/\s+/).length);
   const firstPerson = (narration.match(/\bI\b/g) ?? []).length / words;
-  const secondPerson = (narration.match(/\b(?:you|your|You|Your)\b/g) ?? []).length / words;
+  // Second person: many narration sentences start with "You" (not just the odd "you" in thoughts).
+  const sentences = narration.split(/(?<=[.!?])\s+/);
+  const secondPerson = sentences.filter((x) => /^(?:You|Your)\b/.test(x.trim())).length / Math.max(1, sentences.length);
 
   // Nicknames the tags don't mention: "Cas" for Castiel, "Ste" no (too short), "Tom" for Tomlinson-style.
   const capCounts = new Map<string, number>();
@@ -246,7 +252,7 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
 
   let reader = chars.find((c) => c.name === "Reader");
   let you: Character | undefined;
-  if (reader || secondPerson > 0.012) {
+  if (reader || secondPerson > 0.08) {
     if (!reader) {
       reader = { name: "Reader", aliases: [], gender: "u", vulva: "maybe", penis: "maybe" };
       chars.push(reader);
@@ -262,7 +268,8 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   }
 
   // Anatomy: default by gender, overridden when the text names a character's parts.
-  const VULVA_WORDS = "pussy|cunt|front ?hole|clit|clitoris|folds|vagina|labia|t-?dick";
+  // Unambiguous words only ("folds" also means sheets, "lips" means a mouth).
+  const VULVA_WORDS = "pussy|cunt|front ?hole|clit|clitoris|vagina|labia|t-?dick";
   const PENIS_WORDS = "cock|dick|prick|erection|hard-?on|balls";
   const maleVulva = new RegExp(`\\bhis\\s+(?:[\\w-]+\\s+)?(?:${VULVA_WORDS})\\b`, "i").test(narration);
   const femalePenis = new RegExp(`\\bher\\s+(?:[\\w-]+\\s+)?(?:${PENIS_WORDS})\\b`, "i").test(narration);
@@ -286,10 +293,14 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
     .map(escapeRe)
     .join("|");
 
-  // Guess a pairing when tags don't give one: the two most-mentioned characters.
+  // Guess pairings when tags don't give any: the two most-mentioned characters, plus a third if
+  // they're mentioned nearly as often (threesomes).
   if (!pairings.length && chars.length >= 2) {
-    const top = [...chars].sort((a, b) => mentions(b) - mentions(a)).slice(0, 2);
+    const top = [...chars].sort((a, b) => mentions(b) - mentions(a)).slice(0, 3);
     pairings.push([top[0], top[1]]);
+    if (top[2] && mentions(top[2]) >= mentions(top[1]) * 0.5) {
+      pairings.push([top[0], top[2]], [top[1], top[2]]);
+    }
   }
 
   return { chars, narrator, secondPerson: you, pairings, byAlias, aliasPattern, maleVulva };

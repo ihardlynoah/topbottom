@@ -167,7 +167,11 @@ const ANY_ADJ = `${ADJ_ALONE}|${ADJ_NEEDS_NOUN}`;
  * "the blond", "the tall American", "the older blond man", "the taller of the two", "the redhead",
  * "the Brit", "the alpha", "the other man", "the thirty-year-old".
  */
+/** "His lover", "her boyfriend": the possessor's partner. */
+const REL_NOUNS = "lover|boyfriend|girlfriend|husband|wife|spouse|partner|mate|fiancé|fiance|fiancée|fiancee|beloved|sweetheart|significant other|other half|consort";
+
 export const EPITHET =
+  `(?:[Hh]is|[Hh]er|[Tt]heir)\\s+(?:${REL_NOUNS})(?![\\w-])|` +
   `[Tt]he\\s+(?:` +
   // premodifier(s), then a word that can stand alone (+ optional noun) or one that needs a noun
   `(?:(?:very|much|slightly|obviously|clearly|much)\\s+)?(?:(?:${ANY_ADJ})\\s+){0,2}` +
@@ -191,6 +195,8 @@ export function canonEpithet(tok: string): { keys: string[]; gender: Gender | "a
   if (other) return { keys: [], gender, other };
 
   const keys: string[] = [];
+  const rel = s.match(new RegExp(`^(?:his|her|their) (${REL_NOUNS})$`));
+  if (rel) return { keys: [`rel:${rel[1]}`], gender: /^her /.test(s) ? "any" : "any", other: false };
   const age = s.match(/^([\w-]+)-year-old/);
   if (age) keys.push(`age:${age[1]}`);
   // Multi-word entries first ("platinum blond", "new zealander", "south african").

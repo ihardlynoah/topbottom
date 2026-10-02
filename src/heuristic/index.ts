@@ -229,14 +229,30 @@ class Ctx {
   }
 
   /** The other person in a two-person scene. */
-  partnerOf(x: Character, g: Gender | "any" = "any"): Character | undefined {
+  /** Characters named in the current sentence, in order. */
+  sentMentions: { c: Character; at: number }[] = [];
+  /** Where the current match ends: people named after it aren't its partner ("Riddle fucks him, though Voldemort watches"). */
+  cutoff = Infinity;
+  /** Each person's most recent partner in an act. */
+  partners = new Map<Character, Character>();
+
+  partnerOf(x: Character, g: Gender | "any" = "any", exclude: Set<Character> = new Set()): Character | undefined {
+    const ok = (c: Character) => c !== x && !exclude.has(c) && Ctx.compatible(c, g);
+    // Someone else named earlier in the same sentence is the likeliest partner (matters in threesomes).
+    const last = this.partners.get(x);
+    // …unless their current partner is named in it too ("…thrusts into him as Harry is forced up").
+    if (last && ok(last) && this.sentMentions.some((m) => m.c === last)) return last;
+    const inSentence = this.sentMentions.find((m) => m.at < this.cutoff && ok(m.c));
+    if (inSentence) return inSentence.c;
+    // Mid-scene, "him" is whoever x was just having sex with, not whoever last spoke.
+    if (last && ok(last) && this.recent.slice(0, 6).includes(last)) return last;
     const paired = new Set(this.cast.pairings.filter((p) => p.includes(x)).map((p) => (p[0] === x ? p[1] : p[0])));
-    const near = this.recent.slice(0, 6).filter((c) => c !== x && Ctx.compatible(c, g));
+    const near = this.recent.slice(0, 6).filter(ok);
     return (
       near.find((c) => paired.has(c)) ??
       near[0] ??
-      [...paired].find((c) => Ctx.compatible(c, g)) ??
-      this.cast.pairings.flat().find((c) => c !== x && Ctx.compatible(c, g))
+      [...paired].find(ok) ??
+      this.cast.pairings.flat().find(ok)
     );
   }
 
@@ -298,10 +314,20 @@ function resolvePair(
   }
   if (tTok && !t) return undefined;
   if (bTok && !b) return undefined;
+  // "…he spills over Riddle's thigh as he clenches around Voldemort": the pronoun subject is the clause's subject.
+  let viaNear = false;
+  if (nearSubj && t && b) {
+    const [s, o] = subj === "t" ? [t, b] : [b, t];
+    if (s.pron && o.char && o.char !== nearSubj && Ctx.compatible(nearSubj, slotGender(s))) {
+      if (subj === "t") t = { char: nearSubj };
+      else b = { char: nearSubj };
+      viaNear = true;
+    }
+  }
 
   let top = t?.char;
   let bottom = b?.char;
-  let basis: Basis = "named";
+  let basis: Basis = viaNear ? "pronoun" : "named";
 
   if (t && b) {
     if (top && !bottom) {
@@ -362,7 +388,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const ING_NOUNS =
     "morning|evening|wedding|building|feelings?|clothing|bedding|ceiling|thing|something|nothing|anything|everything|ring|king|wing|string|darling|sibling|stocking|ending|beginning|meaning|warning|painting|drawing|training|meeting|offering|blessing|pudding|earring|upbringing|being|wellbeing|well-being|belongings|surroundings|savings|lodgings|bring";
   const contractionRe = new RegExp(
-    `\\b((?:${NAMES}|${EPITHET_TOKEN})|[Hh]e|[Ss]he)['’]s(?=\\s+(?:(?:\\w+ly|just|still|now|already|been|gonna|going|not|never|always|so|too)\\s+)?(?!(?:${ING_NOUNS})\\b)[a-z]+ing\\b)`,
+    `\\b((?:${NAMES}|${EPITHET_TOKEN})|[Hh]e|[Ss]he)['’]s(?=\\s+(?:(?:\\w+ly|just|still|now|already|been|gonna|going|not|never|always|so|too)\\s+)?(?:(?!(?:${ING_NOUNS})\\b)[a-z]+ing\\b|(?:held|buried|seated|sheathed|lodged|inside|deep|balls-deep|been|gonna|going|not|never|still|already|finally|fully)\\b))`,
     "g",
   );
   const ctx = new Ctx(cast);
@@ -395,8 +421,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
    */
   function notNamedLater(c: Character | undefined, rest: string, g: Gender | "any"): Character | undefined {
     if (!c || !c.aliases.length) return c;
-    const named = new RegExp(`\\b(?:${c.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`).test(rest);
-    return named ? (ctx.partnerOf(c, g) ?? c) : c;
+    const namedIn = (x: Character) =>
+      x.aliases.length > 0 && new RegExp(`\\b(?:${x.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`).test(rest);
+    if (!namedIn(c)) return c;
+    // Not anyone else named later either: in a threesome, the pronoun is the third person.
+    const later = new Set(cast.chars.filter(namedIn));
+    return ctx.partnerOf(c, g, later) ?? ctx.partnerOf(c, g) ?? c;
   }
 
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
@@ -425,13 +455,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // Swap epithets for short tokens once, instead of every pattern carrying the whole epithet list.
       const epiTable: string[] = [];
       let sent = mp.slice(s0, s1);
-      if (/\b[Tt]he\s/.test(sent)) {
+      if (/\b(?:[Tt]he|[Hh]is|[Hh]er|[Tt]heir)\s/.test(sent)) {
         sent = sent.replace(epithetRe, (e) => `Epithet${epiTable.push(e) - 1}`);
       }
       // "Derek's licking" means "Derek is licking", not a possessive.
       sent = sent.replace(contractionRe, (_, who: string) => `${who} is`);
       const original = para.slice(s0, s1).trim();
       ctx.newSentence(epiTable);
+      ctx.sentMentions = [...sent.matchAll(nameRe)]
+        .map((m) => ({ c: cast.byAlias.get(stripPoss(m[0]))!, at: m.index! }))
+        .filter((m) => !!m.c);
+      ctx.cutoff = Infinity;
       const subj = firstEntity(sent);
       if (subj) ctx.lastSubject = subj;
 
@@ -469,6 +503,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   /** The subject of an earlier verb in "X smiled and sucked him off": nearest name/he/she that isn't an object. */
   function elidedSubject(prefix: string, suffix = ""): Character | undefined {
+    // "—pressing him down, and Riddle with him—" is an aside, not the clause's subject.
+    prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
     const re = new RegExp(`(?:^|([\\w'’]+)([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
     for (let i = hits.length - 1; i >= 0; i--) {
@@ -479,7 +515,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const isObject =
         !!prev &&
         !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh)$/.test(prev);
-      if (isObject && !/^(?:He|She|They|I)$/.test(h[3])) continue;
+      // "…at Sam, who's leaning over Steve…": a relative clause makes Sam the subject of what follows.
+      const relative = /^,?\s*who\b/.test(prefix.slice(h.index! + h[0].length));
+      if (isObject && !relative && !/^(?:He|She|They|I)$/.test(h[3])) continue;
       return resolveToken(h[3], prefix.slice(h.index! + h[0].length) + suffix);
     }
     return undefined;
@@ -563,6 +601,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     fantasyPara: boolean,
     para: string,
   ) {
+    ctx.cutoff = m.index! + m[0].length;
     const tTok = groupValue(m.groups, "t");
     const bTok = groupValue(m.groups, "b");
     let subjChar: Character | undefined;
@@ -660,13 +699,22 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       }
     }
     if (pat.id === "enter" && /\b(?:took|take|takes|taking)\b/.test(matchText)) weight *= 0.5;
+    // "them"/"it" may be a thing, not a person ("sucks them into his mouth" = fingers): require the
+    // sentence to name the body part the act needs.
+    const thing = (tok?: string) => /^(?:them|it)$/i.test(tok ?? "");
+    if (thing(tTok) || thing(bTok)) {
+      const needs = act === "rimming" ? ANAL_CTX : cat === "oral" ? PENIS_CTX : new RegExp(`${PENIS_CTX.source}|${ANAL_CTX.source}`, "i");
+      if (!needs.test(sent)) return;
+    }
 
     // Questions ("Did Harry fuck him?") don't say it happened.
     if (/\?\s*["”’)]*\s*$/.test(original)) return;
 
     // Act, or desire/fantasy/hypothetical?
     const prefix = sent.slice(0, m.index);
-    const clause = prefix.split(/[;:]|,\s+(?:and|but|then|so)\s+|\b(?:and then|but then)\b|—/).pop() ?? "";
+    // Negation and desire only reach as far as their own clause: "Steve doesn't complain as Sam enters him".
+    const clause =
+      prefix.split(/[;:]|,\s+(?:and|but|then|so)\s+|\b(?:and then|but then)\b|—|\b(?:as|while|when|whenever|because|until|after|since|though|although|whereas|but|and)(?:\s+|$)/).pop() ?? "";
     const window = clause.slice(-90);
     const aux = m.groups?.aux ?? "";
     const negated = NEG.test(aux) || NEG.test(window.slice(-40));
@@ -679,6 +727,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (kind === "act") {
       if (negated) return;
       acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original });
+      ctx.partners.set(top, bottom);
+      ctx.partners.set(bottom, top);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;
       return;
     }
@@ -748,8 +798,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const oral = buildAct("oral", pActs.filter((a) => a.cat === "oral"), pDes.filter((d) => d.cat === "oral"), pairTags, pair, meta, where);
     const vaginal = buildVaginal(pActs.filter((a) => a.cat === "vaginal"), pair, meta, where);
     const weight = pActs.reduce((n, a) => n + a.weight, 0) + pDes.length * 0.2 + (isMain ? 0.01 : 0);
-    // Skip incidental pairs with almost nothing (likely misresolved pronouns).
-    if (!isMain && weight < 1.2) continue;
+    // Skip incidental pairs with almost nothing (likely misresolved pronouns); a tagged pair needs less.
+    if (!isMain && weight < (tagged ? 0.5 : 1.2)) continue;
     results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, vaginal, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
