@@ -162,6 +162,7 @@ ANAL
 
 VAGINAL
 - Vaginal sex is reported separately: only whether it happens and between whom. It never counts as anal.
+- Prostate references mean anal penetration (by a cock, fingers or a toy), including allusions like "that bundle of nerves inside him", "his sweet spot", "the spot that made him see stars", "his p-spot". The same goes for words for the anus: "butthole", "pucker", "rosebud", "ring of muscle", "back entrance", "sphincter".
 - Decide anal vs vaginal by what the text says, not by gender: in omegaverse fics and with trans characters, male characters may have vaginas ("his cunt", "his front hole"), and some women have penises. If a scene with such a character doesn't say which, use context; if it's truly unclear, say so in notes.
 
 ORAL

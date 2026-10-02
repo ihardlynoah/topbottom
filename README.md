@@ -32,7 +32,11 @@ word count is estimated and the main characters are guessed from frequently capi
 2. **Act patterns**: ~50 sentence patterns per act — e.g. “X fucked Y”, “X’s cock slid into Y”, “Y rode X”,
    “Y’s hole clenched around X’s cock”, “Y sucked X off”, “X’s cock between Y’s lips”, “X rimmed Y”,
    “X’s tongue in Y’s hole”, passive forms (“Y was fucked by X”), fingering, and sentences with the subject
-   left out (“climbed on top and rode him”). Innocent look-alikes (“sucked in a breath”, “blew him a kiss”,
+   left out (“climbed on top and rode him”). Words for the anus go beyond “hole” and “ass”: butthole, anus,
+   pucker, rosebud, starfish, sphincter, ring of muscle, back entrance, and (for rimming) crack and cleft.
+   The prostate counts as anal (“X nailed his prostate”, “milked”, “ground against”), and so do allusions to
+   it, which are read as “his prostate”: “that bundle of nerves inside him”, “his sweet spot” (but not the
+   sweet spot on his neck), “the spot inside Harry”, “his p-spot”, “the spot that made him see stars”. Innocent look-alikes (“sucked in a breath”, “blew him a kiss”,
    “fingers in his hair”, “pushed into the room”) are excluded.
 3. **Pronouns and epithets**: “he”/“she” as a subject means the last subject; the other person in a two-person
    sex scene is the partner. Epithets are recognized for hair colour (“the blond”, “the redhead”, “the
@@ -64,7 +68,8 @@ word count is estimated and the main characters are guessed from frequently capi
 by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since male omegas and trans
 men may have vaginas and some women have penises; anatomy (by gender, or what the text says a character has)
 is only the fallback. When a sentence doesn't say, it goes the way that bottom's clearly worded scenes went
-(an omega whose other scenes all mention his “seam” or “cunt” gets vaginal), then by the paragraph. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
+(an omega whose other scenes all mention his “seam” or “cunt” gets vaginal), then by the paragraph. Between
+two men, a scene that still doesn't say is counted as anal. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
 
 **Claude second opinion (optional)** — with your own Anthropic API key, Claude (Opus 5.5 by default) reads
 the fic and returns the same result shape, including desire/fantasy lines and its own confidence. Long works
