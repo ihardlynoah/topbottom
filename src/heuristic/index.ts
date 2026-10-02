@@ -73,13 +73,14 @@ export function maskQuotes(p: string, singleQuotes: boolean): { masked: string; 
   const quotes: Quote[] = [];
   const re = singleQuotes
     ? /(^|[\s(—–-])‘((?:[^’]|’(?=\p{L}))*)’(?=[\s,.;:!?—–)-]|$)/gu
-    : /“([^”]*)”?|"([^"]*)"?/g;
+    : // Straight and curly quotes are interchangeable: many fics open with " and close with ” (autocorrect).
+      /[“"]([^“”"]*)[”"]?/g;
   let masked = p;
   for (const m of p.matchAll(re)) {
     const lead = singleQuotes ? m[1].length : 0;
     const start = m.index! + lead;
     const end = m.index! + m[0].length;
-    const text = singleQuotes ? m[2] : (m[1] ?? m[2] ?? "");
+    const text = singleQuotes ? m[2] : (m[1] ?? "");
     quotes.push({ start, end, text });
     masked = masked.slice(0, start + 1) + " ".repeat(Math.max(0, end - start - 2)) + masked.slice(end - 1);
   }
@@ -237,7 +238,7 @@ class Ctx {
 }
 
 function stripPoss(tok: string) {
-  return tok.replace(/['’]s$/, "");
+  return tok.replace(/['’]s?$/, "");
 }
 
 
@@ -347,6 +348,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const nameRe = new RegExp(`\\b(?:${NAMES})(?:['’]s)?\\b`, "g");
   const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES}|${EPITHET_TOKEN})(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
   const epithetRe = new RegExp(EPITHET, "g");
+  const ING_NOUNS =
+    "morning|evening|wedding|building|feelings?|clothing|bedding|ceiling|thing|something|nothing|anything|everything|ring|king|wing|string|darling|sibling|stocking|ending|beginning|meaning|warning|painting|drawing|training|meeting|offering|blessing|pudding|earring|upbringing|being|wellbeing|well-being|belongings|surroundings|savings|lodgings|bring";
+  const contractionRe = new RegExp(
+    `\\b((?:${NAMES}|${EPITHET_TOKEN})|[Hh]e|[Ss]he)['’]s(?=\\s+(?:(?:\\w+ly|just|still|now|already|been|gonna|going|not|never|always|so|too)\\s+)?(?!(?:${ING_NOUNS})\\b)[a-z]+ing\\b)`,
+    "g",
+  );
   const ctx = new Ctx(cast);
   ctx.epithets = learnEpithets(cast, meta.freeforms, narration);
 
@@ -367,8 +374,19 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (viaEpithet !== null) return viaEpithet;
     const p = pronoun(tok);
     if (!p) return undefined;
-    return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+    if ("fixed" in p) return ctx.fixed(p.fixed);
+    return notNamedLater(ctx.subjectFor(p.gender), s.slice(m.index + m[0].length), p.gender);
   };
+
+  /**
+   * A subject pronoun can't mean someone the same sentence names afterwards ("He pushed Stiles' legs
+   * open" — he isn't Stiles), so switch to the other person.
+   */
+  function notNamedLater(c: Character | undefined, rest: string, g: Gender | "any"): Character | undefined {
+    if (!c || !c.aliases.length) return c;
+    const named = new RegExp(`\\b(?:${c.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`).test(rest);
+    return named ? (ctx.partnerOf(c, g) ?? c) : c;
+  }
 
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
   scan();
@@ -399,6 +417,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (/\b[Tt]he\s/.test(sent)) {
         sent = sent.replace(epithetRe, (e) => `Epithet${epiTable.push(e) - 1}`);
       }
+      // "Derek's licking" means "Derek is licking", not a possessive.
+      sent = sent.replace(contractionRe, (_, who: string) => `${who} is`);
       const original = para.slice(s0, s1).trim();
       ctx.newSentence(epiTable);
       const subj = firstEntity(sent);
@@ -437,7 +457,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   }
 
   /** The subject of an earlier verb in "X smiled and sucked him off": nearest name/he/she that isn't an object. */
-  function elidedSubject(prefix: string): Character | undefined {
+  function elidedSubject(prefix: string, suffix = ""): Character | undefined {
     const re = new RegExp(`(?:^|([\\w'’]+)[\\s,]+)((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
     for (let i = hits.length - 1; i >= 0; i--) {
@@ -453,7 +473,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const viaEpithet = ctx.token(tok);
       if (viaEpithet !== null) return viaEpithet;
       const p = pronoun(tok);
-      if (p) return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+      if (p) return "fixed" in p ? ctx.fixed(p.fixed) : notNamedLater(ctx.subjectFor(p.gender), prefix.slice((hits[i].index ?? 0) + hits[i][0].length) + suffix, p.gender);
     }
     return undefined;
   }
@@ -491,7 +511,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (seen.has(key)) continue;
       seen.add(key);
       const before = lower.slice(Math.max(0, m.index - 30), m.index);
-      const negated = /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before);
+      // "Won't you fuck me?" / "Sure you won't fuck me?" are requests, not refusals.
+      const question = /\?\s*$/.test(lower.slice(m.index)) && !/[.!]/.test(lower.slice(m.index, m.index + m[0].length + 40).split("?")[0]);
+      const negated = !question && /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before);
       desires.push({
         cat: d.cat,
         act: d.act,
@@ -520,7 +542,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const bTok = groupValue(m.groups, "b");
     let subjChar: Character | undefined;
     if (pat.elided) {
-      subjChar = elidedSubject(sent.slice(0, m.index));
+      subjChar = elidedSubject(sent.slice(0, m.index), sent.slice(m.index!));
       if (!subjChar) return;
     }
     const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar);

@@ -62,6 +62,19 @@ describe("dialogue during sex", () => {
     expect(d).toContainEqual(expect.objectContaining({ who, role, kind: "said" }));
   });
 
+  it.each([
+    [`"Is this when you fuck me? It better be," Draco said.`, "Draco Malfoy", "bottom", true],
+    [`"Sure you won't fuck me?" Draco asked.`, "Draco Malfoy", "bottom", true],
+  ] as const)("%s", (line, who, role, wants) => {
+    const d = run(`${SETUP}\n\n${line}`, DRARRY).anal.desires;
+    expect(d).toContainEqual(expect.objectContaining({ who, role, wants, kind: "said" }));
+  });
+
+  it("doesn't read 'I take it back' as 'take it'", () => {
+    const d = run(`${SETUP}\n\n"I take it back," Harry said.`, DRARRY).anal.desires;
+    expect(d).toHaveLength(0);
+  });
+
   it("doesn't read 'you're so tight' as a role when negated", () => {
     const d = run(`${SETUP}\n\n"You're not tight at all," Harry said.`, DRARRY).anal.desires;
     expect(d.filter((x) => x.kind === "said")).toHaveLength(0);

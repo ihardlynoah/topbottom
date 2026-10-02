@@ -185,6 +185,38 @@ const CASES: [string, Exp][] = [
   ["The tall grass rustled.", null],
 ];
 
+// Constructions found while testing a real AO3 fic (paraphrased, not quoted). Names ending in "s" use
+// a bare apostrophe for possessives ("Stiles' cock"), so these use their own pair.
+const SD: Ao3Meta = { ...M, relationships: ["Derek Hale/Stiles Stilinski"], characters: [] };
+const DH = "Derek Hale";
+const SS = "Stiles Stilinski";
+const REAL: [string, Exp][] = [
+  ["Derek licked Stiles' rim.", ["oral", DH, SS, "rimming"]],
+  ["Derek wrapped his lips around Stiles' cock.", ["oral", SS, DH]],
+  ["Stiles watched as Derek's licking his ass clean.", ["oral", DH, SS, "rimming"]],
+  ["Derek ignored the question in favor of licking Stiles' rim.", ["oral", DH, SS, "rimming"]],
+  ["Derek was happy about eating Stiles out.", ["oral", DH, SS, "rimming"]],
+  ["Stiles came apart while Derek was swallowing him down.", ["oral", SS, DH]],
+  ["Derek took Stiles' balls into his mouth.", ["oral", SS, DH]],
+  ["Stiles lay face-down. He pushed Stiles' legs apart and pushed in.", ["anal", DH, SS]],
+  ["Derek's cock was hard. He crawled down the bed and licked at the head of Derek's cock.", ["oral", DH, SS]],
+  ['"Oh," Stiles gasped when Derek kissed his cock.', ["oral", SS, DH]], // straight open, curly-style close mix below
+  ["\"Oh,” Stiles gasped when Derek kissed his cock.", ["oral", SS, DH]],
+];
+
+it("constructions from a real fic", () => {
+  const failures: string[] = [];
+  for (const [sentence, exp] of REAL) {
+    const p = analyzeWithPatterns(`Derek and Stiles were naked in bed, hard and aching.\n\n${sentence}`, SD, { quiet: true }).pairings[0];
+    const found = [...p.anal.instances.map((i) => ["anal", i] as const), ...p.oral.instances.map((i) => ["oral", i] as const)];
+    const [cat, top, bottom, act] = exp!;
+    if (!found.some(([c, i]) => c === cat && i.top === top && i.bottom === bottom && (!act || i.act.includes(act)))) {
+      failures.push(`MISSED: ${sentence} → ${found.map(([c, i]) => `${c} ${i.top}>${i.bottom} ${i.act}`).join(", ") || "nothing"}`);
+    }
+  }
+  expect(failures).toEqual([]);
+});
+
 it("pattern engine phrasing accuracy", () => {
   const failures: string[] = [];
   for (const [sentence, exp] of CASES) {

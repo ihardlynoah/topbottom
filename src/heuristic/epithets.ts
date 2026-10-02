@@ -268,7 +268,7 @@ export function learnEpithets(cast: Cast, freeforms: string[], narration: string
 
   // Hair: "Draco's pale blond hair", "Draco ran a hand through his blond hair", "Draco was a redhead".
   const colour = (word: string) => COLOUR_TO_KEY.find(([re]) => re.test(word.toLowerCase()))?.[1];
-  for (const m of narration.matchAll(new RegExp(`\\b(${NAME})['’]s\\s+(?:[\\w-]+\\s+){0,2}?([\\w-]+)\\s+(?:hair|curls|locks|mop|fringe|head of hair|mane)\\b`, "g"))) {
+  for (const m of narration.matchAll(new RegExp(`\\b(${NAME})(?:['’]s|(?<=s)['’])\\s+(?:[\\w-]+\\s+){0,2}?([\\w-]+)\\s+(?:hair|curls|locks|mop|fringe|head of hair|mane)\\b`, "g"))) {
     const k = colour(m[2]);
     const c = who(m[1]);
     if (k && c) tally.add(k, c, 2);
@@ -308,7 +308,7 @@ export function learnEpithets(cast: Cast, freeforms: string[], narration: string
   }
 
   // Nationality: "Steve's American accent", "Bucky was from Russia".
-  for (const m of narration.matchAll(new RegExp(`\\b(${NAME})['’]s\\s+(?:\\w+\\s+){0,2}?(${alt(NATIONS.map((n) => n[0]))})\\s+(?:accent|drawl|lilt|brogue|passport|roots|upbringing)\\b`, "g"))) {
+  for (const m of narration.matchAll(new RegExp(`\\b(${NAME})(?:['’]s|(?<=s)['’])\\s+(?:\\w+\\s+){0,2}?(${alt(NATIONS.map((n) => n[0]))})\\s+(?:accent|drawl|lilt|brogue|passport|roots|upbringing)\\b`, "g"))) {
     const c = who(m[1]);
     if (c) tally.add(`nat:${m[2].toLowerCase()}`, c, 2);
   }

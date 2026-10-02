@@ -39,7 +39,7 @@ const TITLE_WORDS = new Set(
 
 /** Names that are also ordinary words; only safe because matching is case-sensitive. */
 const NOT_NAMES = new Set(
-  "I I'm I'd I'll I've A An The He She They It We You His Her Their My Your Our This That There Then When What Where Why How Who Oh Ah God Christ Jesus Fuck Yes No Not But And Or So If Just Okay OK Ok Well Now Still Even Maybe Please Thank Thanks Sorry Hey Hi Hello Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December English French Chapter Mr Mrs Ms Dr Sir Lord Lady TV Christmas Halloween Mum Mom Dad Mama Papa Uncle Aunt Grandma Grandpa Instead Later Before After Once Twice Something Nothing Everything Anything Someone Everyone Nobody Neither Either Both Every Each Some Any Too Also Because While Since Until Though Although Yeah Yep Nope Shit Damn Hell Wait Look Listen Come Go Stop Don't Can't Won't Didn't Wasn't Isn't It's That's There's He's She's They're We're You're Let's".split(
+  "I I'm I'd I'll I've A An The He She They It We You His Her Their My Your Our This That There Then When What Where Why How Who Oh Ah God Christ Jesus Fuck Yes No Not But And Or So If Just Okay OK Ok Well Now Still Even Maybe Please Thank Thanks Sorry Hey Hi Hello Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December English French Chapter Mr Mrs Ms Dr Sir Lord Lady TV Christmas Halloween Mum Mom Dad Mama Papa Uncle Aunt Grandma Grandpa Instead Later Before After Once Twice Something Nothing Everything Anything Someone Everyone Nobody Neither Either Both Every Each Some Any Too Also Because While Since Until Though Although Yeah Yep Nope Shit Damn Hell Wait Look Listen Come Go Stop Don't Can't Won't Didn't Wasn't Isn't It's That's There's He's She's They're We're You're Let's Alpha Alphas Omega Omegas Beta Betas Sir Ma'am Mister".split(
     " ",
   ),
 );
@@ -232,7 +232,7 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   const femalePenis = new RegExp(`\\bher\\s+(?:[\\w-]+\\s+)?(?:${PENIS_WORDS})\\b`, "i").test(narration);
   for (const c of chars) {
     const names = c.aliases.map(escapeRe).join("|");
-    const own = (words: string) => !!names && new RegExp(`\\b(?:${names})['’]s\\s+(?:[\\w-]+\\s+)?(?:${words})\\b`).test(narration);
+    const own = (words: string) => !!names && new RegExp(`\\b(?:${names})(?:['’]s|(?<=s)['’])\\s+(?:[\\w-]+\\s+)?(?:${words})\\b`).test(narration);
     if (c.gender === "f") {
       c.vulva = true;
       c.penis = own(PENIS_WORDS) ? true : femalePenis ? "maybe" : false;
