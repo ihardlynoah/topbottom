@@ -16,6 +16,7 @@ import {
   type VaginalResult,
   confidenceLabel,
 } from "../types";
+import { tagPriors } from "./ao3-prior";
 import { type Cast, type Character, type Gender, buildCast } from "./characters";
 import {
   ANAL_CTX,
@@ -1388,6 +1389,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
   }
 
+  {
+    const named = results.flatMap((r) => r.pairing.split("/")).map((n) => n.trim());
+    const priors = tagPriors(meta, cast.chars.filter((c) => named.includes(c.name)));
+    if (priors.size)
+      notes.push(`As a very faint tie-breaker, how often AO3 tags ${[...priors.keys()].join(", ")} as a top or bottom was used; anything in the text outweighs it.`);
+  }
+
   if (hasUncertainNotes) notes.push("Some AO3 chapter-note text had an unclear boundary and was excluded from pattern analysis.");
   if (!meta.relationships.length && !meta.characters.length && cast.chars.length) {
     notes.push(`No AO3 tags in this file, so characters were guessed from the text: ${cast.chars.map((c) => c.name).join(", ")}.`);
@@ -1763,6 +1771,17 @@ function buildAct(
       if (!tagSwitch && other && !tagged(other, r.role)) doubt.push({ who: other, role: r.role, weight: 0.3, kind: "tag" });
     }
     if (tags.switching.length) for (const c of pair) for (const role of ["top", "bottom"] as const) ev.push({ who: c.name, role, weight: 0.25, kind: "tag" });
+  }
+  // How AO3 tags the character overall: a very faint nudge (at most about 15% on its own), under everything above.
+  if (cat === "anal") {
+    for (const [name, pr] of tagPriors(meta, pair)) {
+      const lean = (pr.pTop - 0.5) * 2;
+      const role: Role = lean > 0 ? "top" : "bottom";
+      const w = 0.12 * Math.abs(lean);
+      ev.push({ who: name, role, weight: w, kind: "prior" });
+      const other = otherOf(name);
+      if (other) ev.push({ who: other, role: role === "top" ? "bottom" : "top", weight: w * 0.4, kind: "prior" });
+    }
   }
   const people = roleOdds(pair.map((c) => c.name), ev, doubt);
   return { verdict, top, bottom, summary, instances, desires: desireOut, confidence, people };

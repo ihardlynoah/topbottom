@@ -26,7 +26,7 @@ export interface CastMember {
   gender: "m" | "f" | "u";
 }
 
-const norm = (s: string) =>
+export const norm = (s: string) =>
   s
     .toLowerCase()
     .normalize("NFD")
@@ -67,7 +67,7 @@ function parse(): CanonFandom[] {
 const FANDOMS = parse();
 
 /** Ways a tag or text name might be written in the list: "Evan "Buck" Buckley" → "evan buckley", "buck", … */
-function variants(name: string): string[] {
+export function variants(name: string): string[] {
   const out = new Set<string>();
   for (const part of name.split("|")) {
     const clean = part.replace(/\([^)]*\)/g, " ").trim();
