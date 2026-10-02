@@ -560,7 +560,7 @@ export const PATTERNS: PatternDef[] = [
     act: "blowjob",
     subj: "t",
     weight: 0.7,
-    src: `\\b(?:the\\s+(?:\\w+\\s+)?(?:head|tip)\\s+of\\s+)?{T:penis}\\s+(?:\\w+\\s+)?(?:rest|brush|press|nudg|bump|tap|prod|poke|slid|slip|push)\\w*\\s+(?:\\w+\\s+){0,2}?(?:against|at|on|across|between|past|into|over)\\s+{B:mouthReq}`,
+    src: `\\b(?:the\\s+(?:\\w+\\s+)?(?:head|tip)\\s+of\\s+)?{T:penisReq}\\s+(?:\\w+\\s+)?(?:rest|brush|press|nudg|bump|tap|prod|poke|slid|slip|push)\\w*\\s+(?:\\w+\\s+){0,2}?(?:against|at|on|across|between|past|into|over)\\s+{B:mouthReq}`,
   },
   {
     // "Peter pulls his mouth off my dick": he'd been sucking it.
@@ -569,7 +569,7 @@ export const PATTERNS: PatternDef[] = [
     act: "blowjob",
     subj: "b",
     weight: 0.9,
-    src: `\\b{B}\\s+{aux}(?:pull|pop|slid|slide|draw|drew|lift|eas|ease|come|came|tear|tore|wrench)\\w*\\s+(?:(?:his|her|their|my|your)\\s+(?:mouth|lips|head)\\s+)?off\\s+(?:of\\s+)?{T:penis}`,
+    src: `\\b{B}\\s+{aux}(?:pull|pop|slid|slide|draw|drew|lift|eas|ease|come|came|tear|tore|wrench)\\w*\\s+(?:(?:his|her|their|my|your)\\s+(?:mouth|lips)\\s+off\\s+(?:of\\s+)?{T:penis}|off\\s+(?:of\\s+)?{T:penisReq})`,
   },
   {
     id: "lips-around",

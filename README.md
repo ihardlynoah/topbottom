@@ -64,7 +64,8 @@ word count is estimated and the main characters are guessed from frequently capi
 by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since male omegas and trans
 men may have vaginas and some women have penises; anatomy (by gender, or what the text says a character has)
 is only the fallback. When a sentence doesn't say, it goes the way that bottom's clearly worded scenes went
-(an omega whose other scenes all mention his “seam” or “cunt” gets vaginal), then by the paragraph. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
+(an omega whose other scenes all mention his “seam” or “cunt” gets vaginal), then by the paragraph. Between
+two men, a scene that still doesn't say is counted as anal. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
 
 **Claude second opinion (optional)** — with your own Anthropic API key, Claude (Opus 5.5 by default) reads
 the fic and returns the same result shape, including desire/fantasy lines and its own confidence. Long works

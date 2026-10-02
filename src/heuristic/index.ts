@@ -415,6 +415,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   let acts: ActHit[] = [];
   let ambiguousHoles = 0;
+  let defaultedAnal = 0;
   /** For each bottom, how many sentences clearly said anal vs vaginal. */
   const holeVotes = new Map<Character, { anal: number; vaginal: number }>();
   let desires: DesireHit[] = [];
@@ -642,6 +643,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
           ? clauseSubj && ctx.partnerOf(clauseSubj)
           : (resolveToken(lastWord, sent.slice(m.index!)) ?? clauseSubj);
       } else {
+        // "…as a finger breached him, sliding inside": the clause right before has a thing for its subject,
+        // so the left-out subject is that thing, not a person.
+        const lastClause = before.trimEnd().replace(/[,;]$/, "").split(/[,;:—]|\b(?:as|when|while|whenever|because|until|since|though|although|and|but|then)\b/).pop()?.trim() ?? "";
+        if (/^(?:it|this|that|the|a|an|one|another|something)\b/i.test(lastClause) && /\b\w+(?:s|ed)\b/.test(lastClause)) return;
         subjChar = elidedSubject(before, sent.slice(m.index!));
       }
       if (!subjChar) return;
@@ -824,6 +829,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const v = holeVotes.get(a.bottom) ?? { anal: 0, vaginal: 0 };
     const hole = v.vaginal > v.anal ? "vaginal" : v.anal > v.vaginal ? "anal" : a.holeGuess;
     if (hole === "ambiguous") {
+      // Two men and nothing says which: anal is the safe default.
+      if (a.top.gender === "m" && a.bottom.gender === "m") {
+        defaultedAnal++;
+        return true;
+      }
       ambiguousHoles++;
       return false;
     }
@@ -879,7 +889,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   if (cast.secondPerson) notes.push(`Second-person narration: “you” is read as ${cast.secondPerson.name}.`);
   if (cast.maleVulva || cast.chars.some((c) => c.gender !== "f" && c.vulva === true)) {
     notes.push(
-      `At least one male character has a vagina here (e.g. omegaverse or trans), so each scene was sorted into anal or vaginal by the words used${ambiguousHoles ? `; ${plural(ambiguousHoles, "sentence")} didn't say which and ${ambiguousHoles === 1 ? "was" : "were"} left out` : ""}.`,
+      `At least one male character has a vagina here (e.g. omegaverse or trans), so each scene was sorted into anal or vaginal by the words used${defaultedAnal ? `; ${plural(defaultedAnal, "sentence")} between two men didn't say which and ${defaultedAnal === 1 ? "was" : "were"} counted as anal` : ""}${ambiguousHoles ? `; ${plural(ambiguousHoles, "sentence")} didn't say which and ${ambiguousHoles === 1 ? "was" : "were"} left out` : ""}.`,
     );
   }
   if (!opts.quiet) {
