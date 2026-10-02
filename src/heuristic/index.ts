@@ -716,6 +716,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     for (const d of DIALOGUE) {
       const m = d.re.exec(lower);
       if (!m) continue;
+      // Suggestive lines ("take it", "you're so tight", "you're huge") only count when the narration around them
+      // is sexual: "please take it" can be a gift, "too proud to take it" help.
+      if (d.weight !== undefined && d.weight < 1 && d.kind === "said" && !around.sexy) continue;
       // "Fuck me, it's cold" / "Well, fuck me" / "fuck me sideways": an exclamation, not a request.
       if (/^fuck me$/.test(m[0]) && exasperated(lower, m.index!, around)) continue;
       // One line can match several phrasings of the same request ("I want you to fuck me").
