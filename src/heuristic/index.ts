@@ -1009,6 +1009,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.id === "penis-against" && /\b(?:brush|graz|ghost|skim|bump|flick)\w*\s+(?:against|over|along|across)/i.test(matchText)) return;
     // "cum in his own mouth" is not a blowjob.
     if (cat === "oral" && /\bin\s+(?:his|her|their)\s+own\s+mouth\b/i.test(matchText)) return;
+    // "pushed two fingers into his own ass", "sucked his own cock": the object belongs to the one acting, so it is a solo act, never a scene with the partner.
+    if (/\b(?:his|her|their)\s+own\s+(?:[\w-]+\s+){0,2}?(?:ass|arse|asshole|hole|entrance|rim|cunt|pussy)\b/i.test(matchText) && (cat === "anal" || pat.id.startsWith("self-")) && !/\b(?:cock|dick|prick|length)\b/i.test(matchText.slice(0, matchText.search(/\b(?:his|her|their)\s+own\b/i)))) {
+      const other = ctx.partnerOf(top);
+      if (other && !NEG.test(sent.slice(0, m.index).slice(-40))) {
+        desires.push({ cat: "anal", act: /\b(?:dildo|vibrator|vibe|plug|beads|toy)\b/i.test(matchText) ? "using a toy on himself" : "fingering himself", who: top, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
+      }
+      return;
+    }
+    if (cat === "oral" && act === "blowjob" && /\b(?:his|her|their)\s+own\s+(?:[\w-]+\s+){0,2}?(?:cock|dick|prick|length|shaft)\b/i.test(matchText) && /^(?:his|her|their)$/i.test(tTok ?? "")) return;
     // A manspread on a sofa is just sitting.
     if (/^spread-(?:their-)?legs/.test(pat.id) && /\b(?:sofa|couch|chair|armchair|seat|stool|bench|sprawl\w*|comfortabl\w*|slouch\w*|lounge\w*|recline\w*)\b/i.test(sent) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent)) return;
     // An ass in an idiom ("your ass is grass", "kick your ass").
