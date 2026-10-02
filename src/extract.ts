@@ -173,9 +173,32 @@ async function extractFromPdf(data: ArrayBuffer): Promise<ExtractedWork> {
   return { ...work, format: "pdf" };
 }
 
+/** "OEBPS/" + "../text/ch1.xhtml" → "text/ch1.xhtml". */
+function resolveZipPath(baseDir: string, href: string): string {
+  const out: string[] = [];
+  for (const part of (href.startsWith("/") ? href.slice(1) : baseDir + href).split("/")) {
+    if (part === "..") out.pop();
+    else if (part && part !== ".") out.push(part);
+  }
+  return out.join("/");
+}
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 async function extractFromEpub(data: ArrayBuffer): Promise<ExtractedWork> {
-  const JSZip = (await import("jszip")).default;
-  const zip = await JSZip.loadAsync(data);
+  const JSZip = (await loadChunk(() => import("jszip"))).default;
+  let zip;
+  try {
+    zip = await JSZip.loadAsync(data);
+  } catch {
+    throw new Error("Couldn't open this EPUB (it isn't a valid zip file). Try the HTML download from AO3 instead.");
+  }
   const parser = new DOMParser();
 
   const container = await zip.file("META-INF/container.xml")?.async("string");
@@ -197,8 +220,8 @@ async function extractFromEpub(data: ArrayBuffer): Promise<ExtractedWork> {
   const docs: Document[] = [];
   const texts: string[] = [];
   for (const href of hrefs) {
-    const path = baseDir + decodeURIComponent(href.split("#")[0]);
-    const src = await zip.file(path)?.async("string");
+    const path = resolveZipPath(baseDir, safeDecode(href.split("#")[0]));
+    const src = await (zip.file(path) ?? zip.file(path.replace(/^\/+/, "")))?.async("string");
     if (!src) continue;
     const doc = parser.parseFromString(src, "text/html");
     const docMeta = parseAo3FromDom(doc);
