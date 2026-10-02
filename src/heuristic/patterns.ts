@@ -29,6 +29,8 @@ export interface PatternDef {
   /** Sentence must also contain sex vocabulary (for verbs that have innocent meanings). */
   needsCtx?: boolean;
   /** Sentence must mention a penis/strap word. */
+  /** Counts at most once per sentence, alongside whatever else matched it (for patterns that overlap others). */
+  dedupe?: boolean;
   needsPenis?: boolean;
   /** Sentence must match this too. */
   needs?: RegExp;
@@ -472,7 +474,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "b",
     weight: 0.8,
-    src: `\\b{B}\\s+{aux}bottom(?:s|ed|ing)?\\b(?!\\s+(?:out|of|up|off|half|lip|drawer|step|line|shelf)\\b)(?:\\s+for\\s+{T})?`,
+    src: `\\b{B}\\s+{aux}bottom(?:s|ed|ing)?\\b(?!\\s+(?:out|of|up|off|half|lip|drawer|step|line|shelf|teeth|tooth|row|left|right|corner|floor|button|bunk|edge|layer|end|part|side|door|rung|stair|stairs|sheet|dollar|price|feeder)\\b)(?:\\s+for\\s+{T})?`,
   },
   {
     id: "topped",
@@ -813,6 +815,104 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.9,
     src: `\\b{B}\\s+{aux}(?:lick|tongu|lap|flick|prob|dip|kiss|suck|mouth|nuzzl)\\w*\\s+(?:(?:his|her|their)\\s+tongue\\s+)?(?:(?:at|over|across|into|against|along|around|up)\\s+)?(?:{T:poss}\\s+(?:slit|frenulum|balls|sac|foreskin)|the\\s+(?:slit|frenulum)\\s+(?:of|on)\\s+{T:penisReq})\\b`,
+  },
+
+  {
+    // "wrapped his mouth around him and went as low as he could", "closed his lips around Steve"
+    id: "mouth-around-him",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:wrap|clos|seal|fasten|latch)\\w*\\s+(?:his|her|their|my|your)\\s+(?:mouth|lips)\\s+(?:around|over|on|onto)\\s+(?:{T:penis}|{T}\\b(?!['’]s))`,
+  },
+  {
+    // "bobbed his head a few times", "bobbing his head up and down"
+    id: "bobbed-head",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}bob(?:s|bed|bing)?\\s+(?:his|her|their|my|your)\\s+head(?=\\s+(?:up and down|a few times|a couple (?:of )?times|slowly|faster|harder|lower|down|back and forth|again|once more|over|on|along|between)\\b|\\s*[,.;!]|\\s*$)`,
+  },
+  {
+    // "took more into his mouth", "took half of him into her mouth"
+    id: "took-more-in-mouth",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking)\\s+(?:more|most|all|half|the rest|as much|another inch|a little more|a bit more)(?:\\s+of\\s+(?:him|it|{T}))?\\s+(?:in(?:to)?|down)\\s+(?:his|her|their|my|your)\\s+(?:mouth|throat)`,
+  },
+  {
+    // "pressed his tongue against Steve's underwear", "mouthed at the bulge in Steve's jeans"
+    id: "mouth-on-clothed",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:(?:press|drag|run|ran|rub|slid|slide|trac|swip)\\w*\\s+(?:his|her|their|my|your)\\s+(?:tongue|lips|mouth|face|nose)\\s+(?:\\w+\\s+)?(?:against|along|over|across|on|into)|(?:mouth|nuzzl|lick|kiss|suck|mouth)\\w*\\s+(?:at|along|over|against|on))\\s+(?:the\\s+(?:\\w+\\s+)?(?:bulge|outline|erection|hardness|tent|front|fly)\\s+(?:in|of|under|beneath|through)\\s+)?{T:poss}\\s+(?:\\w+\\s+)?(?:underwear|boxers|briefs|jeans|pants|trousers|shorts|sweatpants|cotton|fly|zipper|crotch)\\b`,
+  },
+  {
+    // "rolled his tongue around the head of Steve's cock", "swirled his tongue around the tip"
+    id: "tongue-around-head",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:roll|swirl|circl|flick|trac|run|ran|slid|slip|work|press|drag|lap)\\w*\\s+(?:his|her|their|my|your)\\s+tongue\\s+(?:\\w+\\s+)?(?:around|over|across|along|against|on|up|down)\\s+(?:the\\s+(?:\\w+\\s+)?(?:head|tip|crown|slit|underside|shaft|length|base)(?:\\s+of\\s+{T:penis})?|{T:penisReq})`,
+  },
+  {
+    // "licked a long stripe up the shaft", "licked the tip", "licked his way from the base to the tip of Steve's cock"
+    id: "licked-shaft",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:(?:lick|tongu|lap)\\w*\\s+(?:(?:a\\s+(?:\\w+\\s+)?(?:stripe|line|trail)|(?:his|her|their)\\s+way)\\s+)?(?:(?:up|down|along|over|across)\\s+)*(?:the\\s+(?:\\w+\\s+)?(?:tip|head|shaft|length|underside|slit|crown)\\b|(?:from\\s+the\\s+(?:base|bottom|root)\\s+)?to\\s+the\\s+(?:tip|top)\\b)|(?:kiss|nuzzl|suck|mouth)\\w*\\s+(?:at\\s+|along\\s+|on\\s+)?(?:the\\s+(?:\\w+\\s+)?(?:tip|head|base|shaft|length|crown)\\s+of\\s+{T:penis}|{T:penisReq}))`,
+  },
+  {
+    // "pressed an open-mouthed kiss to the head of Steve's cock"
+    id: "kiss-to-head",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    src: `\\b{B}\\s+{aux}(?:press|plant|plac|drop|lay|laid)\\w*\\s+(?:a|an|one|another)\\s+(?:[\\w-]+\\s+){0,2}?kiss(?:es)?\\s+(?:to|on|against|onto)\\s+(?:the\\s+(?:\\w+\\s+)?(?:head|tip|base|shaft|length|crown|slit)\\s+of\\s+)?{T:penisReq}`,
+  },
+  {
+    // "slowly leaned his head forward and took Eddie as deep as he could", "lowered his head and swallowed him"
+    id: "head-down-took",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:\\w+ly\\s+)?(?:lean|lower|bend|dip|duck|dropp?)\\w*\\s+(?:his|her|their|my|your)\\s+head\\s+(?:forward\\s+|down\\s+)?(?:and\\s+)?(?:took|take|swallow|suck|sank|sink)\\w*\\s+(?:{T}|{T:penis}|him)\\b(?!['’]s\\s+(?:hand|face|arm|shoulder|lap|neck|hair|mouth|lips))`,
+  },
+  {
+    // "Eddie's mouth closed around the head", "his lips slid down Steve's cock"
+    id: "mouth-closed-around",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    src: `\\b{B:poss}\\s+(?:mouth|lips)\\s+(?:closed|wrapped|sealed|slid|slipped|sank|settled|slid)\\s+(?:around|over|down|onto)\\s+(?:the\\s+(?:head|tip|crown)|{T:penis})`,
   },
 
   // ───────────── ORAL: rimming (top = the one eating ass) ─────────────
