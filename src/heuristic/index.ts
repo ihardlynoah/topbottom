@@ -84,6 +84,14 @@ export function maskQuotes(p: string, singleQuotes: boolean): { masked: string; 
     quotes.push({ start, end, text });
     masked = masked.slice(0, start + 1) + " ".repeat(Math.max(0, end - start - 2)) + masked.slice(end - 1);
   }
+  // Text messages are often written in [brackets]; treat them like dialogue.
+  for (const m of masked.matchAll(/\[([^\[\]]{2,})\]/g)) {
+    const start = m.index!;
+    const end = start + m[0].length;
+    quotes.push({ start, end, text: p.slice(start + 1, end - 1) });
+    masked = masked.slice(0, start + 1) + " ".repeat(Math.max(0, end - start - 2)) + masked.slice(end - 1);
+  }
+  quotes.sort((x, y) => x.start - y.start);
   return { masked, quotes };
 }
 
@@ -109,7 +117,7 @@ const CHAPTER_RE = /^(?:chapter|ch\.?|part)\s*(\d+|[ivxlc]+|one|two|three|four|f
 
 const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
 const FANTASY =
-  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn)\b/i;
+  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn)\b/i;
 const DESIRE =
   /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to)\b/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
@@ -278,7 +286,10 @@ function resolvePair(
   ctx: Ctx,
   /** For elided-subject matches: the subject found earlier in the sentence. */
   subjChar?: Character,
+  /** For pronoun subjects mid-sentence: the nearest preceding clause subject. */
+  nearSubj?: Character,
 ): { top?: Character; bottom?: Character; basis: Basis } | undefined {
+  const subjectFor = (g: Gender | "any") => (nearSubj && Ctx.compatible(nearSubj, g) ? nearSubj : ctx.subjectFor(g));
   let t = readSlot(tTok, cast, ctx);
   let b = readSlot(bTok, cast, ctx);
   if (subjChar) {
@@ -301,7 +312,7 @@ function resolvePair(
       basis = "pronoun";
     } else if (!top && !bottom) {
       const [s, o] = subj === "t" ? [t, b] : [b, t];
-      const sc = ctx.subjectFor(slotGender(s));
+      const sc = subjectFor(slotGender(s));
       const oc = sc ? ctx.partnerOf(sc, slotGender(o)) : undefined;
       [top, bottom] = subj === "t" ? [sc, oc] : [oc, sc];
       basis = "pronoun";
@@ -309,7 +320,7 @@ function resolvePair(
   } else {
     // Only one side mentioned ("he bottomed out", "he was fucked"): the other is the scene partner.
     const only = (t ?? b)!;
-    const c = only.char ?? ctx.subjectFor(slotGender(only));
+    const c = only.char ?? subjectFor(slotGender(only));
     const other = c ? ctx.partnerOf(c) : undefined;
     if (t) [top, bottom] = [c, other];
     else [top, bottom] = [other, c];
@@ -458,24 +469,31 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   /** The subject of an earlier verb in "X smiled and sucked him off": nearest name/he/she that isn't an object. */
   function elidedSubject(prefix: string, suffix = ""): Character | undefined {
-    const re = new RegExp(`(?:^|([\\w'’]+)[\\s,]+)((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
+    const re = new RegExp(`(?:^|([\\w'’]+)([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
     for (let i = hits.length - 1; i >= 0; i--) {
-      const prev = (hits[i][1] ?? "").toLowerCase();
+      const h = hits[i];
+      // After a comma we're at a clause start, so whatever came before doesn't make this an object.
+      const prev = h[2]?.includes(",") ? "" : (h[1] ?? "").toLowerCase();
       // A name right after a verb or preposition is an object ("spread Draco open"), not a subject.
       const isObject =
         !!prev &&
         !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh)$/.test(prev);
-      if (isObject && !/^(?:He|She|They|I)$/.test(hits[i][2])) continue;
-      const tok = hits[i][2];
-      const named = cast.byAlias.get(tok);
-      if (named) return named;
-      const viaEpithet = ctx.token(tok);
-      if (viaEpithet !== null) return viaEpithet;
-      const p = pronoun(tok);
-      if (p) return "fixed" in p ? ctx.fixed(p.fixed) : notNamedLater(ctx.subjectFor(p.gender), prefix.slice((hits[i].index ?? 0) + hits[i][0].length) + suffix, p.gender);
+      if (isObject && !/^(?:He|She|They|I)$/.test(h[3])) continue;
+      return resolveToken(h[3], prefix.slice(h.index! + h[0].length) + suffix);
     }
     return undefined;
+  }
+
+  /** A name, epithet token, or pronoun to a character (pronouns can't mean someone named in `rest`). */
+  function resolveToken(tok: string, rest = ""): Character | undefined {
+    const named = cast.byAlias.get(stripPoss(tok));
+    if (named) return named;
+    const viaEpithet = ctx.token(stripPoss(tok));
+    if (viaEpithet !== null) return viaEpithet;
+    const p = pronoun(stripPoss(tok));
+    if (!p) return undefined;
+    return "fixed" in p ? ctx.fixed(p.fixed) : notNamedLater(ctx.subjectFor(p.gender), rest, p.gender);
   }
 
   function attributeSpeaker(para: string, mp: string, q: Quote): Character | undefined {
@@ -496,8 +514,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const b1 = new RegExp(`((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})(?:\\s+[\\w’']+){0,4}?[,:]?\\s*["“‘]?\\s*$`).exec(before);
     if (b1) return resolve(b1[1]);
     // Otherwise, whoever the narration in this paragraph is about.
-    const narr = mp.replace(/["“”‘’]\s*/g, " ").trim();
-    return narr.length > 5 ? firstEntity(narr) : undefined;
+    const narr = mp.replace(/["“”‘’\[\]]\s*/g, " ").trim();
+    const fromNarration = narr.length > 5 ? firstEntity(narr) : undefined;
+    if (fromNarration) return fromNarration;
+    // A line that addresses someone by name ("…, Dean.") was said by the other person.
+    const voc = new RegExp(`(?:^|[,.!?]\\s+|\\b(?:hey|oh|please|yes|no|god),?\\s+)(${NAMES})(?=\\s*[,.!?…]|\\s*$)|,\\s*(${NAMES})\\b`).exec(q.text);
+    const addressed = voc ? cast.byAlias.get(voc[1] ?? voc[2]) : undefined;
+    return addressed ? ctx.partnerOf(addressed) : undefined;
   }
 
   function scanDialogue(line: string, speaker: Character, pi: number) {
@@ -513,7 +536,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const before = lower.slice(Math.max(0, m.index - 30), m.index);
       // "Won't you fuck me?" / "Sure you won't fuck me?" are requests, not refusals.
       const question = /\?\s*$/.test(lower.slice(m.index)) && !/[.!]/.test(lower.slice(m.index, m.index + m[0].length + 40).split("?")[0]);
-      const negated = !question && /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before);
+      const negated =
+        (!question && /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before)) ||
+        /\bas if\b[^.!?]*$/.test(before);
       desires.push({
         cat: d.cat,
         act: d.act,
@@ -542,10 +567,27 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const bTok = groupValue(m.groups, "b");
     let subjChar: Character | undefined;
     if (pat.elided) {
-      subjChar = elidedSubject(sent.slice(0, m.index), sent.slice(m.index!));
+      const before = sent.slice(0, m.index);
+      const trigger = /^\W*(\w+)/.exec(m[0])?.[1]?.toLowerCase() ?? "";
+      const lastWord = (before.trim().split(/\s+/).pop() ?? "").replace(/[,;]$/, "");
+      if (/^(?:kept|started|began|continued|finished|enjoyed|loved|tried|resumed)$/.test(trigger)) {
+        // "…began pushing into him": whoever began must be right before it ("a finger began…" isn't a person).
+        subjChar = resolveToken(lastWord, sent.slice(m.index!));
+      } else if (trigger === "to") {
+        // "asked Draco to fuck him" → Draco; "rose up on his knees to slide into him" → the clause's subject.
+        const clauseSubj = elidedSubject(before, sent.slice(m.index!));
+        subjChar = /^(?:him|her|them)$/.test(lastWord)
+          ? clauseSubj && ctx.partnerOf(clauseSubj)
+          : (resolveToken(lastWord, sent.slice(m.index!)) ?? clauseSubj);
+      } else {
+        subjChar = elidedSubject(before, sent.slice(m.index!));
+      }
       if (!subjChar) return;
     }
-    const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar);
+    // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
+    const subjTok = pat.subj === "t" ? tTok : bTok;
+    const nearSubj = !pat.elided && subjTok && pronoun(subjTok) && m.index! > 0 ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!)) : undefined;
+    const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
     if (!resolved) return;
     let { top, bottom } = resolved as { top: Character; bottom: Character };
     let { basis } = resolved;
@@ -562,7 +604,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       else if (/^\s+(?:[\w']+\s+){0,3}?(?:between|with)\s+(?:his|her|their|my|your)\s+(?:thighs|breasts|tits|hand|fist)\b/.test(after)) return;
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:a|the|her|his|their|my|your)\s+(?:strap|dildo|toy|vibrator|plug)/.test(after)) act = "anal sex (strap-on/toy)";
     }
-    if (cat === "anal" && act.startsWith("anal sex") && FINGER_CTX.test(matchText) && !PENIS_CTX.test(matchText)) act = "fingering";
+    // "…when a second finger began pushing into him": fingers named in the sentence (and no cock) mean fingering.
+    if (cat === "anal" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + sent) && !PENIS_CTX.test(sent)) act = "fingering";
     if (pat.id === "prostate" && FINGER_CTX.test(sent) && !PENIS_CTX.test(sent)) act = "fingering";
 
     // Hints, not acts: checking out an ass, grabbing it, staring at a bulge...

@@ -169,7 +169,7 @@ const MANUAL_GATES: Record<string, string> = {
   "tongue-in-him": "tongue",
   "passive-rimmed": "rimmed|eaten|tongue",
   "tongue-on-vulva": "tongue|mouth|lips",
-  "having-inside": "having|feeling|felt|feel|with|want|need|crav",
+  "having-inside": "having|feeling|felt|feel|with|of|want|need|crav",
   "full-of": "full|stuffed|filled",
   "tight-around": "tight",
   "head-bobbed": "head",
@@ -253,7 +253,7 @@ export function compilePatterns(defs: PatternDef[], aliasPattern: string): Compi
     if (def.src.startsWith(lead)) {
       const rest = src.slice(src.indexOf("(?<aux>"));
       // Also gerunds after "in favor of", "about", "before", "while"... ("in favor of licking his rim").
-      const elided = `(?:\\band|\\bthen|,|\\b(?:of|about|before|after|while|by|without|from|kept|started|began|continued|finished|enjoyed|loved|tried|resumed))\\s+(?:then\\s+|finally\\s+|slowly\\s+|eagerly\\s+)?${rest}`;
+      const elided = `(?:\\band|\\bthen|,|\\b(?:of|about|before|after|while|by|without|from|to|kept|started|began|continued|finished|enjoyed|loved|tried|resumed))\\s+(?:then\\s+|finally\\s+|slowly\\s+|eagerly\\s+)?${rest}`;
       out.push({ ...def, id: `${def.id}~elided`, elided: true, weight: def.weight * 0.8, re: new RegExp(elided, "g"), gate });
     }
   }
@@ -744,7 +744,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b(?<lead>having|feeling|felt|feel|feels|with|want(?:ed|s)?|need(?:ed|s)?|crav(?:ed|es)?)\\s+{T}\\s+(?:(?:deep|so deep|buried|all the way|finally|still|right)\\s+)*(?:inside|in)\\s+{B:ass}`,
+    src: `\\b(?<lead>having|feeling|felt|feel|feels|with|of|want(?:ed|s)?|need(?:ed|s)?|crav(?:ed|es)?)\\s+{T}\\s+(?:(?:deep|so deep|buried|all the way|finally|still|right)\\s+)*(?:inside|in)\\s+{B:ass}`,
   },
   {
     id: "pushed-in",
@@ -1078,12 +1078,15 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /\b(?:want|need)\s+you\s+(?:inside|in)\s+me\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+)(?:fill|breed|knot|pound|peg|wreck)\s+me\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?ride\\s+(?:you|your (?:cock|dick))\\b`) },
-  { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /\b(?:you|u) (?:can|could|should|get to|gotta|have to|wanna|want to) top\b/ },
+  { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /\b(?:you|u) (?:can|could|should|get to|gotta|have to|wanna|want to) top\b|\blet you top\b/ },
+  { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|just\s+|now,?\s+)get (?:in|inside|in side) me\b|\bget in me\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "identity", re: /\bi(?:'m|’m| am) (?:a |such a |more of a |usually a |kind of a |kinda a |total |power |a total |a power )?bottom\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "identity", re: /\bi (?:usually |always |only |mostly |prefer to |like to |love to |want to |wanna |'d like to |’d like to |would like to |'d rather |’d rather )bottom\b/ },
   // anal — speaker top
   { cat: "anal", act: "anal sex", role: "top", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?(?:fuck|breed|knot|be inside|be in|get inside|get in|peg|bend you over and fuck)\\s+you\\b(?!\\s+(?:up|over)\\b)`) },
   { cat: "anal", act: "anal sex", role: "top", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|now,?\s+|c'mon,?\s+|come on,?\s+)ride me\b/ },
+  { cat: "anal", act: "anal sex", role: "top", kind: "said", weight: 0.8, re: /\b(?:i'd|i would|i'll|i will|i'm gonna|i want to|i wanna) (?:have|get|bend|put) you (?:on the bed |on your back |on your knees |on your stomach |right )?(?:bent over|on your knees|on your back|on your stomach|spread out|face-down|face down)\b/ },
+  { cat: "anal", act: "anal sex", role: "top", kind: "said", re: /\b(?:if anyone(?:'s| is) (?:going to|gonna) bottom|whoever bottoms),? it(?:'s| is| will be|'ll be) you\b/ },
   { cat: "anal", act: "anal sex", role: "top", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?(?:come|cum)\\s+(?:in(?:side)?)\\s+you\\b`) },
   { cat: "anal", act: "anal sex", role: "top", kind: "said", re: /\b(?:you|u) (?:can|could|should|get to|gotta|have to|wanna|want to) bottom\b/ },
   { cat: "anal", act: "anal sex", role: "top", kind: "identity", re: /\bi(?:'m|’m| am) (?:a |such a |more of a |usually a |kind of a |kinda a |total |a total )?top\b/ },
