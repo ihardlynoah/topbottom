@@ -26,7 +26,7 @@ export interface CastMember {
   gender: "m" | "f" | "u";
 }
 
-const norm = (s: string) =>
+export const norm = (s: string) =>
   s
     .toLowerCase()
     .normalize("NFD")
@@ -67,7 +67,7 @@ function parse(): CanonFandom[] {
 const FANDOMS = parse();
 
 /** Ways a tag or text name might be written in the list: "Evan "Buck" Buckley" → "evan buckley", "buck", … */
-function variants(name: string): string[] {
+export function variants(name: string): string[] {
   const out = new Set<string>();
   for (const part of name.split("|")) {
     const clean = part.replace(/\([^)]*\)/g, " ").trim();
@@ -146,20 +146,32 @@ export function applyCanon(cast: CastMember[], fandoms: CanonFandom[], text: str
     }
   }
 
-  // The same character under two names.
+  // The same character under two names. Names guessed from the text are always merged. Two separately tagged names
+  // ("Tom Riddle" and "Voldemort" can be two ages of one man) stay apart, unless the text hardly uses one of them: then
+  // it is only a second tag for the same person ("Galinda Upland" tagged beside "Glinda the Good", but the text says Glinda).
+  const usage = (m: CastMember) => {
+    const alts = [m.name, ...m.aliases].filter((a) => a.length > 1 && !opts.skip?.(a));
+    return alts.length ? count(new RegExp(`(?<![\\p{L}'’-])(?:${[...new Set(alts)].map(esc).join("|")})(?![\\p{L}-])`, "gu")) : 0;
+  };
   const removed: CastMember[] = [];
   const seen = new Map<CanonChar, CastMember>();
   for (const m of [...cast]) {
     const c = known.get(m);
     if (!c) continue;
     const first = seen.get(c);
-    if (!first || !opts.merge) {
-      if (!first) seen.set(c, m);
+    if (!first) {
+      seen.set(c, m);
       continue;
     }
-    for (const a of [m.name, ...m.aliases]) if (!first.aliases.includes(a)) first.aliases.push(a);
-    cast.splice(cast.indexOf(m), 1);
-    removed.push(m);
+    const ua = usage(first);
+    const ub = usage(m);
+    const lopsided = Math.min(ua, ub) < 0.1 * Math.max(ua, ub);
+    if (!opts.merge && !lopsided) continue;
+    const [keep, drop] = !opts.merge && ub > ua ? [m, first] : [first, m];
+    for (const a of [drop.name, ...drop.aliases]) if (!keep.aliases.includes(a)) keep.aliases.push(a);
+    cast.splice(cast.indexOf(drop), 1);
+    removed.push(drop);
+    seen.set(c, keep);
   }
 
   for (const [c, m] of seen) {

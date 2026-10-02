@@ -14,8 +14,11 @@ import {
   type PairingResult,
   type Role,
   type VaginalResult,
+  type VibeRating,
   confidenceLabel,
 } from "../types";
+import { rateVibe, type VibeItem } from "../vibe";
+import { tagPriors } from "./ao3-prior";
 import { type Cast, type Character, type Gender, buildCast } from "./characters";
 import {
   ANAL_CTX,
@@ -1100,6 +1103,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
       if (pat.signal.kind === "fingers" && /\bwhistl\w*/i.test(sent)) return;
       if (cat === "oral" && oralKindOf(act) === "blowjob" && top.penis === false && bottom.penis === false && !/\b(?:cock|dick|penis)\b/i.test(para)) return;
+      // Behaviour hints need two people: "pressing them into his chest" (knees) and "grabbed his opposite wrist" are not.
+      if (cat === "vibe" && (/^(?:them|it)$/i.test(bTok ?? "") || /^(?:them|it)$/i.test(tTok ?? "") || /\b(?:own|opposite|other)\s+(?:wrist|hand|chin|hair|neck)/i.test(matchText))) return;
       const actor = (pat.signal.actor ?? pat.subj) === "t" ? top : bottom;
       if (desires.some((d) => d.sentence === original && d.cat === cat && d.kind === pat.signal!.kind && d.who === actor)) return;
       const other = actor === top ? bottom : top;
@@ -1147,7 +1152,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       } else if (hole === "ambiguous" && !holeGuess) {
         ambiguousHoles++;
         return;
-      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) {
+      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|plug|vibrator|vibe|beads|wand)\b/i.test(para)) {
         // A woman "fucking" someone with no strap-on mentioned: not anal penetration by her.
         return;
       }
@@ -1254,7 +1259,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     if (wordsOnly) return "ambiguous";
     // A woman with no penis "fucking" someone without a strap-on: it's her vagina involved.
-    if (top.penis === false && top.vulva === true && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) return "vaginal";
+    if (top.penis === false && top.vulva === true && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|plug|vibrator|vibe|beads|wand)\b/i.test(para)) return "vaginal";
     const v = VULVA_CTX.test(para);
     const a = ANAL_CTX.test(para);
     if (bottom.vulva === false) return "anal";
@@ -1330,7 +1335,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   const keys = new Set<string>();
   for (const a of acts) keys.add(pairKey(a.top, a.bottom));
-  for (const d of desires) if (d.partner) keys.add(pairKey(d.who, d.partner));
+  for (const d of desires) if (d.partner && d.cat !== "vibe") keys.add(pairKey(d.who, d.partner));
   const mainPair = cast.pairings[0];
   if (mainPair) keys.add(pairKey(mainPair[0], mainPair[1]));
 
@@ -1356,10 +1361,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       buildAct("oral", oralActs.filter((a) => oralKindOf(a.act) === kind), oralDes.filter((d) => oralKindOf(d.act) === kind), pairTags, pair, meta, where, kind),
     );
     const vaginal = buildVaginal(pActs.filter((a) => a.cat === "vaginal"), pair, meta, where);
-    const weight = pActs.reduce((n, a) => n + a.weight, 0) + pDes.length * 0.2 + (isMain ? 0.01 : 0);
+    const weight = pActs.reduce((n, a) => n + a.weight, 0) + pDes.filter((d) => d.cat !== "vibe").length * 0.2 + (isMain ? 0.01 : 0);
     // Skip incidental pairs with almost nothing (likely misresolved pronouns); a tagged pair needs less.
     if (!isMain && weight < (tagged ? 0.5 : 1.2)) continue;
-    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, weight, key });
+    const vibe = buildVibes(pair, pActs, pDes, pairTags, meta);
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, vibe, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
 
@@ -1386,6 +1392,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         );
       }
     }
+  }
+
+  {
+    const named = results.flatMap((r) => r.pairing.split("/")).map((n) => n.trim());
+    const priors = tagPriors(meta, cast.chars.filter((c) => named.includes(c.name)));
+    if (priors.size)
+      notes.push(`As a very faint tie-breaker, how often AO3 tags ${[...priors.keys()].join(", ")} as a top or bottom was used; anything in the text outweighs it.`);
   }
 
   if (hasUncertainNotes) notes.push("Some AO3 chapter-note text had an unclear boundary and was excluded from pattern analysis.");
@@ -1477,6 +1490,60 @@ function tagsFor(info: TagInfo, pair: [Character, Character], isMain: boolean): 
       ? { anal: info.anal, oral: info.oral, blowjob: info.blowjobs, rimming: info.rimming, cunnilingus: info.oral.filter((t) => /cunnilingus|eating out|pussy/i.test(t)) }
       : { anal: [], oral: [], blowjob: [], rimming: [], cunnilingus: [] },
   };
+}
+
+/**
+ * Overall top/bottom "vibe" for each partner, from every kind of evidence, in descending order of importance: sex acts,
+ * stating what they are or prefer (and AO3 role tags), groping and similar, desires/plans/fantasies, other hints, dominant
+ * or submissive behaviour, then AO3 tag counts for the character.
+ */
+function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit[], tags: PairTags, meta: Ao3Meta): VibeRating[] {
+  const other = (c: Character) => (pair[0] === c ? pair[1] : pair[0]);
+  const items = new Map<Character, VibeItem[]>(pair.map((c) => [c, []]));
+  const add = (c: Character, tier: VibeItem["tier"], role: Role, weight: number) => items.get(c)?.push({ tier, role, weight });
+  const flip = (r: Role): Role => (r === "top" ? "bottom" : "top");
+
+  // 1. Sex acts: penetration, strap-ons and fingering (oral isn't about topping).
+  for (const a of acts) {
+    if (a.cat !== "anal" && !(a.cat === "vaginal" && !/scissor/i.test(a.act))) continue;
+    const w = (a.basis === "named" ? 1 : a.basis === "pronoun" ? 0.8 : 0.6) * (/fingering/i.test(a.act) ? 0.15 : 0.5);
+    add(a.top, 1, "top", w);
+    add(a.bottom, 1, "bottom", w);
+  }
+  // 2. Saying what they are or prefer, and AO3 role tags.
+  for (const r of tags.roles) {
+    if (!items.has(r.char)) continue;
+    if (r.role === "switch") {
+      add(r.char, 2, "top", 0.6);
+      add(r.char, 2, "bottom", 0.6);
+    } else {
+      add(r.char, 2, r.role, 1);
+      add(other(r.char), 2, flip(r.role), 0.5);
+    }
+  }
+  for (const c of pair) if (tags.switching.length) { add(c, 2, "top", 0.4); add(c, 2, "bottom", 0.4); }
+  const TIER_OF: Partial<Record<Desire["kind"], [VibeItem["tier"], number]>> = {
+    identity: [2, 1],
+    touch: [3, 0.4], fingering: [3, 0.4], prep: [3, 0.4],
+    said: [4, 0.6], wanted: [4, 0.8], fantasy: [4, 0.6], hypothetical: [4, 0.4], history: [4, 0.5],
+    ogling: [5, 0.4], fingers: [5, 0.4], solo: [5, 0.4],
+    behavior: [6, 0.4],
+  };
+  for (const d of des) {
+    const hit = TIER_OF[d.kind];
+    if (!hit || !items.has(d.who)) continue;
+    if (d.cat === "oral") continue;
+    const [tier, w] = hit;
+    add(d.who, tier, d.wants ? d.role : flip(d.role), d.wants ? w : w * 0.5);
+  }
+  // 7. How AO3 tags the character overall.
+  for (const [name, pr] of tagPriors(meta, pair)) {
+    const c = pair.find((x) => x.name === name);
+    if (!c) continue;
+    const lean = (pr.pTop - 0.5) * 2;
+    add(c, 7, lean > 0 ? "top" : "bottom", Math.abs(lean) * 0.6);
+  }
+  return pair.map((c) => rateVibe(c.name, items.get(c) ?? []));
 }
 
 interface Scene {
@@ -1618,7 +1685,9 @@ function buildAct(
   // ── tags ──
   const tagTops = tags.roles.filter((r) => r.role === "top");
   const tagBottoms = tags.roles.filter((r) => r.role === "bottom");
-  const tagSwitch = tags.roles.filter((r) => r.role === "switch").length > 0 || tags.switching.length > 0;
+  // Someone tagged both "Top X" and "Bottom X" is versatile (with the other person); it never means they have sex with themselves.
+  const taggedBoth = tagTops.some((t) => tagBottoms.some((b) => b.char === t.char));
+  const tagSwitch = tags.roles.filter((r) => r.role === "switch").length > 0 || tags.switching.length > 0 || taggedBoth;
   const roleTagsApply = cat === "anal"; // AO3 Top/Bottom tags describe anal roles
   let tagAdj = 0;
   if (roleTagsApply) {
@@ -1691,11 +1760,13 @@ function buildAct(
 
     if (hasTagRoles) {
       verdict = tagSwitch ? "switch" : "one_way";
-      const t = tagTops[0]?.char.name ?? (tagBottoms[0] ? otherOf(tagBottoms[0].char.name) : "");
-      const b = tagBottoms[0]?.char.name ?? (tagTops[0] ? otherOf(tagTops[0].char.name) : "");
+      let t = tagTops[0]?.char.name ?? (tagBottoms[0] ? otherOf(tagBottoms[0].char.name) : "");
+      let b = tagBottoms[0]?.char.name ?? (tagTops[0] ? otherOf(tagTops[0].char.name) : "");
+      // Tagged both ways: the tops/bottoms are the two different people.
+      if (t && t === b) b = otherOf(t) ?? b;
       top = t ?? "";
       bottom = b ?? "";
-      summary = `Not found in the text; going by AO3 tags: ${[...tags.roles.map((r) => r.tag), ...tags.switching].join(", ")}.` + (summary ? ` ${summary}` : "");
+      summary = `Not found in the text; going by AO3 tags: ${[...tags.roles.map((r) => r.tag), ...tags.switching].join(", ")}.` + (taggedBoth ? " Tagged as both top and bottom, so versatile with each other." : "") + (summary ? ` ${summary}` : "");
       base = 0.45;
       reasons.push("based on AO3 tags only — no matching sentences found");
       if (desireRank.length) {
@@ -1763,6 +1834,17 @@ function buildAct(
       if (!tagSwitch && other && !tagged(other, r.role)) doubt.push({ who: other, role: r.role, weight: 0.3, kind: "tag" });
     }
     if (tags.switching.length) for (const c of pair) for (const role of ["top", "bottom"] as const) ev.push({ who: c.name, role, weight: 0.25, kind: "tag" });
+  }
+  // How AO3 tags the character overall: a very faint nudge (at most about 15% on its own), under everything above.
+  if (cat === "anal") {
+    for (const [name, pr] of tagPriors(meta, pair)) {
+      const lean = (pr.pTop - 0.5) * 2;
+      const role: Role = lean > 0 ? "top" : "bottom";
+      const w = 0.12 * Math.abs(lean);
+      ev.push({ who: name, role, weight: w, kind: "prior" });
+      const other = otherOf(name);
+      if (other) ev.push({ who: other, role: role === "top" ? "bottom" : "top", weight: w * 0.4, kind: "prior" });
+    }
   }
   const people = roleOdds(pair.map((c) => c.name), ev, doubt);
   return { verdict, top, bottom, summary, instances, desires: desireOut, confidence, people };

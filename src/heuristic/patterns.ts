@@ -16,7 +16,7 @@
 //   {PENIS} {ASS} {MOUTH} {FINGERS}  body-part vocab
 // Matching is case-sensitive so names like "Will" or "Grace" aren't confused with ordinary words.
 
-export type Cat = "anal" | "oral" | "vaginal";
+export type Cat = "anal" | "oral" | "vaginal" | "vibe";
 
 export interface PatternDef {
   id: string;
@@ -40,7 +40,7 @@ export interface PatternDef {
   femaleTarget?: "flip" | "drop";
   /** Not an act: a hint about who'd top (ogling an ass, grabbing it, staring at a bulge). */
   /** A hint, not an act. `actor` says whose behaviour it is when that isn't the subject ("shoved his fingers into Peter's mouth"). */
-  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
+  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo" | "behavior"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
 }
 
 export interface CompiledPattern extends PatternDef {
@@ -1396,7 +1396,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.6,
     needsCtx: true,
     signal: { kind: "solo", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:fuck|rid|rode|bounc|rock|grind|ground|sink|sank|thrust|lower|work|impal)\\w*\\s+(?:${SELF}\\s+)?(?:\\w+ly\\s+)?(?:back\\s+|down\\s+)*(?:(?:on(?:to)?|with)\\s+)?(?:a|the|his|her|my|their)\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|toy|vibrator|vibe|plug)s?\\b`,
+    src: `\\b{B}\\s+{aux}(?:fuck|rid|rode|bounc|rock|grind|ground|sink|sank|thrust|lower|work|impal)\\w*\\s+(?:${SELF}\\s+)?(?:\\w+ly\\s+)?(?:back\\s+|down\\s+)*(?:(?:on(?:to)?|with)\\s+)?(?:a|the|his|her|my|their)\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|toy|vibrator|vibe|plug)s?\\b(?!\\s+(?:\\w+\\s+)?(?:into|inside|in|up|against)\\s+(?!himself|herself|themself|themselves|myself|his|her|their|my|the)\\w)`,
   },
   {
     // "thrusts down on his own finger", "fucked himself on his own fingers"
@@ -1643,6 +1643,168 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.6,
     signal: { kind: "touch", actorRole: "top" },
     src: `\\b{T}\\s+{aux}(?:grind|ground|rut|press|rock|rubb?)\\w*\\s+(?:his|her|their|my|your)\\s+(?:${PENIS}|crotch|hips|groin|bulge)\\s+(?:\\w+\\s+){0,2}?(?:against|into|between|along)\\s+{B:poss}\\s+(?:\\w+\\s+){0,1}?(?:ass|arse|butt|cheeks|backside)`,
+  },
+
+  // ───────────── BEHAVIOUR: dominant or submissive, in or out of bed (feeds the "vibe" rating only) ─────────────
+  {
+    id: "dom-pin",
+    cat: "vibe",
+    act: "pinning someone",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:pinn?ed|pins|pinning|press(?:ed|es|ing)|shov(?:ed|es|ing)|slam(?:med|s|ming)|back(?:ed|s|ing)|crowd(?:ed|s|ing))\\s+{B}\\s+(?:up\\s+)?(?:against|to|onto|into|down\\s+(?:on|onto|against|into))\\b`,
+  },
+  {
+    id: "dom-take-control",
+    cat: "vibe",
+    act: "taking control",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:took|takes|taking|seiz(?:ed|es|ing))\\s+(?:control|charge|the lead|command)\\b`,
+  },
+  {
+    id: "dom-grip",
+    cat: "vibe",
+    act: "gripping firmly",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:grip(?:ped|s|ping)?|grabb?ed|grabs|grabbing|caught|catch(?:es)?|tilt(?:ed|s|ing)|tugg?ed|tugs|tugging|yank(?:ed|s|ing)|fisted)\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:chin|jaw|hair|wrists?|nape|neck|throat|collar)\\b`,
+  },
+  {
+    id: "dom-order",
+    cat: "vibe",
+    act: "giving orders",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:order(?:ed|s)?|command(?:ed|s)?)\\s+{B}\\b`,
+  },
+  {
+    id: "dom-carry",
+    cat: "vibe",
+    act: "lifting or carrying someone",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:lift(?:ed|s|ing)|carr(?:ied|ies|ying)|hoist(?:ed|s|ing)|scoop(?:ed|s|ing)|swept)\\s+{B}\\s+(?:up\\s+)?(?:into|onto|off|over|against|in|to)\\b`,
+  },
+  {
+    id: "dom-protect",
+    cat: "vibe",
+    act: "protecting someone",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:shield\\w*|protect\\w*|stepp?ed\\s+in\\s+front\\s+of|stood\\s+in\\s+front\\s+of)\\s+{B}\\b`,
+  },
+  {
+    id: "dom-lead",
+    cat: "vibe",
+    act: "leading someone",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:led|leads|leading|dragged|drags|dragging|steered|steers|guided|guides)\\s+{B}\\s+(?:by\\s+the\\s+(?:hand|wrist|arm|collar)|to\\s+the\\s+(?:bed|bedroom)|into\\s+the\\s+bedroom|upstairs)\\b`,
+  },
+  {
+    id: "sub-melt",
+    cat: "vibe",
+    act: "going pliant",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:melt(?:ed|s|ing)|sag(?:ged|s)|went|goes|go)\\s+(?:soft|pliant|limp|boneless|still|pliable)\\b`,
+  },
+  {
+    id: "sub-yield",
+    cat: "vibe",
+    act: "submitting",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:submit(?:ted|s)?|yield(?:ed|s)?|surrender(?:ed|s)?)\\b`,
+  },
+  {
+    id: "sub-let-lead",
+    cat: "vibe",
+    act: "letting someone lead",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:let|lets|allow(?:ed|s)?)\\s+{T}\\s+(?:take|lead|take\\s+over|take\\s+charge|set|decide|undress|strip)\\b`,
+  },
+  {
+    id: "sub-pinned",
+    cat: "vibe",
+    act: "being pinned",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:was|were|is|got|gets)\\s+(?:pinn?ed|pushed|pressed|shoved|slammed|backed|manhandled|hauled)\\s+(?:up\\s+)?(?:against|to|onto|down)\\b`,
+  },
+  {
+    id: "sub-squirm",
+    cat: "vibe",
+    act: "squirming under someone",
+    subj: "b",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:whimper(?:ed|s)?|keen(?:ed|s)?|mewl(?:ed|s)?|squirm(?:ed|s)?|trembl(?:ed|es))\\s+(?:under|beneath|at|against)\\s+{T:poss}\\s+(?:touch|gaze|stare|hands|weight|mouth)\\b`,
+  },
+  {
+    id: "sub-lashes",
+    cat: "vibe",
+    act: "looking up through lashes",
+    subj: "b",
+    weight: 0.4,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:looked|glanced|peered|gazed)\\s+up\\s+(?:at\\s+{T}\\s+)?through\\s+(?:his|her|their)\\s+lashes\\b`,
+  },
+  // ───────────── TOYS: dildos, vibrators, plugs and strap-ons (whoever is penetrated is the bottom) ─────────────
+  {
+    // "pushed the dildo into Dean", "slid a vibrator inside her", "fucked the toy into him", "worked a plug into Cas"
+    id: "toy-in",
+    cat: "anal",
+    act: "anal sex (toy)",
+    subj: "t",
+    weight: 1,
+    src: `\\b{T}\\s+{aux}(?:push|press|slid|slide|slip|work|eas|insert|guid|fed|feed|sink|sank|shov|nudg|pump|fuck|drove|drive|thrust|stuff|ram)\\w*\\s+(?:(?:a|an|the|his|her|their|that|this|one|another|my|your)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|vibrator|vibe|butt\\s*plug|plug|beads|wand|bullet|toy|strap-?on|strap)\\s+(?:(?:slowly|deep(?:er)?|all the way|gently|carefully|roughly|further|back|firmly|easily)\\s+)*(?:in(?:to)?|inside|up)\\s+{B:ass}`,
+  },
+  {
+    // "pressed the vibrator against Dean's hole", "teased the plug at her entrance"
+    id: "toy-at-hole",
+    cat: "anal",
+    act: "toy at the hole",
+    subj: "t",
+    weight: 0.6,
+    needsCtx: true,
+    signal: { kind: "prep", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:press|nudg|rub|trac|circl|teas|touch|brush|line|lin)\\w*\\s+(?:up\\s+)?(?:(?:a|an|the|his|her|their|that|this|my|your)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|vibrator|vibe|butt\\s*plug|plug|beads|wand|bullet|toy|strap-?on|strap)\\s+(?:\\w+\\s+)?(?:against|to|at|along|over|between)\\s+{B:assReq}`,
+  },
+  {
+    // "Dean was wearing a plug", "had a vibrator in him all day"
+    id: "wearing-plug",
+    cat: "anal",
+    act: "wearing a plug",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    signal: { kind: "prep", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:was|were|is|had|has|wore|wears|wearing|kept)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:butt\\s*plug|plug(?!\\s+in\\b)|vibrator|vibe|beads)\\b`,
+  },
+  {
+    // "strapped on the harness", "buckled the strap-on", "wearing a dildo": the wearer is the top
+    id: "strapped-on",
+    cat: "anal",
+    act: "strapping on",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "prep", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:strapp?ed\\s+(?:on|in)|buckl\\w+\\s+(?:on|up|in)|put\\s+on|donn\\w+|wore|wears|wearing)\\s+(?:the\\s+|a\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:strap-?on|harness|dildo)\\b`,
   },
 ];
 

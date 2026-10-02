@@ -179,7 +179,7 @@ export interface RoleEvidence {
    * Scenes are seen on the page. Everything else only points: behaviour ("hint": ogling, touching, lead-up),
    * what someone says they want or have done ("desire"), and AO3 role tags ("tag").
    */
-  kind: "scene" | "hint" | "desire" | "tag";
+  kind: "scene" | "hint" | "desire" | "tag" | "prior";
 }
 
 /**
@@ -199,7 +199,7 @@ export function roleOdds(names: string[], evidence: RoleEvidence[], doubt: RoleE
     // Without a scene, behaviour tops out near 40% and plain statements of wanting or past experience near 60%;
     // together they can reach about 70%.
     const pointing = Math.min(0.7, Math.min(0.35, sum(who, role, "hint")) + Math.min(0.55, sum(who, role, "desire")));
-    const e = (seen ? (seen * seen) / (seen + 0.5 * opposite) : 0) + pointing + sum(who, role, "tag");
+    const e = (seen ? (seen * seen) / (seen + 0.5 * opposite) : 0) + pointing + sum(who, role, "tag") + sum(who, role, "prior");
     let p = 1 - Math.exp(-e / 0.6);
     for (const d of doubt) if (d.who === who && d.role === role) p *= 1 - d.weight * Math.exp(-seen);
     return Math.round(Math.max(0.02, Math.min(0.97, p)) * 100) / 100;

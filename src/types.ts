@@ -24,7 +24,7 @@ export interface Desire {
   role: Role;
   /** false = the character explicitly does NOT want this role. */
   wants: boolean;
-  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo";
+  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo" | "behavior";
   act: string;
   where: string;
   evidence: string;
@@ -66,6 +66,17 @@ export interface VaginalResult {
   confidence: Confidence;
 }
 
+/** One character's overall top/bottom "vibe" in a pairing. */
+export interface VibeRating {
+  name: string;
+  label: "Total top" | "Vers top" | "Vers" | "Vers bottom" | "Total bottom" | "Unclear";
+  /** −1 (total bottom) … +1 (total top). */
+  score: number;
+  confidence: Confidence;
+  /** What it rests on, strongest evidence first. */
+  basis: string[];
+}
+
 export interface PairingResult {
   pairing: string;
   anal: ActResult;
@@ -76,6 +87,8 @@ export interface PairingResult {
   rimming: ActResult;
   cunnilingus: ActResult;
   vaginal: VaginalResult;
+  /** Overall vibe for each partner, from every kind of evidence. */
+  vibe?: VibeRating[];
 }
 
 export interface Analysis {
