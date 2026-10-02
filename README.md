@@ -19,6 +19,9 @@ A small web app: drop in an AO3 download (PDF, EPUB, HTML, or TXT) and it tells 
    switches scores high on both. Each score is built from that person's scenes in the role (scenes worked
    out only from pronouns count less, and one shaky scene against many the other way counts little), plus
    hints (which alone stay under about 45%) and AO3 role tags (which alone stay around 60%).
+5. **Vibe**: an overall rating for each partner in each pairing, from *Total top* through *Vers top*, *Vers* and
+   *Vers bottom* to *Total bottom* (or *Unclear*), with a confidence score and the evidence it rests on (see
+   [Vibe rating](#vibe-rating)).
 
 ## How it works
 
@@ -37,7 +40,8 @@ word count is estimated and the main characters are guessed from frequently capi
 **Top/bottom (free, no AI)** — `src/heuristic/` is a pattern-matching engine:
 
 1. **Characters**: names and short forms from the AO3 tags (“Harry Potter” → “Harry”, “Potter”; shared
-   surnames are dropped), gender from the M/M / F/F category or from pronoun continuity in the text, and
+   surnames are dropped), gender from a built-in list of common fanfiction characters (for the fandoms the work is
+   tagged with), the M/M / F/F category, or pronoun continuity in the text, and
    first-person (“I”) or reader-insert (“you”) narration. The narrator comes from a “POV X” tag, or else is the
    main character who is named in dialogue but rarely in narration. Without tags, a first name and surname
    that appear together (“Draco Malfoy”) but otherwise never share a sentence are merged into one person.
@@ -46,6 +50,29 @@ word count is estimated and the main characters are guessed from frequently capi
    Male Character” becomes “Harry Potter/Jonah”. Named OC tags (“Kyle (Original Character)”, “OMC - Jonah”)
    are used as given, and Original Work fics with no character tags get their cast from the text. OCs
    take their gender from the tag and are listed in the notes.
+
+   **Known characters and nicknames**: `src/heuristic/canon-data.ts` lists several hundred characters from ~70
+   fandoms (Supernatural, Harry Potter, Captive Prince, Marvel, Stranger Things, 9-1-1, Teen Wolf, BTS/K-pop,
+   anime, games, Wicked and more) with their other names (“Cas” for Castiel, “Damianos” for Damen, “Deadpool” for
+   Wade). A nickname is added only if the text actually uses it, and names that look alike (“Damen”/“Damianos”)
+   are merged. A work with two tags for one person (“Galinda Upland” beside “Glinda the Good”, when the text only
+   says Glinda) becomes one character; two tags that are both well used (“Tom Riddle”, “Voldemort”) stay apart.
+   A tagged character who never appears by name (“The Mute”) takes the name of the original character the text
+   uses. First-person fics whose sections are headed by a name (“Scott - Saturday, September 6”) switch narrator
+   at each heading.
+
+   **Category presumption**: tagged *only* M/M (or only F/F), characters are presumed to be men (or women) and the
+   sex to be between them. This is context, not a ban: a scene with someone of the other gender stays when it is
+   clearly real (both people named, or the pair seen in more than one sentence) and is dropped when it rests on a
+   single pronoun-only reading, which is where false flags come from. Any other category (F/M, Multi, Other) removes
+   the presumption. A work rated Explicit or Not Rated with almost no recognised acts gets a note quoting the
+   passages that read like sex scenes, since the sex may be written non-graphically.
+
+   **Anatomy** follows the words in the text first (“his cunt”, “her cock”), then tags: a tag naming someone trans
+   (“Trans Eddie Munson”) or saying they have a vagina or are intersex (“Intersex Dean Winchester”, “Dean
+   Winchester Has A Vagina”) gives a man a vagina; “futanari” / trans-woman tags give a woman a penis. An *Omega*
+   tag alone does **not**, because omegaverses differ; it takes an omega tag together with an intersex/vagina tag,
+   and a general intersex/vagina tag with no names only makes men's anatomy uncertain.
 2. **Act patterns**: ~50 sentence patterns per act — e.g. “X fucked Y”, “X’s cock slid into Y”, “Y rode X”,
    “Y’s hole clenched around X’s cock”, “Y sucked X off”, “X’s cock between Y’s lips”, “X rimmed Y”,
    “X’s tongue in Y’s hole”, passive forms (“Y was fucked by X”), fingering, and sentences with the subject
@@ -53,8 +80,15 @@ word count is estimated and the main characters are guessed from frequently capi
    pucker, rosebud, starfish, sphincter, ring of muscle, back entrance, and (for rimming) crack and cleft.
    The prostate counts as anal (“X nailed his prostate”, “milked”, “ground against”), and so do allusions to
    it, which are read as “his prostate”: “that bundle of nerves inside him”, “his sweet spot” (but not the
-   sweet spot on his neck), “the spot inside Harry”, “his p-spot”, “the spot that made him see stars”. Innocent look-alikes (“sucked in a breath”, “blew him a kiss”,
-   “fingers in his hair”, “pushed into the room”) are excluded.
+   sweet spot on his neck), “the spot inside Harry”, “his p-spot”, “the spot that made him see stars”. **Toys count**: dildos, vibrators, plugs, beads and strap-ons (“pushed the dildo into Dean”, “slid a vibrator
+   inside her”, “fucked him with the strap-on”, “eased a plug into her ass”). **Whoever is penetrated is the
+   bottom**; the one doing it (or wearing the strap-on or harness) is the top. Wearing a plug, lining a toy up at
+   a hole, and strapping on a harness are hints; using a toy on yourself is a solo-bottom hint. Women with women
+   get the same treatment (strap-on play is vaginal sex, or anal when an ass is named); two women with no anal in
+   the text get no anal card built from Top/Bottom tags. Someone tagged both “Top X” and “Bottom X” is versatile
+   with their partner, never with themselves.
+   Innocent look-alikes (“sucked in a breath”, “blew him a kiss”, “fingers in his hair”, “pushed into the room”,
+   “top first, then trousers”, “top of my class”, “circled her clit” with a hand) are excluded.
 3. **Pronouns and epithets**: “he”/“she” as a subject means the last subject; the other person in a two-person
    sex scene is the partner. Epithets are recognized for hair colour (“the blond”, “the redhead”, “the
    dark-haired man”), height (“the taller man”, “the shorter of the two”), size (“the bigger man”, “the
@@ -86,11 +120,36 @@ word count is estimated and the main characters are guessed from frequently capi
    up with more scenes, named (not pronoun) evidence, matching AO3 tags (“Bottom X”, “Switching”) and
    matching desire/fantasy lines and hints, and down when tags or desires disagree. The reasons are shown on each card.
 
+## Vibe rating
+
+Each partner in a pairing gets one of *Total top*, *Vers top*, *Vers*, *Vers bottom*, *Total bottom* or
+*Unclear*, plus a confidence score and a list of what it rests on. The evidence is weighed in this order, most
+important first:
+
+1. **Actual sex acts** in the work (penetration, strap-ons, fingering)
+2. **Stating what they are or prefer** (“I'm a top”), and AO3 role tags (“Top X”, “Switching”)
+3. **Groping and similar behaviour** (grabbing an ass, fingering, lining up, spreading legs)
+4. **Desires, plans and fantasies** (“he wanted Draco to fuck him”, “fuck me,” he begged)
+5. **Other hints**, like ogling a bulge or an ass
+6. **Dominant or submissive behaviour**, in or out of bed: pinning someone, taking control of a kiss, gripping a
+   chin or wrists, giving orders, lifting or carrying, protecting someone, leading them by the hand (dominant);
+   going pliant, yielding, letting someone lead, being pinned, squirming under a touch, looking up through the
+   lashes (submissive). These only feed the vibe, never the anal/oral cards.
+7. **AO3 tag counts**: a very faint prior from how often AO3 tags the character as a top or bottom, for ~230
+   popular characters (`src/heuristic/ao3-prior-data.ts`, from the community Top Tops / Top Bottoms / Most
+   Versatile sheets). It is only used for characters in a fandom the work is tagged with, nudges per-person
+   anal odds by at most about 15% on its own, and anything in the text outweighs it.
+
+Each tier votes top or bottom with a strength that levels off as evidence piles up, and higher tiers outweigh
+lower ones (`src/vibe.ts`). Confidence rises with how much evidence there is and how well it agrees, and is capped
+when only faint hints (about 40%) or only the tag counts (about 12%) exist. A single faint hint never makes anyone
+a “total”.
+
 **Vaginal sex** is reported separately: only whether it happens and between whom. Anal vs vaginal is decided
-by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since male omegas and trans
-men may have vaginas and some women have penises; anatomy (by gender, or what the text says a character has)
+by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since trans men and intersex characters
+(and omegas, in some omegaverses) may have vaginas and some women have penises; anatomy (by gender, or what the text says a character has)
 is only the fallback. When a sentence doesn't say, it goes the way that bottom's clearly worded scenes went
-(an omega whose other scenes all mention his “seam” or “cunt” gets vaginal), then by the paragraph. Between
+(a character whose other scenes all mention his “seam” or “cunt” gets vaginal), then by the paragraph. Between
 two men, a scene that still doesn't say is counted as anal. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
 
 **Claude second opinion (optional)** — with your own Anthropic API key, Claude (Opus 5.5 by default) reads
@@ -105,7 +164,7 @@ Your API key stays in your browser and is sent only to `api.anthropic.com`.
 ```sh
 npm install
 npm run dev      # http://localhost:5173
-npm test         # parser + pattern-engine tests (incl. a ~150-sentence phrasing accuracy table)
+npm test         # parser, EPUB, pattern-engine, canon, anatomy and vibe tests (incl. a phrasing accuracy table)
 npm run build    # static site in dist/
 ```
 

@@ -1396,7 +1396,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.6,
     needsCtx: true,
     signal: { kind: "solo", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:fuck|rid|rode|bounc|rock|grind|ground|sink|sank|thrust|lower|work|impal)\\w*\\s+(?:${SELF}\\s+)?(?:\\w+ly\\s+)?(?:back\\s+|down\\s+)*(?:(?:on(?:to)?|with)\\s+)?(?:a|the|his|her|my|their)\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|toy|vibrator|vibe|plug)s?\\b`,
+    src: `\\b{B}\\s+{aux}(?:fuck|rid|rode|bounc|rock|grind|ground|sink|sank|thrust|lower|work|impal)\\w*\\s+(?:${SELF}\\s+)?(?:\\w+ly\\s+)?(?:back\\s+|down\\s+)*(?:(?:on(?:to)?|with)\\s+)?(?:a|the|his|her|my|their)\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|toy|vibrator|vibe|plug)s?\\b(?!\\s+(?:\\w+\\s+)?(?:into|inside|in|up|against)\\s+(?!himself|herself|themself|themselves|myself|his|her|their|my|the)\\w)`,
   },
   {
     // "thrusts down on his own finger", "fucked himself on his own fingers"
@@ -1762,6 +1762,49 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.4,
     signal: { kind: "behavior", actorRole: "bottom" },
     src: `\\b{B}\\s+{aux}(?:looked|glanced|peered|gazed)\\s+up\\s+(?:at\\s+{T}\\s+)?through\\s+(?:his|her|their)\\s+lashes\\b`,
+  },
+  // ───────────── TOYS: dildos, vibrators, plugs and strap-ons (whoever is penetrated is the bottom) ─────────────
+  {
+    // "pushed the dildo into Dean", "slid a vibrator inside her", "fucked the toy into him", "worked a plug into Cas"
+    id: "toy-in",
+    cat: "anal",
+    act: "anal sex (toy)",
+    subj: "t",
+    weight: 1,
+    src: `\\b{T}\\s+{aux}(?:push|press|slid|slide|slip|work|eas|insert|guid|fed|feed|sink|sank|shov|nudg|pump|fuck|drove|drive|thrust|stuff|ram)\\w*\\s+(?:(?:a|an|the|his|her|their|that|this|one|another|my|your)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|vibrator|vibe|butt\\s*plug|plug|beads|wand|bullet|toy|strap-?on|strap)\\s+(?:(?:slowly|deep(?:er)?|all the way|gently|carefully|roughly|further|back|firmly|easily)\\s+)*(?:in(?:to)?|inside|up)\\s+{B:ass}`,
+  },
+  {
+    // "pressed the vibrator against Dean's hole", "teased the plug at her entrance"
+    id: "toy-at-hole",
+    cat: "anal",
+    act: "toy at the hole",
+    subj: "t",
+    weight: 0.6,
+    needsCtx: true,
+    signal: { kind: "prep", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:press|nudg|rub|trac|circl|teas|touch|brush|line|lin)\\w*\\s+(?:up\\s+)?(?:(?:a|an|the|his|her|their|that|this|my|your)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|vibrator|vibe|butt\\s*plug|plug|beads|wand|bullet|toy|strap-?on|strap)\\s+(?:\\w+\\s+)?(?:against|to|at|along|over|between)\\s+{B:assReq}`,
+  },
+  {
+    // "Dean was wearing a plug", "had a vibrator in him all day"
+    id: "wearing-plug",
+    cat: "anal",
+    act: "wearing a plug",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    signal: { kind: "prep", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:was|were|is|had|has|wore|wears|wearing|kept)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:butt\\s*plug|plug(?!\\s+in\\b)|vibrator|vibe|beads)\\b`,
+  },
+  {
+    // "strapped on the harness", "buckled the strap-on", "wearing a dildo": the wearer is the top
+    id: "strapped-on",
+    cat: "anal",
+    act: "strapping on",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "prep", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:strapp?ed\\s+(?:on|in)|buckl\\w+\\s+(?:on|up|in)|put\\s+on|donn\\w+|wore|wears|wearing)\\s+(?:the\\s+|a\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:strap-?on|harness|dildo)\\b`,
   },
 ];
 

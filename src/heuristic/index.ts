@@ -1152,7 +1152,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       } else if (hole === "ambiguous" && !holeGuess) {
         ambiguousHoles++;
         return;
-      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) {
+      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|plug|vibrator|vibe|beads|wand)\b/i.test(para)) {
         // A woman "fucking" someone with no strap-on mentioned: not anal penetration by her.
         return;
       }
@@ -1259,7 +1259,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     if (wordsOnly) return "ambiguous";
     // A woman with no penis "fucking" someone without a strap-on: it's her vagina involved.
-    if (top.penis === false && top.vulva === true && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) return "vaginal";
+    if (top.penis === false && top.vulva === true && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|plug|vibrator|vibe|beads|wand)\b/i.test(para)) return "vaginal";
     const v = VULVA_CTX.test(para);
     const a = ANAL_CTX.test(para);
     if (bottom.vulva === false) return "anal";
@@ -1685,7 +1685,9 @@ function buildAct(
   // ── tags ──
   const tagTops = tags.roles.filter((r) => r.role === "top");
   const tagBottoms = tags.roles.filter((r) => r.role === "bottom");
-  const tagSwitch = tags.roles.filter((r) => r.role === "switch").length > 0 || tags.switching.length > 0;
+  // Someone tagged both "Top X" and "Bottom X" is versatile (with the other person); it never means they have sex with themselves.
+  const taggedBoth = tagTops.some((t) => tagBottoms.some((b) => b.char === t.char));
+  const tagSwitch = tags.roles.filter((r) => r.role === "switch").length > 0 || tags.switching.length > 0 || taggedBoth;
   const roleTagsApply = cat === "anal"; // AO3 Top/Bottom tags describe anal roles
   let tagAdj = 0;
   if (roleTagsApply) {
@@ -1758,11 +1760,13 @@ function buildAct(
 
     if (hasTagRoles) {
       verdict = tagSwitch ? "switch" : "one_way";
-      const t = tagTops[0]?.char.name ?? (tagBottoms[0] ? otherOf(tagBottoms[0].char.name) : "");
-      const b = tagBottoms[0]?.char.name ?? (tagTops[0] ? otherOf(tagTops[0].char.name) : "");
+      let t = tagTops[0]?.char.name ?? (tagBottoms[0] ? otherOf(tagBottoms[0].char.name) : "");
+      let b = tagBottoms[0]?.char.name ?? (tagTops[0] ? otherOf(tagTops[0].char.name) : "");
+      // Tagged both ways: the tops/bottoms are the two different people.
+      if (t && t === b) b = otherOf(t) ?? b;
       top = t ?? "";
       bottom = b ?? "";
-      summary = `Not found in the text; going by AO3 tags: ${[...tags.roles.map((r) => r.tag), ...tags.switching].join(", ")}.` + (summary ? ` ${summary}` : "");
+      summary = `Not found in the text; going by AO3 tags: ${[...tags.roles.map((r) => r.tag), ...tags.switching].join(", ")}.` + (taggedBoth ? " Tagged as both top and bottom, so versatile with each other." : "") + (summary ? ` ${summary}` : "");
       base = 0.45;
       reasons.push("based on AO3 tags only — no matching sentences found");
       if (desireRank.length) {
