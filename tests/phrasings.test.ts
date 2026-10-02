@@ -135,6 +135,12 @@ const CASES: [string, Exp][] = [
   ["Harry blew Draco away with his speech.", null],
   ["Draco filled Harry's glass.", null],
   ["Harry went down on the stairs.", null],
+  // round 3
+  ["Draco kissed Harry, then fucked his ass slowly.", ["anal", D, H]],
+  ["Harry fucked Draco's tight hole.", ["anal", H, D]],
+  ["Draco worked his tongue into Harry's hole.", ["oral", D, H, "rimming"]],
+  ["Harry worked Draco's hole with his fingers.", null], // fingering-ish but not a recognized form: must not become rimming
+  ["Harry fucked his fist.", null],
 ];
 
 it("pattern engine phrasing accuracy", () => {

@@ -8,10 +8,16 @@ import type { ActResult, Analysis } from "./types";
 interface ClaudeAct extends Omit<ActResult, "confidence"> {
   confidence: { level: "High" | "Medium" | "Low"; reasons: string[] };
 }
+interface ClaudeVaginal {
+  occurs: boolean;
+  summary: string;
+  instances: { participants: string[]; act: string; where: string; evidence: string }[];
+  confidence: { level: "High" | "Medium" | "Low"; reasons: string[] };
+}
 interface ClaudeAnswer {
   fandom: string;
   main_pairing: string;
-  pairings: { pairing: string; anal: ClaudeAct; oral: ClaudeAct }[];
+  pairings: { pairing: string; anal: ClaudeAct; oral: ClaudeAct; vaginal: ClaudeVaginal }[];
   notes: string;
 }
 
@@ -57,7 +63,7 @@ const actSchema = {
           who: { type: "string" },
           role: { type: "string", enum: ["top", "bottom"] },
           wants: { type: "boolean", description: "false if they say they do NOT want this role." },
-          kind: { type: "string", enum: ["said", "wanted", "fantasy", "hypothetical", "identity"] },
+          kind: { type: "string", enum: ["said", "wanted", "fantasy", "hypothetical", "identity", "ogling", "touch", "fingering"] },
           act: { type: "string" },
           where: { type: "string" },
           evidence: { type: "string", description: "Short paraphrase." },
@@ -80,6 +86,42 @@ const actSchema = {
   additionalProperties: false,
 };
 
+const confidenceSchema = {
+  type: "object",
+  properties: {
+    level: { type: "string", enum: ["High", "Medium", "Low"] },
+    reasons: { type: "array", items: { type: "string" }, description: "One to three short reasons." },
+  },
+  required: ["level", "reasons"],
+  additionalProperties: false,
+};
+
+const vaginalSchema = {
+  type: "object",
+  description: "Vaginal sex: only whether it happens and between whom (no top/bottom).",
+  properties: {
+    occurs: { type: "boolean" },
+    summary: { type: "string", description: "e.g. 'Yes, between Ana and Ben (2 scenes).' or 'No on-page vaginal sex.'" },
+    instances: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          participants: { type: "array", items: { type: "string" } },
+          act: { type: "string", description: "'vaginal sex' or 'fingering'." },
+          where: { type: "string" },
+          evidence: { type: "string" },
+        },
+        required: ["participants", "act", "where", "evidence"],
+        additionalProperties: false,
+      },
+    },
+    confidence: confidenceSchema,
+  },
+  required: ["occurs", "summary", "instances", "confidence"],
+  additionalProperties: false,
+};
+
 const analysisSchema = {
   type: "object",
   properties: {
@@ -94,8 +136,9 @@ const analysisSchema = {
           pairing: { type: "string" },
           anal: actSchema,
           oral: actSchema,
+          vaginal: vaginalSchema,
         },
-        required: ["pairing", "anal", "oral"],
+        required: ["pairing", "anal", "oral", "vaginal"],
         additionalProperties: false,
       },
     },
@@ -117,6 +160,10 @@ ANAL
 - Bottom = the anally receptive partner.
 - Base the anal verdict on penetrative anal sex (penis, strap-on, or a toy used on a partner). Fingering alone does not decide the verdict, but list it as an instance with act "fingering" and mention it in the summary if it is the only anal activity.
 
+VAGINAL
+- Vaginal sex is reported separately: only whether it happens and between whom. It never counts as anal.
+- Decide anal vs vaginal by what the text says, not by gender: in omegaverse fics and with trans characters, male characters may have vaginas ("his cunt", "his front hole"), and some women have penises. If a scene with such a character doesn't say which, use context; if it's truly unclear, say so in notes.
+
 ORAL
 - Top = the penetrative partner: the person getting their dick sucked, or the person eating ass (rimming — their tongue is the penetrating part).
 - Bottom = the orally receptive partner: the person sucking dick, or the person having their ass eaten.
@@ -130,6 +177,7 @@ SWITCHING
 
 DESIRE / FANTASY
 - Separately from what happens, list lines where a character wants, asks for, imagines, dreams about, or says they prefer a role ("I want you to fuck me", "he'd always bottomed", "he imagined Draco on his knees"), or says they do NOT want a role (wants: false). kind: said (dialogue), wanted (narrated desire), fantasy (imagined/dreamed), hypothetical (would/if), identity (habit or self-description like "I'm a bottom").
+- Also list behaviour that hints at roles for same-sex pairs (not for M/F pairs): checking out or grabbing someone's ass suggests the looker/grabber would top (kind "ogling" or "touch", role "top"); staring at someone's crotch or bulge, or their mouth watering at it, suggests the looker would bottom (role "bottom"); grinding one's ass back against someone suggests bottom; fingering someone suggests the fingerer tops (kind "fingering", role "top").
 - These do not count as instances, but use them in your confidence.
 
 CONFIDENCE
@@ -212,7 +260,28 @@ function toAnalysis(a: ClaudeAnswer): Analysis {
     source: "claude",
     fandom: a.fandom,
     main_pairing: a.main_pairing,
-    pairings: a.pairings.map((p) => ({ pairing: p.pairing, anal: act(p.anal), oral: act(p.oral) })),
+    pairings: a.pairings.map((p) => ({
+      pairing: p.pairing,
+      anal: act(p.anal),
+      oral: act(p.oral),
+      vaginal: {
+        occurs: p.vaginal.occurs,
+        applicable: p.vaginal.occurs || p.vaginal.instances.length > 0,
+        summary: p.vaginal.summary,
+        instances: p.vaginal.instances.map((i) => ({
+          top: i.participants[0] ?? "",
+          bottom: i.participants[1] ?? "",
+          act: i.act,
+          where: i.where,
+          evidence: i.evidence,
+        })),
+        confidence: {
+          score: LEVEL_SCORE[p.vaginal.confidence.level],
+          label: p.vaginal.confidence.level,
+          reasons: p.vaginal.confidence.reasons,
+        },
+      },
+    })),
     notes: a.notes,
   };
 }
@@ -233,7 +302,7 @@ export async function analyzeWork(opts: {
       ? "Note: the work was long, so below are the opening plus every passage that looked sexual, with [...] marking skipped text. Mention in notes that only excerpts were analyzed.\n\n"
       : "") +
     `<work>\n${opts.text}\n</work>\n\n` +
-    "Determine the fandom, the main pairing, and the anal and oral top/bottom dynamics (including any switching) for each pairing that has sex.";
+    "Determine the fandom, the main pairing, the anal and oral top/bottom dynamics (including any switching) for each pairing that has sex, and whether vaginal sex happens and between whom.";
 
   const stream = client.beta.messages.stream(
     {

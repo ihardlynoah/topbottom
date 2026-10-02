@@ -13,12 +13,14 @@ import {
   type Instance,
   type PairingResult,
   type Role,
+  type VaginalResult,
   confidenceLabel,
 } from "../types";
 import { type Cast, type Character, type Gender, buildCast } from "./characters";
 import {
   ANAL_CTX,
   type Cat,
+  VULVA_CTX,
   type CompiledPattern,
   DIALOGUE,
   FINGER_CTX,
@@ -51,6 +53,8 @@ interface DesireHit {
   role: Role;
   wants: boolean;
   kind: Desire["kind"];
+  /** How much this hint counts toward confidence (a stated desire > a glance). */
+  weight: number;
   para: number;
   sentence: string;
 }
@@ -272,6 +276,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const ctx = new Ctx(cast);
 
   const acts: ActHit[] = [];
+  let ambiguousHoles = 0;
   const desires: DesireHit[] = [];
   const chapters: string[] = [];
   let chapter = "";
@@ -377,9 +382,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   function scanDialogue(line: string, speaker: Character, pi: number) {
     const lower = line.toLowerCase().replace(/’/g, "'");
+    const seen = new Set<string>();
     for (const d of DIALOGUE) {
       const m = d.re.exec(lower);
       if (!m) continue;
+      // One line can match several phrasings of the same request ("I want you to fuck me").
+      const key = `${d.cat}:${d.role}:${d.kind}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       const before = lower.slice(Math.max(0, m.index - 30), m.index);
       const negated = /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before);
       desires.push({
@@ -390,6 +400,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         role: d.role,
         wants: !negated,
         kind: d.kind,
+        weight: d.kind === "ogling" ? 0.6 : 1,
         para: pi,
         sentence: `“${line.trim()}”`,
       });
@@ -432,16 +443,56 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (cat === "anal" && act.startsWith("anal sex") && FINGER_CTX.test(matchText) && !PENIS_CTX.test(matchText)) act = "fingering";
     if (pat.id === "prostate" && FINGER_CTX.test(sent) && !PENIS_CTX.test(sent)) act = "fingering";
 
-    // Vaginal sex isn't counted: a woman on the receiving end with no anal vocabulary nearby.
-    const near = para;
-    if (cat === "anal" && bottom.gender === "f" && !ANAL_CTX.test(near)) return;
-    if (cat === "anal" && top.gender === "f" && act !== "fingering" && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(near)) return;
-    if (act === "rimming" && bottom.gender === "f" && !ANAL_CTX.test(near)) act = "cunnilingus";
-    if (pat.femaleTarget && top.gender === "f" && !PENIS_CTX.test(matchText)) {
-      if (pat.femaleTarget === "drop") return;
-      // "went down on her": she's being licked, so the licker is the top.
-      [top, bottom] = [bottom, top];
-      act = "cunnilingus";
+    // Hints, not acts: checking out an ass, grabbing it, staring at a bulge...
+    if (pat.signal) {
+      const prefix = sent.slice(0, m.index);
+      if (NEG.test(m.groups?.aux ?? "") || NEG.test(prefix.slice(-40))) return;
+      const actor = pat.subj === "t" ? top : bottom;
+      const other = actor === top ? bottom : top;
+      desires.push({
+        cat,
+        act,
+        who: actor,
+        partner: other,
+        role: pat.signal.actorRole,
+        wants: true,
+        kind: pat.signal.kind,
+        weight,
+        para: pi,
+        sentence: original,
+      });
+      return;
+    }
+
+    // Anal or vaginal? Decided by the words used (male omegas and trans men can have vaginas),
+    // falling back to anatomy when the text doesn't say.
+    if (cat === "anal" || cat === "vaginal") {
+      const hole = holeType(matchText, sent, para, top, bottom);
+      if (cat === "vaginal") {
+        // "Had sex"/"made love": only vaginal if someone involved has a vagina and nothing says anal.
+        const canVaginal = top.vulva !== false || bottom.vulva !== false;
+        if (!canVaginal || hole === "anal" || ANAL_CTX.test(sent)) return;
+        if (top.vulva !== true && bottom.vulva !== true && hole !== "vaginal") return;
+      } else if (hole === "vaginal") {
+        cat = "vaginal";
+        act = act === "fingering" ? "fingering" : "vaginal sex";
+      } else if (hole === "ambiguous") {
+        ambiguousHoles++;
+        return;
+      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) {
+        // A woman "fucking" someone with no strap-on mentioned: not anal penetration by her.
+        return;
+      }
+    }
+    if (act === "rimming" && (VULVA_CTX.test(matchText) || (bottom.vulva === true && !ANAL_CTX.test(para)))) act = "cunnilingus";
+    if (pat.femaleTarget && !PENIS_CTX.test(matchText)) {
+      // "went down on her": the receiver has a vagina, so it's cunnilingus and the licker is the top.
+      const receiverHasVulva = (top.vulva === true && top.penis !== true) || (top.vulva === "maybe" && VULVA_CTX.test(sent));
+      if (receiverHasVulva) {
+        if (pat.femaleTarget === "drop") return;
+        [top, bottom] = [bottom, top];
+        act = "cunnilingus";
+      }
     }
     if (pat.id === "enter" && /\b(?:took|take|takes|taking)\b/.test(matchText)) weight *= 0.5;
 
@@ -476,9 +527,30 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       role,
       wants: !negated,
       kind,
+      weight: kind === "hypothetical" ? 0.6 : 1,
       para: pi,
       sentence: original,
     });
+  }
+
+  /** Which hole a penetration sentence is about: the nearest explicit word wins, then anatomy. */
+  function holeType(matchText: string, sent: string, para: string, top: Character, bottom: Character): "anal" | "vaginal" | "ambiguous" {
+    for (const scope of [matchText, sent]) {
+      const v = VULVA_CTX.test(scope);
+      const a = ANAL_CTX.test(scope);
+      if (v && !a) return "vaginal";
+      if (a && !v) return "anal";
+    }
+    // A woman with no penis "fucking" someone without a strap-on: it's her vagina involved.
+    if (top.penis === false && top.vulva === true && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) return "vaginal";
+    const v = VULVA_CTX.test(para);
+    const a = ANAL_CTX.test(para);
+    if (bottom.vulva === false) return "anal";
+    if (bottom.vulva === true && bottom.gender === "f") return a && !v ? "anal" : "vaginal";
+    // A man who may have a vagina (omegaverse, trans): go by the paragraph, otherwise we can't tell.
+    if (v && !a) return "vaginal";
+    if (a && !v) return "anal";
+    return bottom.vulva === "maybe" && cast.maleVulva ? "ambiguous" : "anal";
   }
 
   // ───────────── aggregate ─────────────
@@ -506,10 +578,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const pair = members as [Character, Character];
     const anal = buildAct("anal", pActs.filter((a) => a.cat === "anal"), pDes.filter((d) => d.cat === "anal"), pairTags, pair, meta, where);
     const oral = buildAct("oral", pActs.filter((a) => a.cat === "oral"), pDes.filter((d) => d.cat === "oral"), pairTags, pair, meta, where);
+    const vaginal = buildVaginal(pActs.filter((a) => a.cat === "vaginal"), pair, meta, where);
     const weight = pActs.reduce((n, a) => n + a.weight, 0) + pDes.length * 0.2 + (isMain ? 0.01 : 0);
     // Skip incidental pairs with almost nothing (likely misresolved pronouns).
     if (!isMain && weight < 1.2) continue;
-    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, weight, key });
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, vaginal, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
 
@@ -519,6 +592,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   }
   if (cast.narrator) notes.push(`First-person narration: “I” is read as ${cast.narrator.name}.`);
   if (cast.secondPerson) notes.push(`Second-person narration: “you” is read as ${cast.secondPerson.name}.`);
+  if (cast.maleVulva || cast.chars.some((c) => c.gender !== "f" && c.vulva === true)) {
+    notes.push(
+      `At least one male character has a vagina here (e.g. omegaverse or trans), so each scene was sorted into anal or vaginal by the words used${ambiguousHoles ? `; ${plural(ambiguousHoles, "sentence")} didn't say which and ${ambiguousHoles === 1 ? "was" : "were"} left out` : ""}.`,
+    );
+  }
   if (!opts.quiet) {
     notes.push(
       "Pattern matching reads sentences like “X sucked Y off” or “his tongue in X’s hole”. It can miss unusual phrasing and sometimes guesses wrong when both people are “he” or “she”, so check the quoted lines. Ask Claude for a second opinion on anything marked Low.",
@@ -530,9 +608,49 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     source: "patterns",
     fandom: meta.fandoms.join(", "),
     main_pairing: romantic[0] ?? results[0]?.pairing ?? "",
-    pairings: results.map(({ pairing, anal, oral }) => ({ pairing, anal, oral })),
+    pairings: results.map(({ pairing, anal, oral, vaginal }) => ({ pairing, anal, oral, vaginal })),
     notes: notes.join(" "),
   };
+}
+
+// ───────────── vaginal sex (occurrence only) ─────────────
+
+function buildVaginal(hits: ActHit[], pair: [Character, Character], meta: Ao3Meta, where: (pi: number) => string): VaginalResult {
+  const applicable = hits.length > 0 || pair.some((c) => c.vulva === true);
+  const reasons: string[] = [];
+  const instances: Instance[] = [];
+  for (const scene of groupScenes(hits, where)) {
+    const best = [...scene.hits].sort((a, b) => b.weight - a.weight || (a.basis === "named" ? -1 : 1))[0];
+    const acts = [...new Set(scene.hits.map((h) => h.act))];
+    instances.push({
+      top: best.top.name,
+      bottom: best.bottom.name,
+      act: acts.join(", "),
+      where: where(scene.first),
+      evidence: truncate(best.sentence),
+      basis: best.basis,
+    });
+  }
+  const sex = hits.filter((h) => h.act !== "fingering");
+  const occurs = sex.length > 0;
+  const between = `${pair[0].name} & ${pair[1].name}`;
+  let summary: string;
+  let score: number;
+  if (occurs) {
+    const scenes = instances.filter((i) => i.act !== "fingering").length;
+    const w = sex.reduce((n, h) => n + h.weight, 0);
+    summary = `Yes, between ${between} (${plural(scenes, "scene")}).`;
+    score = 0.4 + 0.55 * (1 - Math.exp(-w / 1.5));
+    const named = sex.filter((h) => h.basis === "named").length;
+    reasons.push(`${plural(sex.length, "matching sentence")} (${named} with names)`);
+    if (instances.length > scenes) summary += " Also vaginal fingering.";
+  } else {
+    summary = hits.length ? `Only vaginal fingering (${between}).` : "No vaginal sex recognized.";
+    const explicit = /explicit|mature/i.test(meta.rating ?? "");
+    score = explicit ? 0.45 : meta.rating ? 0.75 : 0.5;
+    reasons.push(explicit ? `rated ${meta.rating}, so something may have been missed` : "no matching sentences");
+  }
+  return { occurs, applicable, summary, instances, confidence: { score, label: confidenceLabel(score), reasons } };
 }
 
 // ───────────── per-act verdicts ─────────────
@@ -602,7 +720,7 @@ function buildAct(
     const total = scene.hits.reduce((n, h) => n + h.weight, 0);
     for (const [, hs] of dirs) {
       const w = hs.reduce((n, h) => n + h.weight, 0);
-      if (w < Math.max(0.5, total * 0.3)) continue; // a stray hit against the scene's majority
+      if (w < Math.max(0.25, total * 0.3)) continue; // a stray hit against the scene's majority
       const best = [...hs].sort((a, b) => b.weight - a.weight || (a.basis === "named" ? -1 : 1))[0];
       const acts = [...new Set(hs.map((h) => h.act))];
       instances.push({
@@ -703,39 +821,52 @@ function buildAct(
     reasons.push(`tagged “${actTags[0]}”`);
   }
 
-  // ── desire / fantasy ──
-  const desireOut: Desire[] = des.map((d) => ({
-    who: d.who.name,
-    role: d.role,
-    wants: d.wants,
-    kind: d.kind,
-    act: d.act,
-    where: where(d.para),
-    evidence: truncate(d.sentence),
-  }));
-  // A desire "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
-  let desAgree = 0;
-  let desConflict = 0;
-  const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
-  for (const d of des) {
-    const pointsTo = desireTop(d);
-    if (!pointsTo) continue;
-    if (verdict === "one_way") pointsTo === top ? desAgree++ : desConflict++;
-    else if (verdict === "switch") desAgree++;
+  // ── desire, fantasy & other signals ──
+  // Ogling/touching/fingering hints only mean something for same-sex pairs.
+  const sameSex = pair[0].gender === pair[1].gender || pair[0].gender === "u" || pair[1].gender === "u";
+  const sig: DesireHit[] = des.filter((d) => sameSex || (d.kind !== "ogling" && d.kind !== "touch"));
+  if (cat === "anal" && sameSex) {
+    for (const f of fingering) {
+      sig.push({ cat, act: "fingering", who: f.top, partner: f.bottom, role: "top", wants: true, kind: "fingering", weight: 0.8, para: f.para, sentence: f.sentence });
+    }
   }
-  let desAdj = Math.min(0.15, desAgree * 0.05) - Math.min(0.15, desConflict * 0.05);
-  if (des.length && verdict !== "none") {
-    if (desAgree) reasons.push(`${plural(desAgree, "desire/fantasy line")} ${desAgree === 1 ? "points" : "point"} the same way`);
-    if (desConflict) reasons.push(`${plural(desConflict, "desire/fantasy line")} ${desConflict === 1 ? "points" : "point"} the other way`);
+  const desireOut: Desire[] = sig
+    .filter((d) => d.kind !== "fingering") // fingering is already listed under scenes
+    .map((d) => ({
+      who: d.who.name,
+      role: d.role,
+      wants: d.wants,
+      kind: d.kind,
+      act: d.act,
+      where: where(d.para),
+      evidence: truncate(d.sentence),
+    }));
+  // Every hint "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
+  const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
+  const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering";
+  const tally = { desAgree: 0, desConflict: 0, behAgree: 0, behConflict: 0, wAgree: 0, wConflict: 0 };
+  for (const d of sig) {
+    const pointsTo = desireTop(d);
+    if (!pointsTo || verdict === "none") continue;
+    const agrees = verdict === "switch" || pointsTo === top;
+    if (agrees) { tally.wAgree += d.weight; isBehaviour(d) ? tally.behAgree++ : tally.desAgree++; }
+    else { tally.wConflict += d.weight; isBehaviour(d) ? tally.behConflict++ : tally.desConflict++; }
+  }
+  let desAdj = Math.min(0.2, tally.wAgree * 0.05) - Math.min(0.2, tally.wConflict * 0.05);
+  if (verdict !== "none") {
+    if (tally.desAgree) reasons.push(`${plural(tally.desAgree, "desire/fantasy line")} ${tally.desAgree === 1 ? "points" : "point"} the same way`);
+    if (tally.desConflict) reasons.push(`${plural(tally.desConflict, "desire/fantasy line")} ${tally.desConflict === 1 ? "points" : "point"} the other way`);
+    if (tally.behAgree) reasons.push(`${plural(tally.behAgree, "other signal")} (fingering, ogling, touching) ${tally.behAgree === 1 ? "agrees" : "agree"}`);
+    if (tally.behConflict) reasons.push(`${plural(tally.behConflict, "other signal")} (fingering, ogling, touching) ${tally.behConflict === 1 ? "disagrees" : "disagree"}`);
   }
 
   // ── nothing found on-page ──
   if (verdict === "none") {
     const hasTagRoles = roleTagsApply && (tagTops.length || tagBottoms.length || tagSwitch);
     const pointing = new Map<string, number>();
-    for (const d of des) {
+    for (const d of sig) {
       const p = desireTop(d);
-      if (p) pointing.set(p, (pointing.get(p) ?? 0) + 1);
+      if (p) pointing.set(p, (pointing.get(p) ?? 0) + d.weight);
     }
     const desireRank = [...pointing.entries()].sort((a, b) => b[1] - a[1]);
 
@@ -751,14 +882,16 @@ function buildAct(
       if (desireRank.length) {
         const agrees = desireRank[0][0] === top;
         desAdj = agrees ? 0.1 : -0.1;
-        reasons.push(agrees ? "desire/fantasy lines agree with the tags" : "desire/fantasy lines disagree with the tags");
+        reasons.push(agrees ? "desire/fantasy and other hints agree with the tags" : "desire/fantasy and other hints disagree with the tags");
       }
     } else if (desireRank.length) {
       verdict = "unclear";
-      const [who, n] = desireRank[0];
-      summary = `No on-page ${label} recognized, but desire/fantasy lines point to ${who} as the top (${plural(n, "line")}).` + (summary ? ` ${summary}` : "");
-      base = Math.min(0.4, 0.15 + n * 0.06);
-      reasons.push("based only on what characters want or imagine");
+      const [who, w] = desireRank[0];
+      const n = sig.filter((d) => desireTop(d) === who).length;
+      const kinds = [...new Set(sig.filter((d) => desireTop(d) === who).map((d) => (isBehaviour(d) ? d.kind : "desire/fantasy")))];
+      summary = `No on-page ${label} recognized, but ${plural(n, "hint")} (${kinds.join(", ")}) point to ${who} as the top.`;
+      base = Math.min(0.45, 0.15 + w * 0.06);
+      reasons.push("based only on hints: what characters want, imagine, look at, or do short of sex");
       desAdj = 0;
     } else if (actTags.length) {
       verdict = "unclear";

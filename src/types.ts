@@ -13,13 +13,17 @@ export interface Instance {
   basis?: "named" | "pronoun" | "inferred";
 }
 
-/** A character wanting, imagining, or asking for a role (or saying they don't want it). */
+/**
+ * A hint about roles that isn't a completed act: a character wanting, imagining, or asking for a role
+ * (or saying they don't want it), or behaviour that suggests one, like checking out an ass (top) or a
+ * bulge (bottom), grabbing an ass, or fingering someone (the fingerer is likelier to top).
+ */
 export interface Desire {
   who: string;
   role: Role;
   /** false = the character explicitly does NOT want this role. */
   wants: boolean;
-  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity";
+  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "ogling" | "touch" | "fingering";
   act: string;
   where: string;
   evidence: string;
@@ -42,10 +46,21 @@ export interface ActResult {
   confidence: Confidence;
 }
 
+/** Vaginal sex is only detected (whether it happens and between whom), not ranked top/bottom. */
+export interface VaginalResult {
+  occurs: boolean;
+  /** Whether it's worth showing (it happens, or one of the pair can have vaginal sex). */
+  applicable: boolean;
+  summary: string;
+  instances: Instance[];
+  confidence: Confidence;
+}
+
 export interface PairingResult {
   pairing: string;
   anal: ActResult;
   oral: ActResult;
+  vaginal: VaginalResult;
 }
 
 export interface Analysis {

@@ -33,12 +33,19 @@ word count is estimated and the main characters are guessed from frequently capi
    off”), hypotheticals, habits (“he’d always bottomed”), dialogue requests (“Fuck me,” Harry begged;
    “I want to ride you”), and negations (“didn’t want to bottom”). These are listed separately and never
    counted as acts. Negated acts (“didn’t fuck him”) are dropped.
-5. **Verdict and confidence**: hits are grouped into scenes. “Switches” means each partner tops in at
+5. **Hints (same-sex pairs)**: behaviour short of sex counts toward confidence. Fingering someone, checking out
+   or grabbing their ass, or grinding against it suggests top; staring at someone’s crotch or bulge, a mouth
+   watering at it, or grinding one’s ass back suggests bottom. Dialogue compliments (“nice ass”) count too.
+   With no on-page anal sex, these give an “Unclear” verdict that leans one way, at low confidence.
+6. **Verdict and confidence**: hits are grouped into scenes. “Switches” means each partner tops in at
    least one scene (a single weak contrary hit is flagged as a possible exception instead). Confidence goes
    up with more scenes, named (not pronoun) evidence, matching AO3 tags (“Bottom X”, “Switching”) and
-   matching desire/fantasy lines, and down when tags or desires disagree. The reasons are shown on each card.
+   matching desire/fantasy lines and hints, and down when tags or desires disagree. The reasons are shown on each card.
 
-Vaginal sex isn’t counted as anal; going down on a woman is cunnilingus (the licker is the top, like rimming).
+**Vaginal sex** is reported separately: only whether it happens and between whom. Anal vs vaginal is decided
+by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since male omegas and trans
+men may have vaginas and some women have penises; anatomy (by gender, or what the text says a character has)
+is only the fallback. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
 
 **Claude second opinion (optional)** — with your own Anthropic API key, Claude (Opus 5.5 by default) reads
 the fic and returns the same result shape, including desire/fantasy lines and its own confidence. Long works

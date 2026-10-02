@@ -4,10 +4,16 @@ import type { Ao3Meta } from "../ao3";
 
 export type Gender = "m" | "f" | "u";
 
+export type Anatomy = boolean | "maybe";
+
 export interface Character {
   name: string;
   aliases: string[];
   gender: Gender;
+  /** Has a vagina. Women by default; men when the text says so (omegaverse, trans men). */
+  vulva: Anatomy;
+  /** Has a penis. Men by default; women when the text says so (trans women, futa). */
+  penis: Anatomy;
 }
 
 export interface Cast {
@@ -21,6 +27,8 @@ export interface Cast {
   byAlias: Map<string, Character>;
   /** Regex alternation matching any alias (case-sensitive, longest first). */
   aliasPattern: string;
+  /** The text gives at least one man a vagina ("his cunt", "his front hole"). */
+  maleVulva: boolean;
 }
 
 const TITLE_WORDS = new Set(
@@ -69,11 +77,11 @@ function makeChars(names: string[]): Character[] {
     const name = cleanTagName(raw);
     if (!name || /original (?:male |female )?character/i.test(name) || /^(?:other|various|everyone)/i.test(name)) continue;
     if (isReaderTag(name)) {
-      if (!seen.has("Reader")) seen.set("Reader", { name: "Reader", aliases: ["Reader", "Y/N"], gender: "u" });
+      if (!seen.has("Reader")) seen.set("Reader", { name: "Reader", aliases: ["Reader", "Y/N"], gender: "u", vulva: "maybe", penis: "maybe" });
       continue;
     }
     const key = name.toLowerCase();
-    if (!seen.has(key)) seen.set(key, { name, aliases: [], gender: "u" });
+    if (!seen.has(key)) seen.set(key, { name, aliases: [], gender: "u", vulva: "maybe", penis: "maybe" });
   }
   const chars = [...seen.values()];
 
@@ -201,7 +209,7 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   let you: Character | undefined;
   if (reader || secondPerson > 0.012) {
     if (!reader) {
-      reader = { name: "Reader", aliases: [], gender: "u" };
+      reader = { name: "Reader", aliases: [], gender: "u", vulva: "maybe", penis: "maybe" };
       chars.push(reader);
     }
     you = reader;
@@ -212,6 +220,26 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
     // The narrator is the main character whose name rarely appears in narration.
     const candidates = (pairings[0] ?? chars.slice(0, 2)).filter((c) => c !== reader);
     narrator = candidates.sort((a, b) => mentions(a) - mentions(b))[0];
+  }
+
+  // Anatomy: default by gender, overridden when the text names a character's parts.
+  const VULVA_WORDS = "pussy|cunt|front ?hole|clit|clitoris|folds|vagina|labia|t-?dick";
+  const PENIS_WORDS = "cock|dick|prick|erection|hard-?on|balls";
+  const maleVulva = new RegExp(`\\bhis\\s+(?:[\\w-]+\\s+)?(?:${VULVA_WORDS})\\b`, "i").test(narration);
+  const femalePenis = new RegExp(`\\bher\\s+(?:[\\w-]+\\s+)?(?:${PENIS_WORDS})\\b`, "i").test(narration);
+  for (const c of chars) {
+    const names = c.aliases.map(escapeRe).join("|");
+    const own = (words: string) => !!names && new RegExp(`\\b(?:${names})['’]s\\s+(?:[\\w-]+\\s+)?(?:${words})\\b`).test(narration);
+    if (c.gender === "f") {
+      c.vulva = true;
+      c.penis = own(PENIS_WORDS) ? true : femalePenis ? "maybe" : false;
+    } else if (c.gender === "m") {
+      c.penis = true;
+      c.vulva = own(VULVA_WORDS) ? true : maleVulva ? "maybe" : false;
+    } else {
+      if (own(VULVA_WORDS)) c.vulva = true;
+      if (own(PENIS_WORDS)) c.penis = true;
+    }
   }
 
   const aliasPattern = [...byAlias.keys()]
@@ -225,5 +253,5 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
     pairings.push([top[0], top[1]]);
   }
 
-  return { chars, narrator, secondPerson: you, pairings, byAlias, aliasPattern };
+  return { chars, narrator, secondPerson: you, pairings, byAlias, aliasPattern, maleVulva };
 }

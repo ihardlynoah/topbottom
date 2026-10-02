@@ -4,7 +4,7 @@ import { hasAo3Meta, romanticPairings } from "./ao3";
 import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerptExplicit } from "./analyze";
 import { type ExtractedWork, extractFile } from "./extract";
 import { analyzeWithPatterns } from "./heuristic";
-import type { ActResult, Analysis, Desire } from "./types";
+import type { ActResult, Analysis, Desire, VaginalResult } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -260,8 +260,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 const ROLE_VERB: Record<Desire["role"], [string, string]> = { top: ["top", "topping"], bottom: ["bottom", "bottoming"] };
 
 /** "Harry wants to bottom", "Draco imagines topping", "Harry doesn't want to top". */
-function desirePhrase(d: Pick<Desire, "who" | "role" | "wants" | "kind">): string {
+function desirePhrase(d: Pick<Desire, "who" | "role" | "wants" | "kind" | "act">): string {
   const [verb, ing] = ROLE_VERB[d.role];
+  if (d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering") return `${d.who}: ${d.act} (hints ${verb})`;
   if (!d.wants) return `${d.who} doesn't want to ${verb}`;
   switch (d.kind) {
     case "said": return `${d.who} asks to ${verb}`;
@@ -277,7 +278,7 @@ function renderDesires(desires: Desire[]): HTMLElement {
   const counts = new Map<string, number>();
   for (const d of desires) counts.set(desirePhrase(d), (counts.get(desirePhrase(d)) ?? 0) + 1);
   const head = el("div", "desire-head");
-  head.append(el("span", "mini-label", "Desire / fantasy"));
+  head.append(el("span", "mini-label", "Desire, fantasy & hints"));
   const chips = el("div", "chips");
   for (const [phrase, n] of counts) chips.append(el("span", "chip", n > 1 ? `${phrase} ×${n}` : phrase));
   head.append(chips);
@@ -344,6 +345,28 @@ function renderAct(name: string, act: ActResult): HTMLElement {
   return card;
 }
 
+function renderVaginal(v: VaginalResult): HTMLElement {
+  const card = el("article", `card act verdict-${v.occurs ? "one_way" : "none"}`);
+  const head = el("div", "act-head");
+  head.append(el("h4", undefined, "Vaginal"), el("span", `badge ${v.occurs ? "one_way" : "none"}`, v.occurs ? "Happens" : "Doesn't happen"));
+  card.append(head, el("p", "summary", v.summary), renderConfidence(v.confidence));
+  if (v.instances.length) {
+    const det = el("details", "instances");
+    det.append(el("summary", undefined, `${v.instances.length} scene${v.instances.length === 1 ? "" : "s"}`));
+    const ul = el("ul");
+    for (const i of v.instances) {
+      const li = el("li");
+      li.append(el("strong", undefined, [i.top, i.bottom].filter(Boolean).join(" & ")), ` · ${i.act}`);
+      if (i.where) li.append(el("span", "where", ` · ${i.where}`));
+      if (i.evidence) li.append(el("div", "evidence", i.evidence));
+      ul.append(li);
+    }
+    det.append(ul);
+    card.append(det);
+  }
+  return card;
+}
+
 function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) {
   target.replaceChildren();
   if (!a.pairings.length) target.append(el("p", "hint", "Couldn't identify the characters in this work."));
@@ -352,6 +375,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) 
     if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
     const grid = el("div", "grid two");
     grid.append(renderAct("Anal", p.anal), renderAct("Oral", p.oral));
+    if (p.vaginal.applicable) grid.append(renderVaginal(p.vaginal));
     block.append(grid);
     target.append(block);
   }

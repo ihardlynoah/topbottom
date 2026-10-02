@@ -16,7 +16,7 @@
 //   {PENIS} {ASS} {MOUTH} {FINGERS}  body-part vocab
 // Matching is case-sensitive so names like "Will" or "Grace" aren't confused with ordinary words.
 
-export type Cat = "anal" | "oral";
+export type Cat = "anal" | "oral" | "vaginal";
 
 export interface PatternDef {
   id: string;
@@ -32,6 +32,8 @@ export interface PatternDef {
   needsPenis?: boolean;
   /** Oral patterns whose receiver might be a woman: "went down on her" is cunnilingus, licker = top. */
   femaleTarget?: "flip" | "drop";
+  /** Not an act: a hint about who'd top (ogling an ass, grabbing it, staring at a bulge). */
+  signal?: { kind: "ogling" | "touch"; actorRole: "top" | "bottom" };
 }
 
 export interface CompiledPattern extends PatternDef {
@@ -47,11 +49,11 @@ const ASS_ADJ =
 const MOUTH_ADJ = "hot|wet|warm|open|eager|pretty|soft|swollen|perfect|waiting|willing|own|sweet|tight|filthy|slack|stretched|talented|clever|sinful|greedy";
 
 export const PENIS = `(?:(?:${PENIS_ADJ})\\s+){0,2}(?:cock(?:head)?|dick|prick|length|shaft|erection|member|hard-?on|manhood|girth|knot|strap(?:-?on)?|dildo)`;
-export const ASS = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|hole|entrance|rim|opening|pucker|bum|butt|insides?|prostate|body|backside|channel)`;
+export const ASS = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|front ?hole|hole|entrance|rim|opening|pucker|bum|butt|insides?|prostate|body|backside|channel|pussy|cunt|vagina|folds|cervix|sex)`;
 const RIM = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|hole|entrance|rim|pucker|crack|cleft|taint|perineum)`;
 const MOUTH = `(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:mouth|lips|throat|tongue)`;
 const FACE = `(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:mouth|throat|face)`;
-const VULVA = `(?:(?:\\w+)\\s+)?(?:clit(?:oris)?|pussy|cunt|folds|slit|labia|vulva|sex|cunny)`;
+const VULVA = `(?:(?:\\w+)\\s+)?(?:clit(?:oris)?|pussy|cunt|folds|slit|labia|vulva|sex|cunny|front ?hole|t-?dick)`;
 export const FINGERS = `(?:fingers?|digits?|knuckles?|thumb|fingertips?)`;
 
 const AUX =
@@ -135,7 +137,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|screw(?:s|ed|ing)?|pound(?:s|ed|ing)?|rail(?:s|ed|ing)?|plough(?:s|ed|ing)?|plow(?:s|ed|ing)?|bang(?:s|ed|ing)?|breed(?:s|ing)?|bred|knot(?:s|ted|ting)?|peg(?:s|ged|ging)?|mount(?:s|ed|ing)?|sodomi[sz](?:e|es|ed|ing)|bugger(?:s|ed|ing)?)\\s+{B}(?!\\s+(?:up|over)\\b)`,
+    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|screw(?:s|ed|ing)?|pound(?:s|ed|ing)?|rail(?:s|ed|ing)?|plough(?:s|ed|ing)?|plow(?:s|ed|ing)?|bang(?:s|ed|ing)?|breed(?:s|ing)?|bred|knot(?:s|ted|ting)?|peg(?:s|ged|ging)?|mount(?:s|ed|ing)?|sodomi[sz](?:e|es|ed|ing)|bugger(?:s|ed|ing)?)\\s+{B:ass}(?!\\s+(?:up|over)\\b)`,
   },
   {
     id: "push-into",
@@ -497,7 +499,7 @@ export const PATTERNS: PatternDef[] = [
     act: "rimming",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|circl|flick|swirl|probe|prob|spear|work|tease|teas|fuck)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of)\\s+)*{B:rimReq}`,
+    src: `\\b{T}\\s+{aux}(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|flick|swirl)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of)\\s+)*{B:rimReq}`,
   },
   {
     id: "licked-into",
@@ -514,7 +516,7 @@ export const PATTERNS: PatternDef[] = [
     act: "rimming",
     subj: "t",
     weight: 0.9,
-    src: `\\b{T}\\s+{aux}(?:push|press|work|fuck|thrust|delv|wriggl|slid|slip|dip|curl|eas|spear|drove|plung|sank|sink)\\w*\\s+(?:his|her|their|my|your)\\s+tongue\\s+(?:\\w+\\s+){0,2}?(?:in(?:to|side)?|past|against|over|across|at)\\s+{B:ass}`,
+    src: `\\b{T}\\s+{aux}(?:push|press|work|fuck|thrust|delv|wriggl|slid|slip|dip|curl|eas|spear|drove|plung|sank|sink|circl|teas|flick|swirl|run|ran|drag|lap|prob)\\w*\\s+(?:his|her|their|my|your)\\s+tongue\\s+(?:\\w+\\s+){0,2}?(?:in(?:to|side)?|past|against|over|across|at|around|along)\\s+{B:ass}`,
   },
   {
     id: "tongue-in-hole",
@@ -575,6 +577,143 @@ export const PATTERNS: PatternDef[] = [
     weight: 1,
     src: `\\b{T:poss}\\s+(?:tongue|mouth|lips)\\s+(?:\\w+\\s+){0,3}?(?:on|against|over|in|around|inside|between)\\s+{B:vulvaReq}`,
   },
+
+  // ───────────── VAGINAL: generic sex that's only counted when the pair can have vaginal sex ─────────────
+  {
+    id: "had-sex-together",
+    cat: "vaginal",
+    act: "vaginal sex",
+    subj: "t",
+    weight: 0.7,
+    src: `\\b{T}\\s+and\\s+{B}\\s+{aux}(?:had sex|made love|fucked|slept together|screwed|banged)\\b`,
+  },
+  {
+    id: "had-sex-with",
+    cat: "vaginal",
+    act: "vaginal sex",
+    subj: "t",
+    weight: 0.6,
+    src: `\\b{T}\\s+{aux}(?:had sex|made love|slept|hooked up)\\s+with\\s+{B}\\b(?!\\s+(?:on|in)\\s+(?:the|a)\\s+(?:couch|sofa|floor|chair))`,
+  },
+  {
+    id: "penis-in-vulva",
+    cat: "vaginal",
+    act: "vaginal sex",
+    subj: "t",
+    weight: 1,
+    src: `\\b{T:penisReq}\\s+{aux}(?:\\w+\\s+){0,3}?(?:in(?:to|side)?|between)\\s+{B:vulvaReq}`,
+  },
+
+  // ───────────── SIGNALS (not acts): ogling or grabbing an ass → top; a crotch/bulge → bottom ─────────────
+  {
+    id: "ogle-ass",
+    cat: "anal",
+    act: "checking out an ass",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:check(?:s|ed|ing)? out|ogl(?:e|es|ed|ing)|star(?:e|es|ed|ing) at|ey(?:e|es|ed|eing|ing)(?: up)?|admir(?:e|es|ed|ing)|watch(?:es|ed|ing)|gawk(?:s|ed|ing)? at|leer(?:s|ed|ing)? at|gaz(?:e|es|ed|ing) at|look(?:s|ed|ing)? at|glanc(?:e|es|ed|ing) at|appreciat(?:e|es|ed|ing)|(?:couldn['’]t|could not|can['’]t|cannot) (?:stop (?:staring|looking) at|take (?:his|her|their|my|your) eyes off|help (?:staring|looking) at|look away from)|stole a (?:glance|look) at|sneaked a (?:glance|look) at)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:ass|arse|butt|bum|backside|behind|rear|cheeks|glutes)\\b`,
+  },
+  {
+    id: "eyes-on-ass",
+    cat: "anal",
+    act: "checking out an ass",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "top" },
+    src: `\\b{T:poss}\\s+(?:eyes|gaze|attention|stare|eyeline)\\s+(?:\\w+\\s+){0,2}?(?:dropp|drift|linger|wander|stray|fell|fall|slid|slipp|travel|flick|dart|rak|sweep|swept|went|go|caught|snag|land|follow|track|stuck|glu|fix)\\w*\\s+(?:(?:down|back|over|again|right|straight)\\s+)*(?:to|on|over|across|along|down|onto)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:ass|arse|butt|bum|backside|behind|rear)\\b`,
+  },
+  {
+    id: "ogle-crotch",
+    cat: "anal",
+    act: "checking out a crotch",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "bottom" },
+    src: `\\b{T}\\s+{aux}(?:check(?:s|ed|ing)? out|ogl(?:e|es|ed|ing)|star(?:e|es|ed|ing) at|ey(?:e|es|ed|eing|ing)|admir(?:e|es|ed|ing)|gawk(?:s|ed|ing)? at|leer(?:s|ed|ing)? at|gaz(?:e|es|ed|ing) at|look(?:s|ed|ing)? at|glanc(?:e|es|ed|ing) at|(?:couldn['’]t|could not|can['’]t|cannot) (?:stop (?:staring|looking) at|take (?:his|her|their|my|your) eyes off|help (?:staring|looking) at)|stole a (?:glance|look) at)\\s+(?:{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:crotch|groin|bulge|package|cock|dick|erection|hard-?on|fly|zipper|sweatpants)|the\\s+(?:\\w+\\s+)?(?:bulge|outline|shape|tent|line)\\s+(?:of\\s+{B:poss}\\s+(?:cock|dick|erection)|in\\s+{B:poss}\\s+(?:jeans|trousers|pants|sweatpants|shorts|boxers|briefs|joggers|slacks|underwear)))\\b`,
+  },
+  {
+    id: "eyes-on-crotch",
+    cat: "anal",
+    act: "checking out a crotch",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "bottom" },
+    src: `\\b{T:poss}\\s+(?:eyes|gaze|attention|stare|eyeline)\\s+(?:\\w+\\s+){0,2}?(?:dropp|drift|linger|wander|stray|fell|fall|slid|slipp|travel|flick|dart|rak|sweep|swept|went|go|caught|snag|land|stuck|glu|fix)\\w*\\s+(?:(?:down|back|over|again|right|straight)\\s+)*(?:to|on|over|across|along|down|onto)\\s+(?:{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:crotch|groin|bulge|package|cock|dick|erection|hard-?on|fly|zipper|sweatpants)|the\\s+(?:\\w+\\s+)?bulge\\s+in\\s+{B:poss}\\s+\\w+)\\b`,
+  },
+  {
+    id: "grab-ass",
+    cat: "anal",
+    act: "grabbing an ass",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:grab|squeez|grop|palm|slap|smack|knead|cup|fondl|pinch|spank|clutch|swat)\\w*\\s+(?:a\\s+handful\\s+of\\s+)?{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:ass|arse|butt|bum|backside|behind|cheeks)\\b`,
+  },
+  {
+    id: "hands-on-ass",
+    cat: "anal",
+    act: "grabbing an ass",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "top" },
+    src: `\\b{T:poss}\\s+hands?\\s+(?:\\w+\\s+){0,2}?(?:on|cupping|squeezing|groping|kneading|grabbing|cupped|squeezed|groped|kneaded|grabbed|found|slid (?:down )?to|moved (?:down )?to|settled on)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:ass|arse|butt|bum|backside|cheeks)\\b`,
+  },
+  {
+    id: "aroused-by-ass",
+    cat: "anal",
+    act: "aroused by an ass",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "top" },
+    src: `\\b{T:poss}\\s+(?:cock|dick|prick|erection)\\s+(?:\\w+\\s+){0,2}?(?:twitch|harden|stir|jump|throb|ach|perk|swell|fill|jerk|leap)\\w*\\s+(?:\\w+\\s+){0,5}?{B:poss}\\s+(?:\\w+\\s+){0,1}?(?:ass|arse|butt|backside|bum)\\b`,
+  },
+  {
+    id: "mouth-watered",
+    cat: "anal",
+    act: "wanting a cock",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "bottom" },
+    src: `\\b{T:poss}\\s+mouth\\s+(?:\\w+\\s+){0,2}?water(?:ed|s|ing)?\\s+(?:\\w+\\s+){0,5}?{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|bulge|crotch|package|erection)`,
+  },
+  {
+    id: "mouth-watered-oral",
+    cat: "oral",
+    act: "wanting to suck",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "bottom" },
+    src: `\\b{T:poss}\\s+mouth\\s+(?:\\w+\\s+){0,2}?water(?:ed|s|ing)?\\s+(?:\\w+\\s+){0,5}?{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|bulge|crotch|package|erection)`,
+  },
+  {
+    id: "bend-over",
+    cat: "anal",
+    act: "bending someone over",
+    subj: "t",
+    weight: 0.6,
+    needsCtx: true,
+    signal: { kind: "touch", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:bend|bent|bending|bends)\\s+{B}\\s+over\\b`,
+  },
+  {
+    id: "grind-ass-back",
+    cat: "anal",
+    act: "grinding back",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:push|press|grind|ground|rock|arch|wiggl|shimm|back|rut)\\w*\\s+(?:his|her|their|my|your)\\s+(?:ass|arse|butt|bum|hips)\\s+(?:back\\s+|up\\s+)?(?:against|into|onto|toward|towards)\\s+{T:penis}`,
+  },
+  {
+    id: "grind-cock-on-ass",
+    cat: "anal",
+    act: "grinding against an ass",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:grind|ground|rut|press|rock|rubb?)\\w*\\s+(?:his|her|their|my|your)\\s+(?:${PENIS}|crotch|hips|groin|bulge)\\s+(?:\\w+\\s+){0,2}?(?:against|into|between|along)\\s+{B:poss}\\s+(?:\\w+\\s+){0,1}?(?:ass|arse|butt|cheeks|backside)`,
+  },
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────
@@ -584,7 +723,7 @@ export interface DialogueDef {
   act: string;
   /** Role this line implies for the SPEAKER. */
   role: "top" | "bottom";
-  kind: "said" | "identity";
+  kind: "said" | "identity" | "ogling";
   re: RegExp;
 }
 
@@ -608,6 +747,9 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "anal", act: "anal sex", role: "top", kind: "said", re: /\b(?:you|u) (?:can|could|should|get to|gotta|have to|wanna|want to) bottom\b/ },
   { cat: "anal", act: "anal sex", role: "top", kind: "identity", re: /\bi(?:'m|’m| am) (?:a |such a |more of a |usually a |kind of a |kinda a |total |a total )?top\b/ },
   { cat: "anal", act: "anal sex", role: "top", kind: "identity", re: /\bi (?:usually |always |only |mostly |prefer to |like to |love to |want to |wanna |'d like to |’d like to |would like to |'d rather |’d rather )top\b/ },
+  // anal — compliments as signals: an ass suggests the speaker tops, a cock that they bottom
+  { cat: "anal", act: "checking out an ass", role: "top", kind: "ogling", re: /\b(?:nice|great|fantastic|gorgeous|perfect|amazing|fine|hot|sexy|incredible|unreal|cute|pretty|tight|fucking) (?:little )?(?:ass|arse|butt|bum)\b|\byour (?:ass|arse|butt) (?:is|looks)\b/ },
+  { cat: "anal", act: "checking out a cock", role: "bottom", kind: "ogling", re: /\b(?:nice|great|gorgeous|perfect|amazing|big|huge|thick|beautiful|pretty|fucking) (?:fucking )?(?:cock|dick)\b|\byour (?:cock|dick) (?:is|looks|feels)\b/ },
   // oral — speaker top (getting sucked, or eating ass)
   { cat: "oral", act: "blowjob", role: "top", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|now,?\s+|c'mon,?\s+|come on,?\s+|just\s+)(?:suck (?:me|my (?:cock|dick))|blow me|swallow me|choke on (?:it|me|my (?:cock|dick)))\b/ },
   { cat: "oral", act: "blowjob", role: "top", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?(?:fuck|use)\\s+your\\s+(?:mouth|throat|face)\\b`) },
@@ -626,12 +768,14 @@ export const DIALOGUE: DialogueDef[] = [
 
 /** Cheap pre-filter: sentences without any of these can't match an act pattern. */
 export const TRIGGER =
-  /fuck|cock|dick|prick|suck|blow|blew|\brim|ate\b|eat|lick|tongu|inside|\bin(?:to)? (?:him|her|them|me|you)\b|finger|prostate|rid(?:e|ing)|rode|sank|sink|thrust|push|slid|slip|swallow|throat|mouth|hole|\bass|arse|entrance|knot|\btop|bottom|bred|breed|peg|penetrat|enter|went down|head|deepthroat|gag|chok|lips|came|\bcum|fill|buri|bury|stretch|clit|pussy|cunt|\bsex\b|impal|lower|seat|bounc|grind|ground|screw|pound|rail|bang|mount|take|took|fed|feed|lap|nuzzl|kiss|press|rock|work|drove|drive|sheath|plung|breach|split|claim/i;
+  /crotch|bulge|groin|package|butt|backside|behind|\bbum|over\b|eyes|gaze|watch|stare|ogl|check|grab|squeez|grop|palm|cup|spank|slap|water|twitch|slept|made love|had sex|fuck|cock|dick|prick|suck|blow|blew|\brim|ate\b|eat|lick|tongu|inside|\bin(?:to)? (?:him|her|them|me|you)\b|finger|prostate|rid(?:e|ing)|rode|sank|sink|thrust|push|slid|slip|swallow|throat|mouth|hole|\bass|arse|entrance|knot|\btop|bottom|bred|breed|peg|penetrat|enter|went down|head|deepthroat|gag|chok|lips|came|\bcum|fill|buri|bury|stretch|clit|pussy|cunt|\bsex\b|impal|lower|seat|bounc|grind|ground|screw|pound|rail|bang|mount|take|took|fed|feed|lap|nuzzl|kiss|press|rock|work|drove|drive|sheath|plung|breach|split|claim/i;
 
 /** Sex-context vocabulary for patterns with innocent readings ("pushed into him" in a crowd). */
 export const SEX_CTX =
   /\b(?:cock|dick|prick|hole|ass|arse|lube|lubed|slick|slicked|naked|thrust(?:s|ed|ing)?|moan(?:s|ed|ing)?|groan(?:s|ed|ing)?|fuck\w*|cum|come|came|coming|hard|erection|inside|prostate|stretch\w*|condom|bed|sheets|hips|orgasm|climax|rim\w*|tongue|knot|whimper\w*|gasp\w*|panting|pant\w*|sweat\w*|filthy|tight|wet|aching|strap|dildo|pussy|clit)\b/i;
 
 export const PENIS_CTX = /\b(?:cock|dick|prick|length|shaft|erection|hard-?on|member|manhood|strap|dildo|knot|girth)\b/i;
-export const ANAL_CTX = /\b(?:ass|arse|anal|anus|asshole|arsehole|hole|prostate|rim\w*|backdoor|pegg\w*|cheeks|bum|butt)\b/i;
+export const ANAL_CTX = /\b(?:ass|arse|anal|anus|asshole|arsehole|(?<!front[ -]?)hole|prostate|rim\w*|backdoor|pegg\w*|cheeks|bum|butt)\b/i;
+/** Vaginal vocabulary. Used instead of gender, since male omegas and trans men may have vaginas. */
+export const VULVA_CTX = /\b(?:pussy|cunt|vagina\w*|folds|labia|clit(?:oris)?|front[ -]?hole|vulva|cervix|t-?dick)\b/i;
 export const FINGER_CTX = new RegExp(`\\b${FINGERS}\\b`, "i");
