@@ -1288,16 +1288,27 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     });
   }
 
-  // The work's categories set a presumption: tagged only M/M, only men have sex with each other; tagged only F/F, only
-  // women do. Any other category in the mix (F/M, Multi, Other) removes it.
+  // The work's categories set a presumption: tagged only M/M, men have sex with each other; tagged only F/F, women do.
+  // Any other category in the mix (F/M, Multi, Other) removes it. It is context, not a ban: a scene with someone of the
+  // other gender stays when it is clearly real (both people named, or the pair is seen more than once), and is dropped
+  // when it rests on a single pronoun-only or inferred reading, which is where false flags come from.
   {
     const cats = meta.categories.map((c) => c.trim().toUpperCase());
     const onlyOf = (c: string) => cats.includes(c) && cats.every((x) => x === c || x === "GEN");
     const excluded: Gender | undefined = onlyOf("M/M") ? "f" : onlyOf("F/F") ? "m" : undefined;
     if (excluded) {
       const out = (c: Character) => c.gender === excluded && c.name !== "Reader";
-      acts = acts.filter((a) => !out(a.top) && !out(a.bottom));
-      desires = desires.filter((d) => !out(d.who) && !(d.partner && out(d.partner)));
+      const key = (a: Character, b: Character) => [a.name, b.name].sort().join("\u0000");
+      const seen = new Map<string, Set<string>>();
+      for (const a of acts) {
+        if (!(out(a.top) || out(a.bottom))) continue;
+        const k = key(a.top, a.bottom);
+        seen.set(k, (seen.get(k) ?? new Set()).add(`${a.para}\u0000${a.sentence}`));
+      }
+      const keepAct = (a: ActHit) => !(out(a.top) || out(a.bottom)) || a.basis === "named" || (seen.get(key(a.top, a.bottom))?.size ?? 0) >= 2;
+      acts = acts.filter(keepAct);
+      const kept = new Set(acts.map((a) => `${key(a.top, a.bottom)}\u0000${a.cat}`));
+      desires = desires.filter((d) => !(out(d.who) || (d.partner && out(d.partner))) || (!!d.partner && kept.has(`${key(d.who, d.partner)}\u0000${d.cat}`)));
     }
   }
 

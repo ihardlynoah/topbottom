@@ -63,25 +63,31 @@ describe("who does what", () => {
 });
 
 describe("women in an M/M work", () => {
-  const text = `${filler}\n\nEddie and Shannon were in bed, naked, and Shannon kissed Eddie. Shannon rode him, and he braced his feet to thrust up into her.`;
   const rel = { ...meta, relationships: ["Eddie Diaz/Shannon Diaz"] };
-  it("drops sex involving a woman when the work is tagged only M/M", () => {
-    const a = analyzeWithPatterns(text, rel, { quiet: true });
-    expect(a.pairings.every((p) => !/Shannon/.test(p.pairing) || (p.anal.instances.length === 0 && p.vaginal.instances.length === 0))).toBe(true);
+  const one = `${filler}\n\nEddie and Shannon were in bed, naked, and Shannon kissed Eddie. Shannon rode him, and he braced his feet to thrust up into her.`;
+  const clear = `${filler}\n\nEddie and Shannon were in bed, naked. Eddie slid into Shannon and fucked her slowly. Later, Eddie pushed into Shannon again.`;
+  const shannon = (m: Ao3Meta, t: string) => analyzeWithPatterns(t, m, { quiet: true }).pairings.find((x) => /Shannon/.test(x.pairing));
+  it("drops a single pronoun-only reading that involves a woman when the work is tagged only M/M", () => {
+    const p = shannon(rel, one);
+    expect(!p || (p.anal.instances.length === 0 && p.vaginal.instances.length === 0)).toBe(true);
   });
-  it("keeps it, as vaginal, once another category (F/M) removes the presumption", () => {
-    const a = analyzeWithPatterns(text, { ...rel, categories: ["M/M", "F/M"] }, { quiet: true });
-    const p = a.pairings.find((x) => /Shannon/.test(x.pairing))!;
+  it("keeps a clear scene with a woman (both named, or seen more than once) as vaginal", () => {
+    const p = shannon(rel, clear)!;
+    expect(p.anal.instances).toHaveLength(0);
+    expect(p.vaginal.instances.length).toBeGreaterThan(0);
+  });
+  it("keeps the single reading too once another category (F/M) removes the presumption", () => {
+    const p = shannon({ ...rel, categories: ["M/M", "F/M"] }, one)!;
     expect(p.anal.instances).toHaveLength(0);
     expect(p.vaginal.instances.length).toBeGreaterThan(0);
   });
 });
 
 describe("women-only works", () => {
-  it("drops sex involving a man when the work is tagged only F/F", () => {
-    const ff: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["F/F"], fandoms: ["X"], relationships: ["Maddie Buckley/Athena Grant"], characters: ["Maddie Buckley", "Athena Grant", "Bobby Nash"] };
-    const t = `${filler}\n\nMaddie and Athena were in bed. Maddie licked Athena's pussy until she came. Bobby Nash fucked Athena in the bed.`;
+  const ff: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["F/F"], fandoms: ["9-1-1 (TV)"], relationships: ["Maddie Buckley/Athena Grant"], characters: ["Maddie Buckley", "Athena Grant", "Bobby Nash"] };
+  it("keeps a clear scene with a man in an F/F work (both named)", () => {
+    const t = `${filler}\n\nMaddie and Athena were in bed. Maddie licked Athena's pussy until she came. Bobby Nash slid his cock into Athena’s pussy and fucked her.`;
     const a = analyzeWithPatterns(t, ff, { quiet: true });
-    expect(a.pairings.some((p) => /Bobby/.test(p.pairing) && (p.anal.instances.length || p.vaginal.instances.length))).toBe(false);
+    expect(a.pairings.some((p) => /Bobby/.test(p.pairing) && p.vaginal.instances.length > 0)).toBe(true);
   });
 });

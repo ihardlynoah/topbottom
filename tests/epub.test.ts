@@ -10,7 +10,7 @@ async function makeEpub(opts: { opfDir?: string; hrefPrefix?: string } = {}) {
   zip.file(`${dir}content.opf`, `<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version="2.0"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Test Fic</dc:title><dc:creator>Someone</dc:creator></metadata><manifest><item id="pre" href="${opts.hrefPrefix ?? ""}preface.xhtml" media-type="application/xhtml+xml"/><item id="c1" href="${opts.hrefPrefix ?? ""}chapter%201.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="pre"/><itemref idref="c1"/></spine></package>`);
   zip.file(`${dir}preface.xhtml`, `<html xmlns="http://www.w3.org/1999/xhtml"><body><div class="meta"><dl class="tags"><dt>Rating:</dt><dd>Explicit</dd><dt>Category:</dt><dd>M/M</dd><dt>Fandom:</dt><dd>Supernatural</dd><dt>Relationship:</dt><dd>Castiel/Dean Winchester</dd><dt>Stats:</dt><dd>Words: 12</dd></dl></div></body></html>`);
   zip.file(`${dir}chapter 1.xhtml`, `<html xmlns="http://www.w3.org/1999/xhtml"><body><div id="chapters"><p>Dean kissed Castiel. Castiel kissed Dean back.</p></div></body></html>`);
-  return zip.generateAsync({ type: "uint8array" });
+  return zip.generateAsync({ type: "arraybuffer" });
 }
 
 describe("EPUB upload", () => {
@@ -31,7 +31,7 @@ describe("EPUB upload", () => {
       zip.remove(`OPS/pkg/${n}`);
       zip.file(`OPS/${n}`, c);
     }
-    const out = await zip.generateAsync({ type: "uint8array" });
+    const out = await zip.generateAsync({ type: "arraybuffer" });
     const w = await extractFile(new File([out], "Fic.EPUB"));
     expect(w.text).toContain("Castiel kissed Dean back");
   });
