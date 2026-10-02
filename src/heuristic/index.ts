@@ -661,6 +661,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
     const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
+    // "Laurent needs Damianos to know he likes him … that he drags him": after "needs X to", a bare he/she is X.
+    const ctl = [...prefix.matchAll(new RegExp(`\\b(?:need|want|ask|tell|told|beg|let|make|made|get|got|expect|order|allow|urge|help|wish|like)\\w*\\s+(${NAMES})\\s+to\\b`, "gi"))].pop();
+    const lastHit = hits[hits.length - 1];
+    if (ctl && lastHit && /^(?:he|she|they)$/i.test(lastHit[3]) && lastHit.index! > ctl.index!) {
+      const named = cast.byAlias.get(ctl[1]);
+      if (named) return named;
+    }
     for (let i = hits.length - 1; i >= 0; i--) {
       const h = hits[i];
       // After a comma we're at a clause start, so whatever came before doesn't make this an object.
@@ -697,7 +704,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return "fixed" in p ? ctx.fixed(p.fixed) : notNamedLater(ctx.subjectFor(p.gender), rest, p.gender);
   }
 
+  /** The speaker, unless the line speaks to that very person by name ("Your dick, Damianos."), which makes it the other one. */
   function attributeSpeaker(para: string, mp: string, q: Quote): Character | undefined {
+    const who = attributeSpeakerFrom(para, mp, q);
+    if (!who) return who;
+    const voc = new RegExp(`(?:^|[,.!?]\\s+|\\b(?:hey|oh|please|yes|no|god),?\\s+)(${NAMES})(?=\\s*[,.!?…]|\\s*$)|,\\s*(${NAMES})\\b`).exec(q.text);
+    const addressed = voc ? cast.byAlias.get(voc[1] ?? voc[2]) : undefined;
+    return addressed && addressed === who ? (ctx.partnerOf(addressed) ?? who) : who;
+  }
+
+  function attributeSpeakerFrom(para: string, mp: string, q: Quote): Character | undefined {
     const after = para.slice(q.end, q.end + 80);
     const before = mp.slice(Math.max(0, q.start - 80), q.start);
     const resolve = (tok: string | undefined) => {
@@ -905,6 +921,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       return;
     }
     // "cupping his cheeks" while kissing: a face, not an ass.
+    // "scoots forwards, pushing his knees apart" before a blowjob: getting between someone's knees to kneel and suck.
+    if (pat.id.startsWith("spread-their-legs") && [pi - 1, pi, pi + 1].some((i) => !!paras[i] && /\b(?:kneel\w*|drops? to his knees|mouth|lick\w*|nuzzl\w*|suck\w*|tongue)\b/i.test(paras[i]) && !/\b(?:hole|lube[ds]?|ass\b|arse|fingers?|prostate)\b/i.test(paras[i]))) return;
     // "Eddie smacked his cheeks to wake himself up": "cheeks" with no ass word needs a sex scene around it.
     if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum|backside|behind)\b/i.test(matchText) &&
         ![pi - 2, pi - 1, pi, pi + 1].some((i) => !!paras[i] && (PENIS_CTX.test(paras[i]) || /\b(?:ass|arse|butt|hole|naked|undress\w*|moan\w*|lube\w*|condom|erection|aroused|thrust\w*|kiss\w*|bed)\b/i.test(paras[i])))) return;
@@ -941,6 +959,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "He hollowed his cheeks, creating a suction for Cas": the one named after "for" is getting sucked.
     // "They were so screwed", "He was fucked": the idiom, unless a person does it ("by Dean"), it says how, or the
     // sentence has anatomy or a sex word.
+    // "…after having sex with other rich men, but Laurent wakes to clean himself before they bend him over again":
+    // "they" are those other men, not a character, and the one done to is the sentence's subject. Past experience.
+    if (pat.subj === "t" && /^they$/i.test(tTok ?? "") && cat !== "vaginal" &&
+        /\b(?:other|older|rich|some|many|several|those|these|previous|different)\s+(?:[\w-]+\s+){0,2}(?:men|guys|people|clients|patrons|daddies|boys|women|girls|exes|lovers|strangers|partners|dates)\b/i.test(sent.slice(0, m.index!))) {
+      const victim = firstEntity(sent.slice(0, m.index!)) ?? ctx.lastSubject;
+      const other = victim && ctx.partnerOf(victim);
+      if (victim && other) addHistory(cat, act, victim, "bottom", other, original, pi);
+      return;
+    }
     // "takes all of Laurent inside him" / "fits inside him" with a mouth earlier in the sentence: that's oral, not anal.
     if (cat === "anal" && /\binside (?:of )?(?:him|her|them|me)$/i.test(matchText) && !/\b(?:thrust\w*|fuck\w*|rut\w*|pound\w*|slam\w*|snap\w*|driv\w*)\b/i.test(matchText) &&
         ORAL_LINE_RE.test(sent.slice(0, m.index! + m[0].length)) && !ANAL_CTX.test(sent.slice(0, m.index! + m[0].length)) && !FINGER_CTX.test(sent.slice(0, m.index! + m[0].length))) return;
@@ -1091,9 +1118,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     else if (DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
     else if (
-      HYPO_AUX.test(aux) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) ||
+      !(/\bas (?:if|though)\s*$/i.test(prefix) && /\b(?:isn['’]t|wasn['’]t|aren['’]t|weren['’]t|is not|was not|were not|not)\b[^.!?]*\benough\b/i.test(sent.slice(m.index!))) &&
+      (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) ||
       (/\bso\s*$/i.test(window) && /\b(?:can|could|might|may|will|would)\b/i.test(aux)) ||
-      /\b(?:would|could|might)\s+(?:want|like|love|wish|prefer|enjoy|rather|fit)\b[^.!?;]{0,70}?\b(?:as|while|when|if|so)\s+(?:[\w'’]+\s+)?$/i.test(prefix)
+      /\b(?:would|could|might)\s+(?:want|like|love|wish|prefer|enjoy|rather|fit)\b[^.!?;]{0,70}?\b(?:as|while|when|if|so)\s+(?:[\w'’]+\s+)?$/i.test(prefix))
     ) kind = "hypothetical";
 
     if (kind === "act") {
