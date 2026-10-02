@@ -889,4 +889,19 @@ export const CANON_RAW = `
   Alexis Rose | f | Alexis
   Stevie Budd | f | Stevie
 
+@ wicked | wicked|oz|wizard of oz
+  Elphaba Thropp | f | Elphaba; Elphie; Wicked Witch of the West
+  Galinda Upland | f | Galinda; Glinda; Glinda the Good; Glindas
+  Nessarose Thropp | f | Nessarose; Nessa
+  Fiyero Tigelaar | m | Fiyero
+  Boq | m | Boq; Boq Woodsman
+  Madame Morrible | f | Morrible; Madame Morrible
+  Doctor Dillamond | m | Dillamond; Doctor Dillamond
+  Crope | m | Crope
+  Tibbett | m | Tibbett
+  Pfannee | f | Pfannee
+  ShenShen | f | ShenShen
+  Dorothy Gale | f | Dorothy
+  Wizard of Oz | m | Wizard; Oz
+
 `;
