@@ -3,6 +3,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { type Ao3Meta, countWords } from "./ao3";
 import type { ActResult, Analysis } from "./types";
+import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "./text";
 
 /** Claude's raw answer; converted to the shared Analysis shape below. */
 interface ClaudeAct extends Omit<ActResult, "confidence"> {
@@ -153,6 +154,10 @@ const analysisSchema = {
 
 const SYSTEM_PROMPT = `You analyze fanfiction (usually from Archive of Our Own) for readers who want to know the sexual role dynamics of a work before reading it. The work is fiction; report what happens in it accurately and matter-of-factly.
 
+Keep the story's sexual roles separate from dom/sub dynamics, Alpha/Omega status, service roles, physical presentation, and emotional behavior. A service top is not necessarily dominant, and a bottom is not necessarily submissive. Treat AO3 tags as metadata, not as proof that a particular act occurs. Do not count AO3 summaries, author notes, fantasies, or nightmares as on-page acts. If story evidence conflicts with tags, report the conflict.
+
+Passages bracketed by ${UNCERTAIN_NOTE_START} and ${UNCERTAIN_NOTE_END} are text extracted from an AO3 chapter-notes section whose story/note boundary could not be recovered. Do not treat those passages as story events or use them as evidence. Mention this extraction uncertainty in notes. An omitted-note marker means such text was excluded from the excerpt.
+
 Use these definitions exactly:
 
 ANAL
@@ -203,7 +208,11 @@ function isExplicit(p: string): boolean {
 
 /** Cut a long work down to its sex scenes (with surrounding context) plus the opening. */
 export function excerptExplicit(text: string, context = 3): { text: string; words: number } {
-  const paras = text.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+  const excerptSource = text.replace(
+    new RegExp(`${UNCERTAIN_NOTE_START}[\\s\\S]*?${UNCERTAIN_NOTE_END}`, "g"),
+    "[[AO3_NOTE_BOUNDARY_UNCLEAR_OMITTED]]",
+  );
+  const paras = splitParagraphs(excerptSource);
   const keep = new Array<boolean>(paras.length).fill(false);
 
   // Keep the opening so the model learns who the characters are.

@@ -11,7 +11,13 @@ A small web app: drop in an AO3 download (PDF, EPUB, HTML, or TXT) and it tells 
 
 ## How it works
 
-Everything runs in the browser (the pattern engine in a background worker); files are never uploaded.
+Analysis runs in the browser by default (the pattern engine in a background worker). If Claude analysis is
+requested, the extracted story text is sent to Anthropic; the original file is not uploaded.
+AO3 metadata is kept separately from story text. HTML chapter-note blocks and labeled notes in AO3 text/PDF
+downloads are excluded from act detection when their boundaries are identifiable; when AO3 doesn't mark where a
+chapter's notes end, only their first block is set aside, so a chapter is never lost. One-shots' preface summary
+and notes are handled the same way. PDF line positions are used to preserve paragraph gaps, and a line that stops
+mid-sentence is joined to the next, while one-paragraph-per-line text files keep their paragraphs.
 
 **Fandom, pairing, word count** come from the tag block AO3 puts at the top of every download (PDF, EPUB,
 HTML). Relationship tags with `/` count as pairings; `&` (platonic) tags are ignored. Without AO3 tags, the
@@ -77,8 +83,9 @@ is only the fallback. When a sentence doesn't say, it goes the way that bottom's
 two men, a scene that still doesn't say is counted as anal. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
 
 **Claude second opinion (optional)** — with your own Anthropic API key, Claude (Opus 5.5 by default) reads
-the fic and returns the same result shape, including desire/fantasy lines and its own confidence. Long works
-(over 150k words, or “Sex scenes only”) are cut down to the opening plus the passages that look sexual.
+the story text and returns the same result shape, including desire/fantasy lines and its own confidence. Long works
+(over 150k words, or “Sex scenes only”) are cut down to the opening plus passages that look sexual, retaining
+paragraph and chapter context.
 
 Your API key stays in your browser and is sent only to `api.anthropic.com`.
 

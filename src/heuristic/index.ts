@@ -32,6 +32,7 @@ import {
 } from "./patterns";
 import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
+import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 
 type Basis = NonNullable<Instance["basis"]>;
 
@@ -398,9 +399,14 @@ export interface PatternOptions {
 }
 
 export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOptions = {}): Analysis {
-  const paras = text.split(/\n+/).map((p) => p.trim()).filter(Boolean);
-  const doubleQuotes = (text.match(/[“"]/g) ?? []).length;
-  const singleQuotes = doubleQuotes < 4 && (text.match(/(^|\s)‘/g) ?? []).length >= 4;
+  const hasUncertainNotes = text.includes(UNCERTAIN_NOTE_START);
+  const analysisText = text.replace(
+    new RegExp(`${UNCERTAIN_NOTE_START}[\\s\\S]*?${UNCERTAIN_NOTE_END}`, "g"),
+    "",
+  );
+  const paras = splitParagraphs(analysisText);
+  const doubleQuotes = (analysisText.match(/[“"]/g) ?? []).length;
+  const singleQuotes = doubleQuotes < 4 && (analysisText.match(/(^|\s)‘/g) ?? []).length >= 4;
   const masked = paras.map((p) => maskQuotes(p, singleQuotes));
   const narration = masked.map((m) => m.masked).join("\n");
 
@@ -1030,6 +1036,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   results.sort((a, b) => b.weight - a.weight);
 
   const notes: string[] = [];
+  if (hasUncertainNotes) notes.push("Some AO3 chapter-note text had an unclear boundary and was excluded from pattern analysis.");
   if (!meta.relationships.length && !meta.characters.length && cast.chars.length) {
     notes.push(`No AO3 tags in this file, so characters were guessed from the text: ${cast.chars.map((c) => c.name).join(", ")}.`);
   } else if (!meta.relationships.length && cast.pairings.length) {
