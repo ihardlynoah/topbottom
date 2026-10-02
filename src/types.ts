@@ -60,7 +60,12 @@ export interface VaginalResult {
 export interface PairingResult {
   pairing: string;
   anal: ActResult;
+  /** All oral sex together, with top = the penetrating partner (getting sucked, or doing the licking). */
   oral: ActResult;
+  /** Oral sex per act, reported as who sucks / gets sucked and who eats / gets eaten. */
+  blowjob: ActResult;
+  rimming: ActResult;
+  cunnilingus: ActResult;
   vaginal: VaginalResult;
 }
 

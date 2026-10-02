@@ -32,6 +32,7 @@ import {
 } from "./patterns";
 import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
+import { ORAL_KINDS, type OralKind, ROLE_WORDS, oralKindOf, roleSummary } from "../roles";
 import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 
 type Basis = NonNullable<Instance["basis"]>;
@@ -1084,12 +1085,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const pairTags = tagsFor(tags, members as [Character, Character], isMain);
     const pair = members as [Character, Character];
     const anal = buildAct("anal", pActs.filter((a) => a.cat === "anal"), pDes.filter((d) => d.cat === "anal"), pairTags, pair, meta, where);
-    const oral = buildAct("oral", pActs.filter((a) => a.cat === "oral"), pDes.filter((d) => d.cat === "oral"), pairTags, pair, meta, where);
+    const oralActs = pActs.filter((a) => a.cat === "oral");
+    const oralDes = pDes.filter((d) => d.cat === "oral");
+    const oral = buildAct("oral", oralActs, oralDes, pairTags, pair, meta, where);
+    const [blowjob, rimming, cunnilingus] = ORAL_KINDS.map((kind) =>
+      buildAct("oral", oralActs.filter((a) => oralKindOf(a.act) === kind), oralDes.filter((d) => oralKindOf(d.act) === kind), pairTags, pair, meta, where, kind),
+    );
     const vaginal = buildVaginal(pActs.filter((a) => a.cat === "vaginal"), pair, meta, where);
     const weight = pActs.reduce((n, a) => n + a.weight, 0) + pDes.length * 0.2 + (isMain ? 0.01 : 0);
     // Skip incidental pairs with almost nothing (likely misresolved pronouns); a tagged pair needs less.
     if (!isMain && weight < (tagged ? 0.5 : 1.2)) continue;
-    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, vaginal, weight, key });
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
 
@@ -1122,7 +1128,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     source: "patterns",
     fandom: meta.fandoms.join(", "),
     main_pairing: romantic[0] ?? results[0]?.pairing ?? "",
-    pairings: results.map(({ pairing, anal, oral, vaginal }) => ({ pairing, anal, oral, vaginal })),
+    pairings: results.map(({ weight: _w, key: _k, ...p }) => p),
     notes: notes.join(" "),
   };
 }
@@ -1172,14 +1178,16 @@ function buildVaginal(hits: ActHit[], pair: [Character, Character], meta: Ao3Met
 interface PairTags {
   roles: { char: Character; role: "top" | "bottom" | "switch"; tag: string }[];
   switching: string[];
-  actTags: { anal: string[]; oral: string[] };
+  actTags: Record<"anal" | "oral" | OralKind, string[]>;
 }
 
 function tagsFor(info: TagInfo, pair: [Character, Character], isMain: boolean): PairTags {
   return {
     roles: info.roles.filter((r) => pair.includes(r.char)),
     switching: isMain ? info.switching : [],
-    actTags: isMain ? { anal: info.anal, oral: info.oral } : { anal: [], oral: [] },
+    actTags: isMain
+      ? { anal: info.anal, oral: info.oral, blowjob: info.blowjobs, rimming: info.rimming, cunnilingus: info.oral.filter((t) => /cunnilingus|eating out|pussy/i.test(t)) }
+      : { anal: [], oral: [], blowjob: [], rimming: [], cunnilingus: [] },
   };
 }
 
@@ -1215,9 +1223,11 @@ function buildAct(
   pair: [Character, Character],
   meta: Ao3Meta,
   where: (pi: number) => string,
+  /** One oral act, reported in its own words; without it, oral sex as a whole. */
+  kind?: OralKind,
 ): ActResult {
   const otherOf = (name: string) => pair.find((c) => c.name !== name)?.name;
-  const label = cat === "anal" ? "anal sex" : "oral sex";
+  const label = kind ? ROLE_WORDS[kind].label : cat === "anal" ? "anal sex" : "oral sex";
   const reasons: string[] = [];
   const instances: Instance[] = [];
 
@@ -1283,16 +1293,16 @@ function buildAct(
     const isSwitch = !!minor && (minor.scenes >= 2 || minor.strong);
     if (isSwitch) {
       verdict = "switch";
-      summary = `They switch: ${major.char.name} tops in ${plural(major.scenes, "scene")}, ${minor.char.name} in ${plural(minor.scenes, "scene")}.`;
+      summary = roleSummary(kind ?? "anal", "switch", { name: major.char.name, partner: major.partner.name, scenes: major.scenes }, { name: minor.char.name, scenes: minor.scenes });
       base = evidence * (0.55 + 0.45 * Math.min(1, minor.weight / 2));
-      reasons.push(`${plural(major.scenes + minor.scenes, "scene")} found, with each person on top at least once`);
+      reasons.push(`${plural(major.scenes + minor.scenes, "scene")} found, with each person ${kind ? "in each role" : "on top"} at least once`);
     } else {
       verdict = "one_way";
       const consistency = major.weight / totalW;
-      summary = `${major.char.name} tops (${plural(major.scenes, "scene")}).`;
-      if (minor) summary += ` One possible exception where ${minor.char.name} tops — check the quoted line.`;
+      summary = roleSummary(kind ?? "anal", "one_way", { name: major.char.name, partner: major.partner.name, scenes: major.scenes });
+      if (minor) summary += ` One possible exception where ${minor.char.name} ${kind ? ROLE_WORDS[kind].topVerb : "tops"} — check the quoted line.`;
       base = evidence * (0.45 + 0.55 * consistency);
-      reasons.push(`${plural(major.scenes, "scene")} with ${major.char.name} on top${minor ? `, 1 weak contrary hit` : ""}`);
+      reasons.push(`${plural(major.scenes, "scene")} ${kind ? `where ${ROLE_WORDS[kind].scene(major.char.name, major.partner.name)}` : `with ${major.char.name} on top`}${minor ? `, 1 weak contrary hit` : ""}`);
     }
     const named = decisive.filter((h) => h.basis === "named").length;
     const viaPronoun = decisive.length - named;
@@ -1329,7 +1339,7 @@ function buildAct(
       else if (tagTops.length || tagBottoms.length) reasons.push(`tagged “${(tagTops[0] ?? tagBottoms[0]).tag}”, but the text shows switching`);
     }
   }
-  const actTags = cat === "anal" ? tags.actTags.anal : tags.actTags.oral;
+  const actTags = cat === "anal" ? tags.actTags.anal : kind ? tags.actTags[kind] : tags.actTags.oral;
   if (actTags.length && verdict !== "none") {
     tagAdj += 0.05;
     reasons.push(`tagged “${actTags[0]}”`);
@@ -1403,7 +1413,7 @@ function buildAct(
       const [who, w] = desireRank[0];
       const n = sig.filter((d) => desireTop(d) === who).length;
       const kinds = [...new Set(sig.filter((d) => desireTop(d) === who).map((d) => (isBehaviour(d) ? d.kind : "desire/fantasy")))];
-      summary = `No on-page ${label} recognized, but ${plural(n, "hint")} (${kinds.join(", ")}) point to ${who} as the top.`;
+      summary = `No on-page ${label} recognized, but ${plural(n, "hint")} (${kinds.join(", ")}) point to ${kind === "blowjob" ? `${otherOf(who) ?? "the other"} ${ROLE_WORDS.blowjob.bottomIng}` : kind ? `${who} ${ROLE_WORDS[kind].topIng}` : `${who} as the top`}.`;
       base = Math.min(0.45, 0.15 + w * 0.06);
       reasons.push("based only on hints: what characters want, imagine, look at, or do short of sex");
       desAdj = 0;
