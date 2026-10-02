@@ -56,8 +56,13 @@ word count is estimated and the main characters are guessed from frequently capi
 5. **Hints (same-sex pairs)**: behaviour short of sex counts toward confidence. Fingering someone, checking out
    or grabbing their ass, grinding against it, lining up, slicking up or rolling on a condom suggests top;
    staring at someone’s crotch or bulge, a mouth watering at it, grinding one’s ass back, spreading one’s legs,
-   getting on hands and knees, or kneeling between someone’s legs suggests bottom. Dialogue counts too
+   getting on hands and knees, or kneeling between someone’s legs suggests bottom. Sucking on someone’s
+   fingers (or having fingers pushed into one’s mouth) suggests an oral bottom; fingering oneself or using a
+   dildo, plug or toy on oneself (“fingered himself open”, “rode the plug”) suggests an anal bottom. Dialogue counts too
    (“nice ass”, “you’re so tight” → speaker tops; “you feel so big”, “I need your knot” → speaker bottoms).
+   “Fuck me” only counts as a request when it is one: not after an interjection (“well, fuck me”), before a
+   new clause (“fuck me, it’s cold”), in idioms (“fuck me sideways”), when muttered or sworn, or with no sex
+   nearby in the narration.
    With no on-page anal sex, these give an “Unclear” verdict that leans one way, at low confidence.
 6. **Verdict and confidence**: hits are grouped into scenes. “Switches” means each partner tops in at
    least one scene (a single weak contrary hit is flagged as a possible exception instead). Confidence goes

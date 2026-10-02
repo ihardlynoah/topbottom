@@ -121,7 +121,7 @@ const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|
 const FANTASY =
   /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
-  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to)\b/i;
+  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?prospect of|the promise of|the idea of)\b/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
@@ -369,7 +369,10 @@ function resolvePair(
   } else {
     // Only one side mentioned ("he bottomed out", "he was fucked"): the other is the scene partner.
     const only = (t ?? b)!;
-    const c = only.char ?? subjectFor(slotGender(only));
+    // "…was probably him fingering himself": an object pronoun on its own is the other person, not the subject.
+    const objectForm = /^(?:him|her|them)$/i.test((tTok ?? bTok) ?? "");
+    const subj0 = subjectFor(slotGender(only));
+    const c = only.char ?? (objectForm && subj0 ? (ctx.partnerOf(subj0, slotGender(only)) ?? subj0) : subj0);
     const other = c ? ctx.partnerOf(c) : undefined;
     if (t) [top, bottom] = [c, other];
     else [top, bottom] = [other, c];
@@ -466,6 +469,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   let chapters: string[] = [];
   let chapter = "";
   let prevSpeaker: Character | undefined;
+  /** For a paragraph opening with a quote tagged only "he says": whoever didn't speak last. */
+  let turnSpeaker: Character | undefined;
+  let turnQuote: Quote | undefined;
 
   const firstEntity = (s: string): Character | undefined => {
     const m = subjectRe.exec(s);
@@ -517,6 +523,18 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       chapter = para.length > 60 ? para.slice(0, 60) + "…" : para;
     }
     chapters[pi] = chapter;
+    // Turn-taking: '"Cock," he says, his slippery fingers…' answers the last speaker, and the narration
+    // that follows is about the one who answered.
+    turnSpeaker = undefined;
+    const opensWithQuote = (q: Quote) => q === quotes[0] && !new RegExp(`\\b(?:${NAMES})\\b`).test(mp.slice(0, q.start));
+    if (quotes.length && opensWithQuote(quotes[0]) && prevSpeaker) {
+      const tag = para.slice(quotes[0].end, quotes[0].end + 40);
+      if (new RegExp(`^[,.!?—–\\s]*(?:[Hh]e|[Ss]he|[Tt]hey)\\s+(?:\\w+ly\\s+)?(?:${SAY})\\b`).test(tag)) {
+        turnSpeaker = ctx.partnerOf(prevSpeaker);
+        turnQuote = quotes[0];
+        if (turnSpeaker) ctx.lastSubject = turnSpeaker;
+      }
+    }
     // A dream can run on into the next two paragraphs ("Louis's tongue feels so good…") until someone wakes.
     const WAKE = /\b(?:wak(?:e|es|ing)\s+up|woke|awake|jolt(?:s|ed)?\s+awake|snap(?:s|ped)?\s+out\s+of)\b/i;
     const fantasyPara = FANTASY_PARA.test(mp.slice(0, 160)) || (dreamRun > 0 && !WAKE.test(mp.slice(0, 160)) && !SCENE_BREAK.test(para));
@@ -574,8 +592,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const near = [pi - 3, pi - 2, pi - 1, pi, pi + 1, pi + 2, pi + 3].map((i) => masked[i]?.masked ?? "").join(" ");
     const narrationSexy = SEX_CTX.test(near) || /\b(?:nipples?|pleasure|arous\w*|undress\w*|thighs?|lube|fingers? (?:in|inside)|crotch|bulge)\b/i.test(near);
     let paraSpeaker: Character | undefined;
+    let lastQ: Quote | undefined;
     for (const q of quotes) {
-      const speaker = attributeSpeaker(para, mp, q) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
+      // '"You can take it, princess," he tells him tightly, "You're made to take my cock."': one speaker.
+      const continues = lastQ && paraSpeaker && q.start - lastQ.end < 50 && !/[.!?]["”]?\s*$/.test(para.slice(lastQ.end, q.start).trim() || ".") ;
+      lastQ = q;
+      const speaker = (continues ? paraSpeaker : undefined) ?? attributeSpeaker(para, mp, q) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
       if (!speaker) continue;
       paraSpeaker = speaker;
       scanDialogue(q.text, speaker, pi, { sexy: narrationSexy, after: para.slice(q.end, q.end + 60), before: para.slice(Math.max(0, q.start - 60), q.start) });
@@ -630,7 +652,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (named) return named;
       const p = pronoun(tok);
       if (!p) return undefined;
-      return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+      if ("fixed" in p) return ctx.fixed(p.fixed);
+      // "Alex fucks him through it. 'You can take it,' he tells him": he is the narration's subject just before.
+      // A paragraph that opens with "'Cock,' he says": the other person from the last line.
+      if (q === turnQuote && turnSpeaker && Ctx.compatible(turnSpeaker, p.gender)) return turnSpeaker;
+      // The main subject of the last sentence before the quote ("Henry moans … as Alex lifts him. 'Use me,' he whispers").
+      const lastSentence = mp.slice(0, q.start).trim().split(/(?<=[.!?])\s+/).pop() ?? "";
+      const prior = lastSentence.length > 5 ? (firstEntity(lastSentence) ?? elidedSubject(lastSentence)) : undefined;
+      if (prior && Ctx.compatible(prior, p.gender)) return prior;
+      return ctx.subjectFor(p.gender);
     };
     const a1 = new RegExp(`^[,.!?—–\\s]*((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})\\b`).exec(after);
     if (a1) return resolve(a1[1]);
@@ -770,6 +800,23 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       else if (/^\s+(?:[\w']+\s+){0,3}?(?:between|with)\s+(?:his|her|their|my|your)\s+(?:thighs|breasts|tits|hand|fist)\b/.test(after)) return;
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:a|the|her|his|their|my|your)\s+(?:strap|dildo|toy|vibrator|plug)/.test(after)) act = "anal sex (strap-on/toy)";
     }
+    // "cupping his cheeks" while kissing: a face, not an ass.
+    if (pat.id.startsWith("grab-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
+        (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose)\b/i.test(sent))) return;
+    // "…until the ridges of Alex's knuckles … each time they slide past his rim": "they" are the fingers.
+    // They're fingering, by whoever owns the fingers ("Alex's knuckles", "his fingers").
+    if (/^they$/i.test(tTok ?? "") && /\b(?:fingers?|knuckles?|digits?|hands?|toys?|thumbs?)\b/i.test(sent.slice(0, m.index))) {
+      if (cat !== "anal") return;
+      const own = new RegExp(`\\b((?:${NAMES})|${EPITHET_TOKEN}|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)(?:['’]s)?\\s+(?:[\\w-]+\\s+){0,2}?(?:fingers?|knuckles?|digits?|thumbs?)\\b`).exec(sent.slice(0, m.index));
+      const tok = own ? stripPoss(own[1]) : "";
+      const owner = cast.byAlias.get(tok) ?? (ctx.token(tok) || undefined) ?? (own && pronoun(tok) ? elidedSubject(sent.slice(0, own.index)) : undefined);
+      const other = owner ? ctx.partnerOf(owner) : undefined;
+      if (!owner || !other) return;
+      [top, bottom] = [owner, other];
+      act = "fingering";
+    }
+    // "Alex shudders and presses in harder" while kissing: not penetration.
+    if (pat.id.startsWith("pushed-in") && /\bkiss/i.test(sent) && !ANAL_CTX.test(sent)) return;
     // "…slipping inch by inch, until Alex finally bottoms": he bottomed out, so he's the top.
     if (pat.id.startsWith("bottomed-for") && !/\bfor\b/.test(matchText) && /\b(?:finally|fully|all the way)\s+bottom/.test(matchText + " " + sent) && /\b(?:inch|slid|slip|push|sank|sink|thrust|sheath|buri|bury|eas)/i.test(sent)) {
       [top, bottom] = [bottom, top];
@@ -789,7 +836,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.signal) {
       const prefix = sent.slice(0, m.index);
       if (NEG.test(m.groups?.aux ?? "") || NEG.test(prefix.slice(-40))) return;
-      const actor = pat.subj === "t" ? top : bottom;
+      if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
+      const actor = (pat.signal.actor ?? pat.subj) === "t" ? top : bottom;
+      if (desires.some((d) => d.sentence === original && d.cat === cat && d.kind === pat.signal!.kind && d.who === actor)) return;
       const other = actor === top ? bottom : top;
       desires.push({
         cat,
@@ -1224,7 +1273,7 @@ function buildAct(
   // ── desire, fantasy & other signals ──
   // Ogling/touching/fingering hints only mean something for same-sex pairs.
   const sameSex = pair[0].gender === pair[1].gender || pair[0].gender === "u" || pair[1].gender === "u";
-  const sig: DesireHit[] = des.filter((d) => sameSex || (d.kind !== "ogling" && d.kind !== "touch" && d.kind !== "prep"));
+  const sig: DesireHit[] = des.filter((d) => sameSex || (d.kind !== "ogling" && d.kind !== "touch" && d.kind !== "prep" && d.kind !== "fingers" && d.kind !== "solo"));
   if (cat === "anal" && sameSex) {
     for (const f of fingering) {
       sig.push({ cat, act: "fingering", who: f.top, partner: f.bottom, role: "top", wants: true, kind: "fingering", weight: 0.8, para: f.para, sentence: f.sentence });
@@ -1243,7 +1292,7 @@ function buildAct(
     }));
   // Every hint "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
   const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
-  const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep";
+  const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep" || d.kind === "fingers" || d.kind === "solo";
   const tally = { desAgree: 0, desConflict: 0, behAgree: 0, behConflict: 0, wAgree: 0, wConflict: 0 };
   for (const d of sig) {
     const pointsTo = desireTop(d);

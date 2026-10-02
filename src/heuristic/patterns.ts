@@ -37,7 +37,8 @@ export interface PatternDef {
   /** Oral patterns whose receiver might be a woman: "went down on her" is cunnilingus, licker = top. */
   femaleTarget?: "flip" | "drop";
   /** Not an act: a hint about who'd top (ogling an ass, grabbing it, staring at a bulge). */
-  signal?: { kind: "ogling" | "touch" | "prep"; actorRole: "top" | "bottom" };
+  /** A hint, not an act. `actor` says whose behaviour it is when that isn't the subject ("shoved his fingers into Peter's mouth"). */
+  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
 }
 
 export interface CompiledPattern extends PatternDef {
@@ -558,6 +559,7 @@ export const PATTERNS: PatternDef[] = [
     act: "blowjob",
     subj: "t",
     weight: 0.8,
+    needsPenis: true,
     src: `\\b{T}\\s+{aux}(?:guid|press|rub|push|nudg|bring|brought|offer|tap|slid|slide|drag|paint|smear|feed|fed|ease|eas|aim|point)\\w*\\s+(?:the\\s+(?:\\w+\\s+){0,2}?(?:head|tip)(?:\\s+of\\s+{x's}\\s+{PENIS})?|{x's}\\s+{PENIS}|it)\\s+(?:\\w+\\s+){0,2}?(?:to|against|across|over|between|along|past|into|at)\\s+{B:mouthReq}`,
   },
   {
@@ -577,6 +579,36 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.9,
     src: `\\b{B}\\s+{aux}(?:pull|pop|slid|slide|draw|drew|lift|eas|ease|come|came|tear|tore|wrench)\\w*\\s+(?:(?:his|her|their|my|your)\\s+(?:mouth|lips)\\s+off\\s+(?:of\\s+)?{T:penis}|off\\s+(?:of\\s+)?{T:penisReq})`,
+  },
+  {
+    // "Alex opens for him, giving him a soft, slow suck"
+    id: "give-a-suck",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.8,
+    needsPenis: true,
+    src: `\\b{B}\\s+{aux}(?:giv|gave)\\w*\\s+{T}\\s+(?:a|another|one)\\s+(?:[\\w-]+,?\\s+){0,3}?(?:suck|blowjob|blow job|lick)\\b`,
+  },
+  {
+    // "taking in the head", "took down the rest of him"
+    id: "take-in-head",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.7,
+    needsPenis: true,
+    needs: /\b(?:mouth|lips|tongue|throat|suck\w*|swallow\w*)\b/i,
+    src: `\\b{B}\\s+{aux}(?:tak|took|suck|draw|drew)\\w*\\s+(?:in|down)\\s+(?:the\\s+(?:\\w+\\s+)?(?:head|tip|crown|length|rest of (?:him|it))|{T:penisReq})\\b`,
+  },
+  {
+    // "he comes between those soft lips", "spilled across Alex's tongue"
+    id: "come-in-mouth",
+    cat: "oral",
+    act: "blowjob",
+    subj: "t",
+    weight: 0.8,
+    src: `\\b{T}\\s+{aux}(?:come|came|comes|coming|cum(?:s|med|ming)?|spill\\w*|empt\\w*|shoot\\w*|shot)\\s+(?:\\w+\\s+){0,2}?(?:between|on|across|into|down|in|over)\\s+(?:{B:poss}|those|the)\\s+(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:lips|tongue|mouth|throat)`,
   },
   {
     // "Alex takes the head between his lips", "took him into his mouth"
@@ -901,6 +933,86 @@ export const PATTERNS: PatternDef[] = [
     signal: { kind: "prep", actorRole: "top" },
     src: `\\b{T}\\s+{aux}(?:(?:slick|lube|coat|slather)\\w*\\s+(?:${SELF}|{x's}\\s+{PENIS})(?:\\s+up)?|roll(?:s|ed|ing)?\\s+(?:on\\s+)?a\\s+condom(?:\\s+on)?|(?:put|puts|putting)\\s+(?:on\\s+)?a\\s+condom)`,
   },
+  // ───────────── hints: sucking fingers (oral bottom) and playing with oneself (anal bottom) ─────────────
+  {
+    // "Peter licks and sucks at Wade's gloved fingers", "sucked on the fingers"
+    id: "suck-fingers",
+    cat: "oral",
+    act: "sucking on fingers",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    kw: "suck|lick|lap|nibbl|mouth|lav",
+    signal: { kind: "fingers", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:(?:lick|lap|nibbl|mouth|lav)\\w*\\s+and\\s+)?(?:suck|suckl|lick|lav|mouth|nibbl|lap)\\w*\\s+(?:(?:on|at)\\s+)?(?:(?:two|three|a couple|one) of\\s+)?(?:{T:poss}|the|two|three|a|those)\\s+(?:[\\w-]+\\s+){0,2}?(?:fingers?|thumb|digits?|fingertips?)\\b`,
+  },
+  {
+    // "Henry sucks two fingers into his mouth", "took Wade's thumb between his lips"
+    id: "fingers-into-own-mouth",
+    cat: "oral",
+    act: "sucking on fingers",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "fingers", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:suck|draw|drew|took|take|pull|guid)\\w*\\s+(?:(?:two|three|a couple|one) of\\s+)?(?:{T:poss}|the|two|three|a|one|those)\\s+(?:[\\w-]+\\s+){0,2}?(?:fingers?|thumb|digits?)\\s+(?:\\w+\\s+)?(?:into|in|between)\\s+(?:his|her|their|my|your)\\s+(?:mouth|lips)`,
+  },
+  {
+    // "Deadpool shoved two leather-covered fingers into his mouth": the mouth's owner gets the hint.
+    id: "fingers-into-mouth",
+    cat: "oral",
+    act: "sucking on fingers",
+    subj: "t",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "fingers", actorRole: "bottom", actor: "b" },
+    src: `\\b{T}\\s+{aux}(?:shov|push|slid|slip|stuck|stick|press|put|fed|feed|eas|hook|jamm|jam|work|slot|tuck)\\w*\\s+(?:(?:his|her|their|my|your|two|three|a|one|the|another)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:fingers?|thumb|digits?)\\s+(?:\\w+\\s+)?(?:into|in|between|past)\\s+{B:poss}\\s+(?:(?:${MOUTH_ADJ})\\s+)?(?:mouth|lips)`,
+  },
+  {
+    // "He fingered himself open", "stretched himself"
+    id: "self-finger",
+    cat: "anal",
+    act: "fingering himself",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    signal: { kind: "solo", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:finger(?:s|ed|ing)?|finger-?fuck(?:s|ed|ing)?|stretch(?:es|ed|ing)?|prep(?:s|ped|ping)?|open(?:s|ed|ing)?)\\s+${SELF}(?:\\s+(?:open|wide|loose|up))?(?!\\s+(?:out|on|across|along|to|for|from|about|with (?:a|the) (?:question|thought)))`,
+  },
+  {
+    // "slides a finger into himself", "eased the dildo inside himself"
+    id: "self-insert",
+    cat: "anal",
+    act: "fingering himself",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    signal: { kind: "solo", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:push|slid|slide|slip|press|thrust|sink|sank|eas|insert|add|crook|curl|scissor|work|fuck|rock|guid|feed|fed)\\w*\\s+(?:(?:a|one|two|three|four|another|the|his|her|my|their|a second|a third)\\s+)?(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:fingers?|digits?|dildo|toy|vibrator|vibe|plug)\\s+(?:\\w+\\s+){0,2}?(?:into|inside|in)\\s+${SELF}`,
+  },
+  {
+    // "fucks himself on the dildo", "rides the plug", "sank down onto the toy"
+    id: "self-toy",
+    cat: "anal",
+    act: "using a toy on himself",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    signal: { kind: "solo", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:fuck|rid|rode|bounc|rock|grind|ground|sink|sank|thrust|lower|work|impal)\\w*\\s+(?:${SELF}\\s+)?(?:\\w+ly\\s+)?(?:back\\s+|down\\s+)*(?:(?:on(?:to)?|with)\\s+)?(?:a|the|his|her|my|their)\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|toy|vibrator|vibe|plug)s?\\b`,
+  },
+  {
+    // "thrusts down on his own finger", "fucked himself on his own fingers"
+    id: "self-own-fingers",
+    cat: "anal",
+    act: "fingering himself",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    needs: /\b(?:rim|hole|ass|arse|entrance|prostate|inside|himself|herself|thrust\w*|open\w*|stretch\w*)\b/i,
+    signal: { kind: "solo", actorRole: "bottom" },
+    src: `\\b(?:down\\s+)?(?:on(?:to)?|with|into|inside)\\s+{B:poss}\\s+own\\s+(?:[\\w-]+\\s+)?(?:fingers?|digits?)\\b`,
+  },
   {
     id: "spread-legs",
     cat: "anal",
@@ -949,7 +1061,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.7,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:push|press|guid|pull|forc|shov|tug|urg)\\w*\\s+{B:poss}\\s+(?:head|face|mouth)\\s+(?:back\\s+)?(?:down|lower|onto|toward|towards|against)`,
+    src: `\\b{T}\\s+{aux}(?:push|press|guid|pull|forc|shov|tug|urg)\\w*\\s+{B:poss}\\s+(?:head|face|mouth)\\s+(?:back\\s+)?(?:down\\b|lower\\b|(?:onto|toward|towards|against|to|into)\\s+(?:(?:his|her|their|my|your|\\w+['’]s)\\s+)?(?:\\w+\\s+)?(?:crotch|cock|dick|groin|lap|erection|bulge|length|prick|shaft))`,
   },
   {
     id: "knelt-before",
@@ -1164,7 +1276,7 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "anal", act: "anal sex", role: "top", kind: "identity", re: /\bi (?:usually |always |only |mostly |prefer to |like to |love to |want to |wanna |'d like to |’d like to |would like to |'d rather |’d rather )top\b/ },
   // anal — said during sex: "you're so tight" (speaker is inside), "you're so big" (speaker is receiving)
   { cat: "anal", act: "anal sex", role: "top", kind: "said", weight: 0.8, re: /\byou(?:'re| are| feel| felt| were)\s+(?:so\s+|fucking\s+|still\s+|always\s+|perfect\s+and\s+)*tight\b|\byou feel (?:so )?(?:good|amazing|perfect|incredible|fucking good)? ?around me\b|\b(?:clench|squeez|tighten)\w* (?:around|on) me\b|\btake (?:it(?=\s*(?:[,.!?]|$|\s+(?:all|deep|like|for me|baby|sweetheart|good|so well)\b))|my (?:cock|dick|knot)\b)/ },
-  { cat: "anal", act: "anal sex", role: "bottom", kind: "said", weight: 0.8, re: /\byou(?:'re| are| feel| felt)\s+(?:so\s+|fucking\s+)*(?:big|huge|deep|thick)\b|\bso (?:full|deep)\b|\bstretch(?:ing)? me\b|\b(?:need|want|crave)\s+(?:your|that)\s+(?:cock|dick|knot)\b(?!\s+in my mouth)/ },
+  { cat: "anal", act: "anal sex", role: "bottom", kind: "said", weight: 0.8, re: /\byou(?:'re| are| feel| felt)\s+(?:so\s+|fucking\s+)*(?:big|huge|deep|thick)\b|\b(?:i'm|i’m|i am|i feel|feel|feels|i'm just)\s+so (?:full|deep)\b|^\W*so (?:full|deep)\b|\bso full of (?:you|your)\b|\bstretch(?:ing)? me\b|\b(?:need|want|crave)\s+(?:your|that)\s+(?:cock|dick|knot)\b(?!\s+in my mouth)/ },
   { cat: "anal", act: "anal sex", role: "top", kind: "said", weight: 0.7, re: /(?:^|[.!?,]\s*|now,?\s+|please,?\s+|just\s+)(?:bend over|turn over|on your (?:stomach|hands and knees)|spread (?:your legs|'em|them)|present yourself|show me (?:your|that) (?:hole|ass))\b/ },
   // oral — said during sex
   { cat: "oral", act: "blowjob", role: "top", kind: "said", weight: 0.8, re: /\byour mouth (?:feels|is|was|felt) (?:so )?(?:good|amazing|perfect|incredible|hot|fucking good)\b|\b(?:suck|swallow) (?:it|harder|deeper)\b/ },
