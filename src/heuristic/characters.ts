@@ -271,8 +271,11 @@ function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
       else c.gender = presumed as Gender;
       continue;
     }
-    if (he >= 2 && he > she * 2) c.gender = "m";
-    else if (she >= 2 && she > he * 2) c.gender = "f";
+    // A gender known from the canon list needs strong, one-sided evidence to be overturned ("X ... He" often means the
+    // other person); one the text alone guessed only needs a lean.
+    const [needMin, needRatio] = c.gender === "u" ? [2, 2] : [6, 4];
+    if (he >= needMin && he > she * needRatio) c.gender = "m";
+    else if (she >= needMin && she > he * needRatio) c.gender = "f";
     // Nothing known and nothing clear in the text: the work's category (M/M, F/F) is the best guess.
     if (c.gender === "u") c.gender = allMale ? "m" : allFemale ? "f" : "u";
   }

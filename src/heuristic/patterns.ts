@@ -73,7 +73,7 @@ const ORAL_WORDS = `(?:mouth|throat|lips|swallow\\w*|gag\\w*|tongue|hum(?:s|med|
 const ORAL_FREE = new RegExp(`^(?!.*\\b${ORAL_WORDS}\\b)`, "i");
 const ORAL_NEAR = new RegExp(`\\b${ORAL_WORDS}\\b`, "i");
 const VULVA = `(?:(?:\\w+)\\s+)?(?:clit(?:oris)?|pussy|cunt|folds|slit|labia|vulva|sex|cunny|front ?hole|t-?dick)`;
-export const FINGERS = `(?:fingers?|digits?|knuckles?|thumb|fingertips?)`;
+export const FINGERS = `(?:fingers?|digits?|knuckles?|thumb|fingertips?|pointer|pointer fingers?|index fingers?|middle fingers?|ring fingers?)`;
 
 const AUX =
   "(?<aux>(?:(?:was|were|is|are|had|has|have|been|being|be|kept|keeps|started|starts|began|begins|proceeds|proceeded|proceed|went on|goes on|continued|continues|would|could|will|can|might|must|should|shall|wanted|wants|want|needed|needs|need|longed|wished|tried|tries|going|gonna|wanna|got|get|gets|did|does|do|finally|just|then|still|already|almost|barely|never|not|to|also|immediately|eventually|again|always|usually|often|sometimes|only|rarely|soon|now|quickly|really|actually|lazily|happily|greedily|[a-z]+ly|[a-z]+n['’]t|'d|’d|'ll|’ll|used)\\s+){0,4})";
@@ -1771,6 +1771,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex (toy)",
     subj: "t",
     weight: 1,
+    needsCtx: true,
     src: `\\b{T}\\s+{aux}(?:push|press|slid|slide|slip|work|eas|insert|guid|fed|feed|sink|sank|shov|nudg|pump|fuck|drove|drive|thrust|stuff|ram)\\w*\\s+(?:(?:a|an|the|his|her|their|that|this|one|another|my|your)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|vibrator|vibe|butt\\s*plug|plug|beads|wand|bullet|toy|strap-?on|strap)\\s+(?:(?:slowly|deep(?:er)?|all the way|gently|carefully|roughly|further|back|firmly|easily)\\s+)*(?:in(?:to)?|inside|up)\\s+{B:ass}`,
   },
   {
@@ -1793,7 +1794,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.7,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:was|were|is|had|has|wore|wears|wearing|kept)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:butt\\s*plug|plug(?!\\s+in\\b)|vibrator|vibe|beads)\\b`,
+    src: `\\b{B}\\s+{aux}(?:was|were|is|had|has|wore|wears|wearing|kept)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:butt\\s*plug|plug(?!\\s+in\\b|-in)|vibrator|vibe|beads)\\b(?!-)`,
   },
   {
     // "strapped on the harness", "buckled the strap-on", "wearing a dildo": the wearer is the top
@@ -1804,7 +1805,89 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:strapp?ed\\s+(?:on|in)|buckl\\w+\\s+(?:on|up|in)|put\\s+on|donn\\w+|wore|wears|wearing)\\s+(?:the\\s+|a\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:strap-?on|harness|dildo)\\b`,
+    src: `\\b{T}\\s+{aux}(?:strapp?ed\\s+(?:on|in)|buckl\\w+\\s+(?:on|up|in)|put\\s+on|donn\\w+|wore|wears|wearing)\\s+(?:the\\s+|a\\s+|his\\s+|her\\s+|their\\s+)?(?:[\\w-]+\\s+){0,2}?(?:strap-?on|harness|dildo)\\b(?!\\s+(?:for|on)\\s+(?:the\\s+|his\\s+|her\\s+)?(?:dog|horse|baby|kid|child|cat|puppy|climb\\w*|rope|ride))`,
+  },
+
+  // ───────────── LESS-EXPLICIT CUES: staring, groping, handling ─────────────
+  {
+    // "stared where Steve's fat cock stretched out his briefs", "glanced down to where his dick poked from his jeans"
+    id: "ogle-crotch-where",
+    cat: "anal",
+    act: "staring at a bulge",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "bottom" },
+    src: `\\b{T}\\s+{aux}(?:star|gaz|look|glanc|eye|watch|ogl|peer)\\w*\\s+(?:down\\s+)?(?:at\\s+|to\\s+)?where\\s+{B:poss}\\s+(?:[\\w-]+\\s+){0,2}?(?:cock|dick|erection|hard-?on|bulge|prick)\\b`,
+  },
+  {
+    // "watching Steve bend over the hood", "stared as he leaned across the table"
+    id: "ogle-bend-over",
+    cat: "anal",
+    act: "watching someone bend over",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "ogling", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:watch|stare|gaze|ogle|eye|admire)\\w*\\s+{B}\\s+(?:bend|lean|bent|leaned|stretch|reach)\\w*\\s+(?:over|down|across|forward)\\b`,
+  },
+  {
+    // "grabbed Steve's hips and pulled him close", "gripped his waist and hauled him in"
+    id: "dom-hips-pull",
+    cat: "vibe",
+    act: "grabbing hips and pulling close",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:grabb?ed|grabs|grabbing|grip(?:ped|s|ping)?|held|holds|caught|catch(?:es)?|seiz\\w*|clutch\\w*|squeez\\w*)\\s+{B:poss}\\s+(?:hips?|waist|thighs?|ribs|sides)\\s*,?\\s*(?:and\\s+)?(?:then\\s+)?(?:pull|haul|drag|yank|tug|hoist|lift|flip|push|turn|bend|slam|press|jerk)\\w*`,
+  },
+  {
+    // "cupped Steve's jaw and tilted his head back", "tilted Steve's chin up"
+    id: "dom-tilt",
+    cat: "vibe",
+    act: "tilting someone's face up",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:(?:cupp?ed|cups|held|holds|gripp?ed|grips|caught)\\s+{B:poss}\\s+(?:jaw|chin|face)\\s*,?\\s*(?:and\\s+)?(?:then\\s+)?)?(?:tilt|lift|angl|tip|jerk)\\w*\\s+(?:{B:poss}\\s+(?:chin|head|face)|{B:poss}\\s+(?:jaw))\\s+(?:up|back|toward|towards|to)\\b`,
+  },
+  {
+    // "slid a hand down the back of Steve's jeans and squeezed", "pushed a hand into his waistband"
+    id: "hand-in-pants",
+    cat: "anal",
+    act: "hand down the back of the pants",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:slid|slipp|dipp|shov|push|sneak|snak|work|slid)\\w*\\s+(?:a|one|his|her|their)\\s+hand\\s+(?:\\w+\\s+){0,2}?(?:down|into|under|inside)\\s+(?:the\\s+back\\s+of\\s+)?{B:poss}\\s+(?:jeans|pants|trousers|boxers|briefs|waistband|shorts|underwear|sweats|sweatpants)\\b`,
+  },
+  {
+    // "Eddie's hand slipped down the back of Steve's jeans"
+    id: "hand-in-pants-poss",
+    cat: "anal",
+    act: "hand down the back of the pants",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "top" },
+    src: `\\b{T:poss}\\s+hand\\s+(?:slid|slipp|dipp|shov|push|sneak|snak|work|crept|trail)\\w*\\s+(?:\\w+\\s+){0,2}?(?:down|into|under|inside)\\s+(?:the\\s+back\\s+of\\s+)?{B:poss}\\s+(?:jeans|pants|trousers|boxers|briefs|waistband|shorts|underwear|sweats|sweatpants)\\b`,
+  },
+  {
+    // "rubbed his palm over the bulge in Eddie's jeans", "cupped the bulge in his pants"
+    id: "grope-bulge",
+    cat: "anal",
+    act: "touching a bulge",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "bottom" },
+    src: `\\b{T}\\s+{aux}(?:rubb?ed|palm\\w*|cupp?ed|cups|squeez\\w*|stroked|strokes|grop\\w*|massag\\w*|pressed)\\s+(?:(?:his|her|their)\\s+(?:palm|hand|fingers?)\\s+)?(?:over|against|along|on)?\\s*(?:the\\s+)?(?:bulge|outline|hardness|erection|tent)\\s+(?:in|of|under)\\s+{B:poss}\\b`,
+  },
+  {
+    // "Eddie poured lube over his dick and rubbed it over himself", "slathered lube on his fingers"
+    id: "lube-up",
+    cat: "anal",
+    act: "slicking up",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "prep", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:pour|squirt|drizzl|smear|slather|spread|coat|rub|dribbl)\\w*\\s+(?:some\\s+|a\\s+(?:bit|little|lot)\\s+of\\s+|the\\s+|more\\s+)?lube\\s+(?:over|onto|on|across|along)\\s+(?:his|her|their)\\s+(?:own\\s+)?(?:cock|dick|length|shaft|erection|prick)\\b`,
   },
 ];
 

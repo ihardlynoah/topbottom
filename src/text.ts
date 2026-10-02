@@ -28,6 +28,9 @@ const STORY_RESUMES = /^\s*see the end of (?:the|this) (?:chapter|work) for (?:m
 export const UNCERTAIN_NOTE_START = "[[AO3_UNCERTAIN_NOTE_START]]";
 export const UNCERTAIN_NOTE_END = "[[AO3_UNCERTAIN_NOTE_END]]";
 
+/** The markers contain brackets, so they must be escaped before going into a RegExp. */
+export const escapeMarker = (m: string) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * A chapter's notes/summary with no "See the end of the chapter…" line after them: AO3 doesn't mark where
  * they stop. Only the first block (up to a blank line, or the first line if there are none) is set aside as
