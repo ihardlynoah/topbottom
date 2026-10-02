@@ -185,6 +185,7 @@ CONFIDENCE
 
 OTHER RULES
 - Use the characters' names as they appear in the AO3 relationship tags when available.
+- Original characters: when tags only say "Original Male Character(s)", "Original Female Character", "OMC", "OFC" and the like (or the fandom is "Original Work"), use the names the text gives them (e.g. "Tanner/Jacks"), never the generic tag, and mark them with "(OC)" once in notes.
 - List every distinct sex scene as an instance (one per act per scene). Keep evidence short — a paraphrase, not a long quote.
 - If there are AO3 tags provided, use them for fandom and pairing, but analyze roles from the text itself, not from tags like "Bottom X" (those can be wrong or describe only part of the fic). Mention in notes if the text contradicts such tags.
 - If there is no sex of a given kind, use verdict "none", empty top/bottom, an empty instances array, and a summary like "No on-page oral sex."`;

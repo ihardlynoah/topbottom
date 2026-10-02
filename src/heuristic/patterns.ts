@@ -255,7 +255,7 @@ export function compilePatterns(defs: PatternDef[], aliasPattern: string): Compi
     if (def.src.startsWith(lead)) {
       const rest = src.slice(src.indexOf("(?<aux>"));
       // Also gerunds after "in favor of", "about", "before", "while"... ("in favor of licking his rim").
-      const elided = `(?:\\band|\\bthen|,|\\b(?:of|about|before|after|while|by|without|from|to|kept|started|began|continued|finished|enjoyed|loved|tried|resumed))\\s+(?:then\\s+|finally\\s+|slowly\\s+|eagerly\\s+)?${rest}`;
+      const elided = `(?:\\band|\\bthen|,|\\b(?:of|about|before|after|while|by|without|from|to|kept|started|began|continued|finished|enjoyed|loved|tried|resumed))\\s+(?:then\\s+|finally\\s+|\\w+ly\\s+)?${rest}`;
       out.push({ ...def, id: `${def.id}~elided`, elided: true, weight: def.weight * 0.8, re: new RegExp(elided, "g"), gate });
     }
   }
@@ -551,7 +551,25 @@ export const PATTERNS: PatternDef[] = [
     act: "blowjob",
     subj: "t",
     weight: 0.8,
-    src: `\\b{T}\\s+{aux}(?:guid|press|rub|push|nudg|bring|brought|offer|tap|slid|slide|drag|paint|smear|feed|fed|ease|eas)\\w*\\s+(?:the\\s+(?:\\w+\\s+){0,2}?(?:head|tip)(?:\\s+of\\s+{x's}\\s+{PENIS})?|{x's}\\s+{PENIS}|it)\\s+(?:\\w+\\s+){0,2}?(?:to|against|across|over|between|along|past|into)\\s+{B:mouthReq}`,
+    src: `\\b{T}\\s+{aux}(?:guid|press|rub|push|nudg|bring|brought|offer|tap|slid|slide|drag|paint|smear|feed|fed|ease|eas|aim|point)\\w*\\s+(?:the\\s+(?:\\w+\\s+){0,2}?(?:head|tip)(?:\\s+of\\s+{x's}\\s+{PENIS})?|{x's}\\s+{PENIS}|it)\\s+(?:\\w+\\s+){0,2}?(?:to|against|across|over|between|along|past|into|at)\\s+{B:mouthReq}`,
+  },
+  {
+    // "…until the head of his cock rests against my bottom lip"
+    id: "cock-at-lips",
+    cat: "oral",
+    act: "blowjob",
+    subj: "t",
+    weight: 0.7,
+    src: `\\b(?:the\\s+(?:\\w+\\s+)?(?:head|tip)\\s+of\\s+)?{T:penis}\\s+(?:\\w+\\s+)?(?:rest|brush|press|nudg|bump|tap|prod|poke|slid|slip|push)\\w*\\s+(?:\\w+\\s+){0,2}?(?:against|at|on|across|between|past|into|over)\\s+{B:mouthReq}`,
+  },
+  {
+    // "Peter pulls his mouth off my dick": he'd been sucking it.
+    id: "mouth-off",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    src: `\\b{B}\\s+{aux}(?:pull|pop|slid|slide|draw|drew|lift|eas|ease|come|came|tear|tore|wrench)\\w*\\s+(?:(?:his|her|their|my|your)\\s+(?:mouth|lips|head)\\s+)?off\\s+(?:of\\s+)?{T:penis}`,
   },
   {
     id: "lips-around",
@@ -1150,5 +1168,6 @@ export const SEX_CTX =
 export const PENIS_CTX = /\b(?:cock|dick|prick|length|shaft|erection|hard-?on|member|manhood|strap|dildo|knot|girth)\b/i;
 export const ANAL_CTX = /\b(?:ass|arse|anal|anus|asshole|arsehole|(?<!front[ -]?)hole|prostate|rim\w*|backdoor|pegg\w*|cheeks|bum|butt)\b/i;
 /** Vaginal vocabulary. Used instead of gender, since male omegas and trans men may have vaginas. */
-export const VULVA_CTX = /\b(?:pussy|cunt|vagina\w*|labia|clit(?:oris)?|front[ -]?hole|vulva|cervix|t-?dick|(?:her|wet|slick|swollen) folds)\b/i;
+export const VULVA_CTX =
+  /\b(?:pussy|cunt|vagina\w*|labia|clit(?:oris)?|front[ -]?hole|vulva|cervix|t-?dick|(?:her|wet|slick|swollen) folds|(?:his|her|their|my|your)\s+(?:\w+\s+)?seam(?!\s+of))\b/i;
 export const FINGER_CTX = new RegExp(`\\b${FINGERS}\\b`, "i");

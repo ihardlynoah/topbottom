@@ -44,6 +44,8 @@ interface ActHit {
   basis: Basis;
   para: number;
   sentence: string;
+  /** The sentence didn't say which hole, and the bottom may have a vagina: settled later by their other scenes. */
+  holeGuess?: "anal" | "vaginal" | "ambiguous";
 }
 
 interface DesireHit {
@@ -233,13 +235,30 @@ class Ctx {
   sentMentions: { c: Character; at: number }[] = [];
   /** Where the current match ends: people named after it aren't its partner ("Riddle fucks him, though Voldemort watches"). */
   cutoff = Infinity;
-  /** Each person's most recent partner in an act. */
-  partners = new Map<Character, Character>();
+  /** "Harry and I fucked him": people sharing the subject, who can't be the object. */
+  coSubjects = new Set<Character>();
+  /** Each person's most recent partner, per kind of act ("" = any). */
+  partners = new Map<string, Map<Character, Character>>();
+  /** The kind of act being resolved right now. */
+  curCat = "";
+
+  lastPartner(x: Character): Character | undefined {
+    return this.partners.get(this.curCat)?.get(x) ?? this.partners.get("")?.get(x);
+  }
+
+  setPartners(cat: string, a: Character, b: Character) {
+    for (const k of [cat, ""]) {
+      const m = this.partners.get(k) ?? new Map<Character, Character>();
+      m.set(a, b);
+      m.set(b, a);
+      this.partners.set(k, m);
+    }
+  }
 
   partnerOf(x: Character, g: Gender | "any" = "any", exclude: Set<Character> = new Set()): Character | undefined {
-    const ok = (c: Character) => c !== x && !exclude.has(c) && Ctx.compatible(c, g);
+    const ok = (c: Character) => c !== x && !exclude.has(c) && !this.coSubjects.has(c) && Ctx.compatible(c, g);
     // Someone else named earlier in the same sentence is the likeliest partner (matters in threesomes).
-    const last = this.partners.get(x);
+    const last = this.lastPartner(x);
     // …unless their current partner is named in it too ("…thrusts into him as Harry is forced up").
     if (last && ok(last) && this.sentMentions.some((m) => m.c === last)) return last;
     const inSentence = this.sentMentions.find((m) => m.at < this.cutoff && ok(m.c));
@@ -378,7 +397,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const masked = paras.map((p) => maskQuotes(p, singleQuotes));
   const narration = masked.map((m) => m.masked).join("\n");
 
-  const cast = buildCast(meta, narration);
+  const cast = buildCast(meta, narration, paras.join("\n"));
   const tags = readTags(meta.freeforms, cast);
   const patterns = compilePatterns(PATTERNS, cast.aliasPattern);
   const NAMES = cast.aliasPattern || "(?!)";
@@ -396,6 +415,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   let acts: ActHit[] = [];
   let ambiguousHoles = 0;
+  /** For each bottom, how many sentences clearly said anal vs vaginal. */
+  const holeVotes = new Map<Character, { anal: number; vaginal: number }>();
   let desires: DesireHit[] = [];
   let chapters: string[] = [];
   let chapter = "";
@@ -440,6 +461,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   chapter = "";
   prevSpeaker = undefined;
   ambiguousHoles = 0;
+  holeVotes.clear();
+  ctx.partners.clear();
   ctx.reset();
   for (let pi = 0; pi < paras.length; pi++) {
     const para = paras[pi];
@@ -626,7 +649,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
     const subjTok = pat.subj === "t" ? tTok : bTok;
     const nearSubj = !pat.elided && subjTok && pronoun(subjTok) && m.index! > 0 ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!)) : undefined;
+    const co = /([\p{L}'’]+)\s+and\s+$/u.exec(sent.slice(0, m.index));
+    const coChar = co ? resolveToken(co[1]) : undefined;
+    ctx.coSubjects = new Set(coChar ? [coChar] : []);
+    ctx.curCat = pat.cat;
     const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
+    ctx.coSubjects.clear();
     if (!resolved) return;
     let { top, bottom } = resolved as { top: Character; bottom: Character };
     let { basis } = resolved;
@@ -670,8 +698,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
     // Anal or vaginal? Decided by the words used (male omegas and trans men can have vaginas),
     // falling back to anatomy when the text doesn't say.
+    let holeGuess: ActHit["holeGuess"];
     if (cat === "anal" || cat === "vaginal") {
       const hole = holeType(matchText, sent, para, top, bottom);
+      const said = holeType(matchText, sent, "", top, bottom, true);
+      // A man who may have a vagina, and the sentence doesn't say: decide from how his other scenes went.
+      if (cat === "anal" && said === "ambiguous" && bottom.gender !== "f" && bottom.vulva !== false && cast.maleVulva) holeGuess = hole;
+      else if (said !== "ambiguous") {
+        const v = holeVotes.get(bottom) ?? { anal: 0, vaginal: 0 };
+        v[said]++;
+        holeVotes.set(bottom, v);
+      }
       if (cat === "vaginal") {
         // "Had sex"/"made love": only vaginal if someone involved has a vagina and nothing says anal.
         const canVaginal = top.vulva !== false || bottom.vulva !== false;
@@ -680,7 +717,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       } else if (hole === "vaginal") {
         cat = "vaginal";
         act = act === "fingering" ? "fingering" : "vaginal sex";
-      } else if (hole === "ambiguous") {
+      } else if (hole === "ambiguous" && !holeGuess) {
         ambiguousHoles++;
         return;
       } else if (top.penis === false && act !== "fingering" && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) {
@@ -726,9 +763,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
     if (kind === "act") {
       if (negated) return;
-      acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original });
-      ctx.partners.set(top, bottom);
-      ctx.partners.set(bottom, top);
+      acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original, holeGuess });
+      ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;
       return;
     }
@@ -752,13 +788,22 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   }
 
   /** Which hole a penetration sentence is about: the nearest explicit word wins, then anatomy. */
-  function holeType(matchText: string, sent: string, para: string, top: Character, bottom: Character): "anal" | "vaginal" | "ambiguous" {
+  function holeType(
+    matchText: string,
+    sent: string,
+    para: string,
+    top: Character,
+    bottom: Character,
+    /** Only what the words in the sentence say ("ambiguous" if they don't). */
+    wordsOnly = false,
+  ): "anal" | "vaginal" | "ambiguous" {
     for (const scope of [matchText, sent]) {
       const v = VULVA_CTX.test(scope);
       const a = ANAL_CTX.test(scope);
       if (v && !a) return "vaginal";
       if (a && !v) return "anal";
     }
+    if (wordsOnly) return "ambiguous";
     // A woman with no penis "fucking" someone without a strap-on: it's her vagina involved.
     if (top.penis === false && top.vulva === true && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(para)) return "vaginal";
     const v = VULVA_CTX.test(para);
@@ -772,6 +817,22 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   }
 
   // ───────────── aggregate ─────────────
+
+  // Settle the scenes that didn't say which hole by the bottom's clearly worded ones.
+  acts = acts.filter((a) => {
+    if (!a.holeGuess) return true;
+    const v = holeVotes.get(a.bottom) ?? { anal: 0, vaginal: 0 };
+    const hole = v.vaginal > v.anal ? "vaginal" : v.anal > v.vaginal ? "anal" : a.holeGuess;
+    if (hole === "ambiguous") {
+      ambiguousHoles++;
+      return false;
+    }
+    if (hole === "vaginal") {
+      a.cat = "vaginal";
+      a.act = a.act === "fingering" ? "fingering" : "vaginal sex";
+    }
+    return true;
+  });
 
   const where = (pi: number) => chapters[pi] || `~${Math.round((pi / Math.max(1, paras.length)) * 100)}% through`;
   const pairKey = (a: Character, b: Character) => [a.name, b.name].sort().join("\u0000");
@@ -805,8 +866,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   results.sort((a, b) => b.weight - a.weight);
 
   const notes: string[] = [];
-  if (!meta.relationships.length && cast.chars.length) {
+  if (!meta.relationships.length && !meta.characters.length && cast.chars.length) {
     notes.push(`No AO3 tags in this file, so characters were guessed from the text: ${cast.chars.map((c) => c.name).join(", ")}.`);
+  } else if (!meta.relationships.length && cast.pairings.length) {
+    notes.push("No relationship tags, so pairings were worked out from who has sex with whom in the text.");
+  }
+  const originals = cast.chars.filter((c) => c.original);
+  if (originals.length) {
+    notes.push(`Original characters, named from the text: ${originals.map((c) => c.name).join(", ")}.`);
   }
   if (cast.narrator) notes.push(`First-person narration: “I” is read as ${cast.narrator.name}.`);
   if (cast.secondPerson) notes.push(`Second-person narration: “you” is read as ${cast.secondPerson.name}.`);

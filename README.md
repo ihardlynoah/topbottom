@@ -21,7 +21,14 @@ word count is estimated and the main characters are guessed from frequently capi
 
 1. **Characters**: names and short forms from the AO3 tags (“Harry Potter” → “Harry”, “Potter”; shared
    surnames are dropped), gender from the M/M / F/F category or from pronoun continuity in the text, and
-   first-person (“I”) or reader-insert (“you”) narration.
+   first-person (“I”) or reader-insert (“you”) narration. The narrator comes from a “POV X” tag, or else is the
+   main character who is named in dialogue but rarely in narration. Without tags, a first name and surname
+   that appear together (“Draco Malfoy”) but otherwise never share a sentence are merged into one person.
+   **Original characters**: generic tags (“Original Male Character(s)”, “OFC”, “Original Characters”) are
+   filled with the most-mentioned names in the text that aren't canon characters, so “Harry Potter/Original
+   Male Character” becomes “Harry Potter/Jonah”. Named OC tags (“Kyle (Original Character)”, “OMC - Jonah”)
+   are used as given, and Original Work fics with no character tags get their cast from the text. OCs
+   take their gender from the tag and are listed in the notes.
 2. **Act patterns**: ~50 sentence patterns per act — e.g. “X fucked Y”, “X’s cock slid into Y”, “Y rode X”,
    “Y’s hole clenched around X’s cock”, “Y sucked X off”, “X’s cock between Y’s lips”, “X rimmed Y”,
    “X’s tongue in Y’s hole”, passive forms (“Y was fucked by X”), fingering, and sentences with the subject
@@ -56,7 +63,8 @@ word count is estimated and the main characters are guessed from frequently capi
 **Vaginal sex** is reported separately: only whether it happens and between whom. Anal vs vaginal is decided
 by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since male omegas and trans
 men may have vaginas and some women have penises; anatomy (by gender, or what the text says a character has)
-is only the fallback. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
+is only the fallback. When a sentence doesn't say, it goes the way that bottom's clearly worded scenes went
+(an omega whose other scenes all mention his “seam” or “cunt” gets vaginal), then by the paragraph. Going down on someone with a vagina is cunnilingus (the licker is the top, like rimming).
 
 **Claude second opinion (optional)** — with your own Anthropic API key, Claude (Opus 5.5 by default) reads
 the fic and returns the same result shape, including desire/fantasy lines and its own confidence. Long works
