@@ -155,6 +155,7 @@ const CROTCH_KW = "crotch|groin|bulge|package|cock|dick|erection|hard|fly|zip|sw
 
 /** Gates for patterns that don't start with a verb list (subject is a body part, passive voice, etc.). */
 const MANUAL_GATES: Record<string, string> = {
+  sucked: "suck|blow|blew|throat|swallow|gag|chok|bob|worship|slurp|nurs",
   "hole-around": ASS_KW,
   inside: " in |inside",
   "penis-inside": PENIS_KW,
@@ -281,7 +282,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|screw(?:s|ed|ing)?|pound(?:s|ed|ing)?|rail(?:s|ed|ing)?|plough(?:s|ed|ing)?|plow(?:s|ed|ing)?|bang(?:s|ed|ing)?|breed(?:s|ing)?|bred|knot(?:s|ted|ting)?|peg(?:s|ged|ging)?|mount(?:s|ed|ing)?|sodomi[sz](?:e|es|ed|ing)|bugger(?:s|ed|ing)?)\\s+{B:ass}(?!\\s+(?:up|over|off|for (?:being|doing|making|having|that|this|everything|ever)|and (?:his|her|their|the) (?!cock|dick|ass|hole)))`,
+    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|screw(?:s|ed|ing)?|pound(?:s|ed|ing)?|rail(?:s|ed|ing)?|plough(?:s|ed|ing)?|plow(?:s|ed|ing)?|bang(?:s|ed|ing)?|breed(?:s|ing)?|bred|knot(?:s|ted|ting)?|peg(?:s|ged|ging)?|mount(?:s|ed|ing)?|sodomi[sz](?:e|es|ed|ing)|bugger(?:s|ed|ing)?|nail(?:s|ed|ing)?|ravish(?:es|ed|ing)?|ravag(?:e|es|ed|ing))\\s+{B:ass}(?!\\s+(?:up|over|off|down|to|for (?:being|doing|making|having|that|this|everything|ever)|and (?:his|her|their|the) (?!cock|dick|ass|hole)))`,
   },
   {
     id: "push-into",
@@ -290,7 +291,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 1,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|sunk|thrust|drove|drive|eas|sheath|bur(?:y|ie)|guid|snap|forc|shov|plung|slam|pump|seat|slot|rut|ram|pound|fuck|rail|hammer|bang|drill|surg|sli)\\w*\\s+(?:(?:${SELF}|it|{x's}\\s+{PENIS}|{x's}\\s+hips|the\\s+(?:head|tip)(?:\\s+of\\s+{x's}\\s+{PENIS})?|(?:a|the)\\s+(?:strap(?:-?on)?|dildo|toy|plug))\\s+)?${DEPTH}(?:in(?:to|side)?|past|through)\\s+{B:ass}`,
+    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|sunk|thrust|drove|drive|eas|sheath|bur(?:y|ie)|guid|snap|glid|fed|feed|wedg|nudg|forc|shov|plung|slam|pump|seat|slot|rut|ram|pound|fuck|rail|hammer|bang|drill|surg|sli)\\w*\\s+(?:(?:${SELF}|it|{x's}\\s+{PENIS}|{x's}\\s+hips|the\\s+(?:head|tip)(?:\\s+of\\s+{x's}\\s+{PENIS})?|(?:a|the)\\s+(?:strap(?:-?on)?|dildo|toy|plug))\\s+)?${DEPTH}(?:(?:in(?:to|side)?)\\s+{B:ass}|(?:past|through)\\s+{B:assReq})`,
   },
   {
     id: "rock-into",
@@ -308,7 +309,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "t",
     weight: 1,
-    src: `\\b{T:penisReq}\\s+{aux}(?:\\w+\\s+){0,2}?(?:slid|slide|slip|push|sank|sink|press|drove|drive|bur(?:y|ie)|thrust|plung|disappear|vanish|sheath|work|slam|ram|pound|throb|twitch|puls|swell|swole|knot|lodg|seat|nestl|rest|mov|stay|remain|fill|fit|sat|sit)\\w*\\s+${DEPTH}(?:in(?:to|side)?|past|through)\\s+{B:ass}`,
+    src: `\\b{T:penisReq}\\s+{aux}(?:\\w+\\s+){0,2}?(?:slid|slide|slip|push|sank|sink|press|drove|drive|bur(?:y|ie)|thrust|lock|tied|wedg|glid|plung|disappear|vanish|sheath|work|slam|ram|pound|throb|twitch|puls|swell|swole|knot|lodg|seat|nestl|rest|mov|stay|remain|fill|fit|sat|sit)\\w*\\s+${DEPTH}(?:in(?:to|side)?|past|through)\\s+{B:ass}`,
   },
   {
     id: "penis-fills",
@@ -448,7 +449,7 @@ export const PATTERNS: PatternDef[] = [
     act: "fingering",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:finger(?:s|ed|ing)?|finger-?fuck(?:s|ed|ing)?|finger fuck(?:s|ed|ing)?)\\s+{B:ass}`,
+    src: `\\b{T}\\s+{aux}(?:finger(?:s|ed|ing)?|finger-?fuck(?:s|ed|ing)?|finger fuck(?:s|ed|ing)?|finger-?bang(?:s|ed|ing)?)\\s+{B:ass}`,
   },
   {
     id: "fingers-into",
@@ -493,7 +494,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 1,
     femaleTarget: "drop",
-    src: `\\b{B}\\s+{aux}(?:suck(?:s|ed|ing)?|blow|blows|blew|blowing|deep-?throat(?:s|ed|ing)?|swallow(?:s|ed|ing)?\\s+(?:down|around)|gag(?:s|ged|ging)?\\s+on|chok(?:e|es|ed|ing)\\s+on|bob(?:s|bed|bing)?\\s+(?:\\w+\\s+){0,2}?on|worship(?:s|ped|ping)?)\\s+(?:on\\s+|at\\s+)?{T:penis}(?!\\s+(?:a kiss|kisses|away|out of the water|off (?:to|for|as)|in(?:to)? (?:his|her|their) arms)\\b)`,
+    src: `\\b{B}\\s+{aux}(?:suck(?:s|ed|ing)?|slurp(?:s|ed|ing)?(?=\\s+(?:on|at)\\b)|nurs(?:e|es|ed|ing)(?=\\s+(?:on|at)\\b)|suckl(?:e|es|ed|ing)(?=\\s+(?:on|at)\\b)|blow|blows|blew|blowing|deep-?throat(?:s|ed|ing)?|swallow(?:s|ed|ing)?\\s+(?:down|around)|gag(?:s|ged|ging)?\\s+on|chok(?:e|es|ed|ing)\\s+on|bob(?:s|bed|bing)?\\s+(?:\\w+\\s+){0,2}?on|worship(?:s|ped|ping)?)\\s+(?:on\\s+|at\\s+)?(?:the\\s+(?:[\\w-]+\\s+)?(?:head|tip|crown)\\s+of\\s+)?{T:penis}(?!\\s+(?:a kiss|kisses|away|out of the water|off (?:to|for|as)|in(?:to)? (?:his|her|their) arms)\\b)`,
   },
   {
     id: "licked-cock",
@@ -518,6 +519,36 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 1,
     src: `\\b{B}\\s+{aux}(?:swallow(?:s|ed|ing)?|suck(?:s|ed|ing)?|gulp(?:s|ed|ing)?)\\s+{T:penis}\\s+(?:(?:all the way|right|deep|whole)\\s+)*(?:down|whole|deep|to the root|to the base)\\b`,
+  },
+  {
+    // "Stiles bounced in Derek's lap, taking every inch"
+    id: "bounce-in-lap",
+    cat: "anal",
+    act: "anal sex (riding)",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    needs: /\b(?:inch|inches|cock|dick|inside|deep|fuck\w*|knot|stretch\w*|full)\b/i,
+    src: `\\b{B}\\s+{aux}(?:bounc(?:e|es|ed|ing)|rock(?:s|ed|ing)?|grind(?:s|ing)?|ground)\\s+(?:in|on)\\s+{T:poss}\\s+lap\\b`,
+  },
+  {
+    // "Stiles took Derek to the hilt" (riding); "down to the root" or with a mouth in sight is oral (took-down-root).
+    id: "took-to-hilt",
+    cat: "anal",
+    act: "anal sex (riding)",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking)\\s+(?:{T}|{T:penisReq}|him|it)\\s+(?:all the way\\s+)?(?:in\\s+)?(?:to the hilt|to the base|to the root|balls[- ]deep)\\b(?![^.]*\\b(?:mouth|throat|lips|swallow\\w*|gag\\w*|tongue)\\b)`,
+  },
+  {
+    id: "took-down-root",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking|swallow(?:s|ed|ing)?)\\s+(?:{T}|{T:penisReq}|him|it)\\s+(?:all the way\\s+)?down\\s+to\\s+the\\s+(?:root|base|hilt)\\b`,
   },
   {
     id: "took-down",
@@ -1061,7 +1092,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.6,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:bent|bends|bending|leaned|leaning|draped\\s+${SELF})\\s+over\\s+the\\s+(?:desk|bed|table|counter|couch|sofa|sink|car|hood|arm|back)\\b`,
+    src: `\\b{B}\\s+{aux}(?:bent|bends|bending|draped\\s+${SELF})\\s+over\\s+the\\s+(?:desk|bed|table|counter|couch|sofa|sink|car|hood|arm|back)\\b`,
   },
   {
     id: "presented",

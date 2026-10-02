@@ -122,7 +122,7 @@ const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|
 const FANTASY =
   /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
-  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?prospect of|the promise of|the idea of)\b/i;
+  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?prospect of|the promise of|the idea of|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
@@ -499,6 +499,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
    */
   function notNamedLater(c: Character | undefined, rest: string, g: Gender | "any"): Character | undefined {
     if (!c || !c.aliases.length) return c;
+    // '…inside him, Cas' eyes open. "You okay?" Dean asks.': names after a line of dialogue are another clause.
+    rest = rest.split(/\s{3,}/)[0];
     const namedIn = (x: Character) =>
       x.aliases.length > 0 && new RegExp(`\\b(?:${x.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`).test(rest);
     if (!namedIn(c)) return c;
@@ -626,6 +628,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   function elidedSubject(prefix: string, suffix = ""): Character | undefined {
     // A blanked-out quote is a clause boundary: "…," Alex says, choking…
     prefix = prefix.replace(/\s{3,}/g, (x) => `,${" ".repeat(x.length - 1)}`);
+    // "Dean arches underneath Cas' tongue as he swallows him down": he is the one whose tongue it is.
+    const under = new RegExp(`\\b(?:under|underneath|beneath)\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:tongue|mouth|lips|hands?|fingers|touch|ministrations|weight|body|attention)\\s*,?\\s*(?:as|while|when)\\s*$`).exec(prefix);
+    if (under) return cast.byAlias.get(under[1]);
     // "—pressing him down, and Riddle with him—" is an aside, not the clause's subject.
     prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
     const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
@@ -817,7 +822,6 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     ctx.coSubjects = new Set(coChar ? [coChar] : []);
     ctx.curCat = pat.cat;
     const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
-    if (process.env.DBG && /rode him hard|let you fuck me|snug around Dean/.test(original)) console.log("HM", pat.id, JSON.stringify(m[0].slice(0,60)), tTok, bTok, nearSubj?.name, subjChar?.name, resolved?.top?.name, resolved?.bottom?.name);
     ctx.coSubjects.clear();
     if (!resolved) return;
     let { top, bottom } = resolved as { top: Character; bottom: Character };
@@ -834,6 +838,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:his|her|their|my|your|a|one|two|three|four)\s+(?:\w+\s+)?(?:fingers?|digits?|knuckles?)\b/.test(after)) act = "fingering";
       else if (/^\s+(?:[\w']+\s+){0,3}?(?:between|with)\s+(?:his|her|their|my|your)\s+(?:thighs|breasts|tits|hand|fist)\b/.test(after)) return;
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:a|the|her|his|their|my|your)\s+(?:strap|dildo|toy|vibrator|plug)/.test(after)) act = "anal sex (strap-on/toy)";
+    }
+    // "Sinking his fingers into his hole…", "His finger sinks into his hole": with nobody named, he's on his own.
+    if (act === "fingering" && /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(tTok ?? "") && /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(bTok ?? "") &&
+        !new RegExp(`\\b(?:${NAMES})\\b`).test(sent)) {
+      const self = ctx.lastSubject ?? top;
+      const other = ctx.partnerOf(self);
+      if (other && !NEG.test(sent.slice(0, m.index).slice(-40))) {
+        desires.push({ cat: "anal", act: "fingering himself", who: self, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
+      }
+      return;
     }
     // "cupping his cheeks" while kissing: a face, not an ass.
     if (pat.id.startsWith("grab-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
