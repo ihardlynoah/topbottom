@@ -493,7 +493,7 @@ export const PATTERNS: PatternDef[] = [
     act: "blowjob",
     subj: "b",
     weight: 0.9,
-    src: `\\b{B}\\s+{aux}(?:lick|tongu|mouth|kiss|nuzzl|lap|nos|trac|swirl|flick|ran|run|drag|suckl|nibbl|lav)\\w*\\s+(?:(?:his|her|their|my|your)\\s+(?:tongue|lips|mouth)\\s+)?(?:(?:up|along|over|at|around|down|on|across|against|the (?:tip|head|underside|length|slit|base|vein) of|from (?:the )?base to tip|from root to tip|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:up|along|down))\\s+)*{T:penisReq}`,
+    src: `\\b{B}\\s+{aux}(?:(?:lick|tongu|mouth|kiss|nuzzl|lap|nos|flick|suckl|nibbl|lav)\\w*\\s+(?:(?:his|her|their|my|your)\\s+(?:tongue|lips|mouth)\\s+)?|(?:trac|swirl|ran|run|drag)\\w*\\s+(?:his|her|their|my|your)\\s+(?:tongue|lips|mouth)\\s+)(?:(?:up|along|over|at|around|down|on|across|against|the (?:tip|head|underside|length|slit|base|vein) of|from (?:the )?base to tip|from root to tip|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:up|along|down))\\s+)*{T:penisReq}`,
   },
   {
     id: "took-in-mouth",
@@ -653,7 +653,7 @@ export const PATTERNS: PatternDef[] = [
     act: "rimming",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:ate|eat|eats|eating|eaten)\\s+{B}\\s+out\\b`,
+    src: `\\b{T}\\s+{aux}(?:ate|eat|eats|eating|eaten)\\s+(?:{B}\\s+out\\b|out\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:ass|arse|hole|butt|bum)\\b)`,
   },
   {
     id: "ate-ass",
@@ -669,7 +669,7 @@ export const PATTERNS: PatternDef[] = [
     act: "rimming",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|flick|swirl)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:up|along|down|over|across))\\s+)*{B:rimReq}`,
+    src: `\\b{T}\\s+{aux}(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|flick|swirl)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of|the length of|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:with\\s+(?:his|her|their|my|your)\\s+tongue\\s+)?(?:up|along|down|over|across))\\s+)*{B:rimReq}`,
   },
   {
     id: "licked-into",
