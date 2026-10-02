@@ -123,7 +123,7 @@ const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|
 const FANTASY =
   /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
-  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?prospect of|the promise of|the idea of|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
+  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
@@ -894,7 +894,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (oc && oc !== top) [top, bottom] = [oc, top];
     }
     // "…when a second finger began pushing into him": fingers named in the sentence (and no cock) mean fingering.
-    if (cat === "anal" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + sent) && !PENIS_CTX.test(sent)) act = "fingering";
+    // Fingers busy elsewhere ("his fingers tangling in Alex's curls") don't make it fingering.
+    const fingerSent = sent.replace(/\b(?:fingers?|fingertips?|digits?|knuckles?)\b[^,.;]{0,40}?\b(?:hair|curls|locks|sheets?|pillows?|shoulders?|back|neck|jaw|cheeks?|face|scalp|nape|arms?|biceps?|hands?|chest|headboard|blankets?)\b/gi, "");
+    if (cat === "anal" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + fingerSent) && !PENIS_CTX.test(sent)) act = "fingering";
     if (pat.id === "prostate" && FINGER_CTX.test(sent) && !PENIS_CTX.test(sent)) act = "fingering";
 
     // Hints, not acts: checking out an ass, grabbing it, staring at a bulge...
@@ -959,7 +961,6 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         act = "cunnilingus";
       }
     }
-    if (pat.id === "enter" && /\b(?:took|take|takes|taking)\b/.test(matchText)) weight *= 0.5;
     // "them"/"it" may be a thing, not a person ("sucks them into his mouth" = fingers): require the
     // sentence to name the body part the act needs.
     const thing = (tok?: string) => /^(?:them|it)$/i.test(tok ?? "");
