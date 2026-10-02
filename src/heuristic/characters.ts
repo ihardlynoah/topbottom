@@ -1,6 +1,7 @@
 // Works out who the characters are, what names/pronouns refer to them, and whose POV the story is in.
 
 import type { Ao3Meta } from "../ao3";
+import { applyCanon, detectFandoms } from "./canon";
 
 export type Gender = "m" | "f" | "u";
 
@@ -302,6 +303,11 @@ export function buildCast(meta: Ao3Meta, narration: string, fullText = narration
   const chars = makeChars(names);
   // Guessed names carry their nickname in quotes for alias building; show them without it.
   if (guessed) for (const c of chars) c.name = c.name.replace(/\s*"[^"]+"/, "");
+  // Known characters of the fandom this is in: their other names ("Cas", "Damianos", "Deadpool") and genders.
+  applyCanon(chars, detectFandoms(meta, guessed ? chars.map((c) => c.name) : []), fullText, {
+    skip: (a) => NOT_NAMES.has(a) || TITLE_WORDS.has(a),
+    merge: guessed,
+  });
   for (const c of chars) {
     const g = namedOcs.get(c.name.toLowerCase());
     if (g !== undefined) {

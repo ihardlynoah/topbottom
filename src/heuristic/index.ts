@@ -817,6 +817,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return v;
   }
 
+  /** "…without being fucked open by older men": past experience with other people, a hint about this person's role. */
+  function addHistory(cat: Cat, act: string, who: Character, role: Role, partner: Character, sentence: string, pi: number) {
+    if (cat === "vaginal") return;
+    desires.push({ cat, act: "past experience with others", who, partner, role, wants: true, kind: "history", weight: 0.8, para: pi, sentence });
+  }
+
   function handleMatch(
     pat: CompiledPattern,
     m: RegExpMatchArray,
@@ -939,12 +945,21 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (cat === "anal" && /\binside (?:of )?(?:him|her|them|me)$/i.test(matchText) && !/\b(?:thrust\w*|fuck\w*|rut\w*|pound\w*|slam\w*|snap\w*|driv\w*)\b/i.test(matchText) &&
         ORAL_LINE_RE.test(sent.slice(0, m.index! + m[0].length)) && !ANAL_CTX.test(sent.slice(0, m.index! + m[0].length)) && !FINGER_CTX.test(sent.slice(0, m.index! + m[0].length))) return;
     // "fucked open by older men": the one doing it is named, and isn't a character.
-    if (pat.id.startsWith("passive-fucked") && !/\bby\b/.test(matchText) && /^\s+(?:\w+\s+){0,4}?by\s+(?!(?:him|her|them|me|you|it)\b)/i.test(sent.slice(m.index! + m[0].length))) return;
+    // It isn't an act between these two, but it says the one fucked has been fucked, which points at bottoming.
+    if (pat.id.startsWith("passive-fucked") && !/\bby\b/.test(matchText) && /^\s+(?:\w+\s+){0,4}?by\s+(?!(?:him|her|them|me|you|it)\b)/i.test(sent.slice(m.index! + m[0].length))) {
+      addHistory(cat, act, bottom, "bottom", top, original, pi);
+      return;
+    }
     // "a really old guy he dated while going down on him": "him" is the guy in the relative clause, not a character.
     if (/^(?:him|her|them)$/i.test(tTok ?? "") || /^(?:him|her|them)$/i.test(bTok ?? "")) {
       const pre = sent.slice(0, m.index! + m[0].length);
       const np = [...pre.matchAll(/\b(?:a|an|some|this|that|one|another)\s+(?:[\w-]+\s+){0,3}(?:guy|man|men|dude|ex|boyfriend|girlfriend|lover|client|stranger|woman|girl|bloke|fellow|sugar daddy|daddy|patron|date|customer)\b/gi)].pop();
-      if (np && !nameRe.test(pre.slice(np.index! + np[0].length)) && /\b(?:he|she|they|who|that|whom)\b/i.test(pre.slice(np.index! + np[0].length))) return;
+      if (np && !nameRe.test(pre.slice(np.index! + np[0].length)) && /\b(?:he|she|they|who|that|whom)\b/i.test(pre.slice(np.index! + np[0].length))) {
+        // Past experience with someone else: the actor's own role is what it points at.
+        if (pat.subj === "t") addHistory(cat, act, top, "top", bottom, original, pi);
+        else addHistory(cat, act, bottom, "bottom", top, original, pi);
+        return;
+      }
     }
     // "from being blown out by a hurricane", "blown away", "blow up": blowing, not a blowjob.
     if (cat === "oral" && /\bblo(?:w|wn|wing|ws|n)\s*$/i.test(matchText.replace(/\s+(?:out|away|up|over|off course)\b.*$/i, "")) && /^\s*(?:out|away|up|over|off course)\b/i.test(sent.slice(m.index! + m[0].length))) return;
@@ -1568,7 +1583,9 @@ function buildAct(
     const t = desireTop(d);
     const b = t && otherOf(t);
     if (!t || !b) continue;
-    ev.push({ who: t, role: "top", weight: 0.15 * d.weight, kind: "hint" }, { who: b, role: "bottom", weight: 0.15 * d.weight, kind: "hint" });
+    // Behaviour (ogling, touching, lead-up) points a little; saying you want something, or having done it, points more.
+    const [kind, w] = isBehaviour(d) ? (["hint", 0.15] as const) : (["desire", d.kind === "history" ? 0.25 : 0.2] as const);
+    ev.push({ who: t, role: "top", weight: w * d.weight, kind }, { who: b, role: "bottom", weight: w * d.weight, kind });
   }
   if (roleTagsApply) {
     // Tags alone reach about 60%; "Top X" also says a little about the partner.

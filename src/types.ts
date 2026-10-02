@@ -24,7 +24,7 @@ export interface Desire {
   role: Role;
   /** false = the character explicitly does NOT want this role. */
   wants: boolean;
-  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo";
+  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo";
   act: string;
   where: string;
   evidence: string;

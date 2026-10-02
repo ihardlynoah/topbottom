@@ -263,7 +263,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 function desirePhrase(d: Pick<Desire, "who" | "role" | "wants" | "kind" | "act">, kind: ActKind): string {
   const w = ROLE_WORDS[kind];
   const [verb, ing] = d.role === "top" ? [w.topInf, w.topIng] : [w.bottomInf, w.bottomIng];
-  if (d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep" || d.kind === "fingers" || d.kind === "solo") return `${d.who}: ${d.act} (suggests ${ing})`;
+  if (d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep" || d.kind === "fingers" || d.kind === "solo" || d.kind === "history") return `${d.who}: ${d.act} (suggests ${ing})`;
   if (!d.wants) return `${d.who} doesn't want to ${verb}`;
   switch (d.kind) {
     case "said": return `${d.who} asks to ${verb}`;

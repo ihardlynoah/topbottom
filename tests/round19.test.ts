@@ -28,9 +28,15 @@ describe("names for one character", () => {
     expect(cast.byAlias.get("Damianos")).toBe(damen);
   });
   it("keeps a look-alike name that is listed beside the character apart", () => {
-    const t = `${text}\n${Array.from({ length: 4 }, () => "Damen and Damianos argued at the door.").join("\n")}`;
-    const cast = buildCast(meta, t, t);
-    expect(cast.chars.find((c) => c.name === "Damen")!.aliases).not.toContain("Damianos");
+    // Made-up names in a fandom that isn't in the canon list, so only the general rule applies.
+    const lines = (n: string, k: number) => Array.from({ length: k }, () => `${n} looked over at Lena and smiled, thinking of the day.`).join("\n");
+    const t = `${lines("Marcellus", 30)}\n${lines("Marcus", 6)}\n${lines("Lena", 20)}\n${Array.from({ length: 4 }, () => "Marcus and Marcellus argued at the door.").join("\n")}`;
+    const m: Ao3Meta = { ...emptyMeta(), fandoms: ["Some Unlisted Series"], relationships: ["Marcus/Lena"], characters: ["Marcus", "Lena"] };
+    const cast = buildCast(m, t, t);
+    expect(cast.chars.find((c) => c.name === "Marcus")!.aliases).not.toContain("Marcellus");
+    // …and without the "listed together" lines the same names are one person.
+    const t2 = `${lines("Marcellus", 30)}\n${lines("Marcus", 6)}\n${lines("Lena", 20)}`;
+    expect(buildCast(m, t2, t2).chars.find((c) => c.name === "Marcus")!.aliases).toContain("Marcellus");
   });
   it("merges the two names when there are no tags", () => {
     const cast = buildCast(emptyMeta(), text, text);
