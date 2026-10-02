@@ -103,19 +103,22 @@ function makeChars(names: string[]): Character[] {
   return merged;
 }
 
-/** Guess the main characters from capitalized words when the file has no AO3 tags. */
+/**
+ * Guess the main characters when the file has no AO3 tags: words that are capitalized wherever they
+ * appear (including at sentence starts) and almost never show up in lowercase.
+ */
 export function guessNames(text: string): string[] {
-  const counts = new Map<string, number>();
-  // Capitalized words that follow a lowercase word (i.e. not sentence-initial).
-  for (const m of text.matchAll(/[a-z,;]\s+(\p{Lu}[\p{Ll}'’-]{1,20})\b/gu)) {
+  const caps = new Map<string, number>();
+  const lower = new Map<string, number>();
+  for (const m of text.matchAll(/\b([\p{L}][\p{L}'’-]{1,20})\b/gu)) {
     const w = m[1].replace(/['’]s$/, "");
-    if (NOT_NAMES.has(w) || TITLE_WORDS.has(w)) continue;
-    counts.set(w, (counts.get(w) ?? 0) + 1);
+    if (/^\p{Lu}\p{Ll}/u.test(w)) caps.set(w, (caps.get(w) ?? 0) + 1);
+    else if (/^\p{Ll}/u.test(w)) lower.set(w, (lower.get(w) ?? 0) + 1);
   }
   const words = text.split(/\s+/).length;
-  const min = Math.max(6, Math.round(words / 4000));
-  return [...counts.entries()]
-    .filter(([, n]) => n >= min)
+  const min = Math.max(4, Math.round(words / 3000));
+  return [...caps.entries()]
+    .filter(([w, n]) => n >= min && !NOT_NAMES.has(w) && !TITLE_WORDS.has(w) && (lower.get(w.toLowerCase()) ?? 0) <= n * 0.05)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
     .map(([w]) => w);
