@@ -83,7 +83,7 @@ word count is estimated and the main characters are guessed from frequently capi
    sweet spot on his neck), “the spot inside Harry”, “his p-spot”, “the spot that made him see stars”. **Toys count**: dildos, vibrators, plugs, beads and strap-ons (“pushed the dildo into Dean”, “slid a vibrator
    inside her”, “fucked him with the strap-on”, “eased a plug into her ass”). **Whoever is penetrated is the
    bottom**; the one doing it (or wearing the strap-on or harness) is the top. Wearing a plug, lining a toy up at
-   a hole, and strapping on a harness are hints; using a toy on yourself is a solo-bottom hint. Women with women
+   a hole, and strapping on a harness are hints. **Using a toy on yourself counts as bottoming**: fucking yourself on a dildo, sliding a plug or vibrator into yourself, riding one, teasing your hole with one, or wearing a plug each count about as much as a scene for that person's bottom odds and appear under “Sex acts” in the vibe. Women with women
    get the same treatment (strap-on play is vaginal sex, or anal when an ass is named); two women with no anal in
    the text get no anal card built from Top/Bottom tags. Someone tagged both “Top X” and “Bottom X” is versatile
    with their partner, never with themselves.
