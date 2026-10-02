@@ -63,7 +63,7 @@ const actSchema = {
           who: { type: "string" },
           role: { type: "string", enum: ["top", "bottom"] },
           wants: { type: "boolean", description: "false if they say they do NOT want this role." },
-          kind: { type: "string", enum: ["said", "wanted", "fantasy", "hypothetical", "identity", "ogling", "touch", "fingering"] },
+          kind: { type: "string", enum: ["said", "wanted", "fantasy", "hypothetical", "identity", "ogling", "touch", "fingering", "fingers", "solo"] },
           act: { type: "string" },
           where: { type: "string" },
           evidence: { type: "string", description: "Short paraphrase." },
@@ -178,7 +178,7 @@ SWITCHING
 
 DESIRE / FANTASY
 - Separately from what happens, list lines where a character wants, asks for, imagines, dreams about, or says they prefer a role ("I want you to fuck me", "he'd always bottomed", "he imagined Draco on his knees"), or says they do NOT want a role (wants: false). kind: said (dialogue), wanted (narrated desire), fantasy (imagined/dreamed), hypothetical (would/if), identity (habit or self-description like "I'm a bottom").
-- Also list behaviour that hints at roles for same-sex pairs (not for M/F pairs): checking out or grabbing someone's ass suggests the looker/grabber would top (kind "ogling" or "touch", role "top"); staring at someone's crotch or bulge, or their mouth watering at it, suggests the looker would bottom (role "bottom"); grinding one's ass back against someone suggests bottom; fingering someone suggests the fingerer tops (kind "fingering", role "top").
+- Also list behaviour that hints at roles for same-sex pairs (not for M/F pairs): checking out or grabbing someone's ass suggests the looker/grabber would top (kind "ogling" or "touch", role "top"); staring at someone's crotch or bulge, or their mouth watering at it, suggests the looker would bottom (role "bottom"); grinding one's ass back against someone suggests bottom; fingering someone suggests the fingerer tops (kind "fingering", role "top"); sucking on someone's fingers (or having fingers pushed into one's mouth) suggests an oral bottom (category oral, kind "fingers", role "bottom"); fingering oneself or using a dildo, plug or other toy on oneself suggests an anal bottom (kind "solo", role "bottom").
 - These do not count as instances, but use them in your confidence.
 
 CONFIDENCE

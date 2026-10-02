@@ -263,7 +263,7 @@ const ROLE_VERB: Record<Desire["role"], [string, string]> = { top: ["top", "topp
 /** "Harry wants to bottom", "Draco imagines topping", "Harry doesn't want to top". */
 function desirePhrase(d: Pick<Desire, "who" | "role" | "wants" | "kind" | "act">): string {
   const [verb, ing] = ROLE_VERB[d.role];
-  if (d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep") return `${d.who}: ${d.act} (hints ${verb})`;
+  if (d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep" || d.kind === "fingers" || d.kind === "solo") return `${d.who}: ${d.act} (hints ${verb})`;
   if (!d.wants) return `${d.who} doesn't want to ${verb}`;
   switch (d.kind) {
     case "said": return `${d.who} asks to ${verb}`;
