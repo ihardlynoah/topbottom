@@ -122,7 +122,7 @@ const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|
 const FANTASY =
   /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
-  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?prospect of|the promise of|the idea of)\b/i;
+  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?prospect of|the promise of|the idea of|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
@@ -499,14 +499,26 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
    */
   function notNamedLater(c: Character | undefined, rest: string, g: Gender | "any"): Character | undefined {
     if (!c || !c.aliases.length) return c;
+    // '…inside him, Cas' eyes open. "You okay?" Dean asks.': names after a line of dialogue are another clause.
+    rest = rest.split(/\s{3,}/)[0];
     const namedIn = (x: Character) =>
       x.aliases.length > 0 && new RegExp(`\\b(?:${x.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`).test(rest);
     if (!namedIn(c)) return c;
     // Not anyone else named later either: in a threesome, the pronoun is the third person.
     const later = new Set(cast.chars.filter(namedIn));
-    return ctx.partnerOf(c, g, later) ?? ctx.partnerOf(c, g) ?? c;
+    const strict = ctx.partnerOf(c, g, later);
+    if (strict && cast.pairings.some((p) => p.includes(strict) && p.includes(c))) return strict;
+    // Everyone plausible was named later ("He hollowed his cheeks … for Cas … in Dean's mouth"): a later
+    // possessive doesn't rule its owner out, rather than reaching for someone outside the scene.
+    const namedPlain = (x: Character) =>
+      x.aliases.length > 0 &&
+      new RegExp(`\\b(?:${x.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b(?!['’]s?\\b)`).test(rest);
+    if (!namedPlain(c)) return c;
+    const loose = ctx.partnerOf(c, g, new Set(cast.chars.filter(namedPlain)));
+    return (loose && cast.pairings.some((p) => p.includes(loose) && p.includes(c)) ? loose : strict) ?? ctx.partnerOf(c, g) ?? c;
   }
 
+  const bodyCtxCache = new Map<number, boolean>();
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
   scan();
   if (ctx.learnFromVotes()) scan();
@@ -616,6 +628,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   function elidedSubject(prefix: string, suffix = ""): Character | undefined {
     // A blanked-out quote is a clause boundary: "…," Alex says, choking…
     prefix = prefix.replace(/\s{3,}/g, (x) => `,${" ".repeat(x.length - 1)}`);
+    // "Dean arches underneath Cas' tongue as he swallows him down": he is the one whose tongue it is.
+    const under = new RegExp(`\\b(?:under|underneath|beneath)\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:tongue|mouth|lips|hands?|fingers|touch|ministrations|weight|body|attention)\\s*,?\\s*(?:as|while|when)\\s*$`).exec(prefix);
+    if (under) return cast.byAlias.get(under[1]);
     // "—pressing him down, and Riddle with him—" is an aside, not the clause's subject.
     prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
     const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
@@ -631,7 +646,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         // "…," whispers Alex: a name after a speech verb is its subject.
         !/^(?:says|said|whispers|whispered|murmurs|murmured|asks|asked|groans|groaned|moans|moaned|breathes|breathed|growls|growled|gasps|gasped|mutters|muttered|replies|replied|begs|begged|pants|panted|laughs|laughed|sighs|sighed|whimpers|whimpered|hisses|hissed|purrs|purred|teases|teased|grunts|grunted|answers|answered|adds|added|continues|continued|corrects|corrected|leers|leered|demands|demanded|insists|insisted|admits|admitted|pleads|pleaded|chokes|choked|calls|called|cries|cried)$/.test(prev);
       // "…at Sam, who's leaning over Steve…": a relative clause makes Sam the subject of what follows.
-      const relative = /^,?\s*who\b/.test(prefix.slice(h.index! + h[0].length));
+      const relative = /^,?\s*who\b/.test(prefix.slice(h.index! + h[0].length)) ||
+        // "with Cas clenched tight and rolling his hips": "with X" + participle is a subject.
+        (prev === "with" && /^\s+(?:\w+ly\s+)?\w+(?:ed|ing)\b/.test(prefix.slice(h.index! + h[0].length)));
       if (isObject && !relative && !/^(?:He|She|They|I)$/.test(h[3])) continue;
       return resolveToken(h[3], prefix.slice(h.index! + h[0].length) + suffix);
     }
@@ -668,6 +685,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (prior && Ctx.compatible(prior, p.gender)) return prior;
       return ctx.subjectFor(p.gender);
     };
+    // '"…," he heard Cas' voice': the voice's owner said it.
+    const heard = new RegExp(`^[,.!?—–\\s]*(?:[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+\\s+)?(?:heard|hears|recognized|recognised)\\s+((?:${NAMES}))(?:['’]s?)?\\s+(?:\\w+\\s+)?voice`).exec(after);
+    if (heard) return cast.byAlias.get(heard[1]);
     const a1 = new RegExp(`^[,.!?—–\\s]*((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})\\b`).exec(after);
     if (a1) return resolve(a1[1]);
     const a2 = new RegExp(`^[,.!?—–\\s]*(?:${SAY})\\s+((?:${NAMES})|he|she|they)\\b`).exec(after);
@@ -740,6 +760,19 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return !around.sexy;
   }
 
+  /** Whether a paragraph mentions a cock, an ass, fingers or other sex-scene context (cached). */
+  function bodyContext(i: number): boolean {
+    if (i < 0 || i >= paras.length) return false;
+    let v = bodyCtxCache.get(i);
+    if (v === undefined) {
+      const p = paras[i];
+      v = PENIS_CTX.test(p) || ANAL_CTX.test(p) || FINGER_CTX.test(p) ||
+        /\b(?:naked|legs\s+(?:apart|wide|open)|spread|thighs|hips|lube\w*|slick\w*|condom)\b/i.test(p);
+      bodyCtxCache.set(i, v);
+    }
+    return v;
+  }
+
   function handleMatch(
     pat: CompiledPattern,
     m: RegExpMatchArray,
@@ -806,6 +839,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       else if (/^\s+(?:[\w']+\s+){0,3}?(?:between|with)\s+(?:his|her|their|my|your)\s+(?:thighs|breasts|tits|hand|fist)\b/.test(after)) return;
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:a|the|her|his|their|my|your)\s+(?:strap|dildo|toy|vibrator|plug)/.test(after)) act = "anal sex (strap-on/toy)";
     }
+    // "Sinking his fingers into his hole…", "His finger sinks into his hole": with nobody named, he's on his own.
+    if (act === "fingering" && /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(tTok ?? "") && /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(bTok ?? "") &&
+        !new RegExp(`\\b(?:${NAMES})\\b`).test(sent)) {
+      const self = ctx.lastSubject ?? top;
+      const other = ctx.partnerOf(self);
+      if (other && !NEG.test(sent.slice(0, m.index).slice(-40))) {
+        desires.push({ cat: "anal", act: "fingering himself", who: self, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
+      }
+      return;
+    }
     // "cupping his cheeks" while kissing: a face, not an ass.
     if (pat.id.startsWith("grab-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
         (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose)\b/i.test(sent))) return;
@@ -823,6 +866,21 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "Alex shudders and presses in harder" while kissing: not penetration.
     if (pat.id.startsWith("pushed-in") && /\bkiss/i.test(sent) && !ANAL_CTX.test(sent)) return;
+    // A bare "as he sank in" (into a hug, a bath) needs a cock, an ass or fingers somewhere in the paragraph.
+    if (pat.id.startsWith("pushed-in") && !/\b(?:thrust|fuck|rut|snap|pound|slam)/i.test(matchText)) {
+      if (![pi - 2, pi - 1, pi, pi + 1].some(bodyContext)) return;
+    }
+    // "opened the car door and slipped inside": a place, not a person.
+    if (pat.id.startsWith("pushed-in") && /\b(?:door|car|truck|van|cab|taxi|room|house|building|shop|store|bar|elevator|lift|tent|cabin|Impala|apartment|office|kitchen|bathroom)\b/.test(sent.slice(0, m.index))) return;
+    // "He hollowed his cheeks, creating a suction for Cas": the one named after "for" is getting sucked.
+    if (pat.id.startsWith("hollowed-cheeks")) {
+      const forName = new RegExp(`^[^.;]{0,40}?\\bfor\\s+(${NAMES})\\b`).exec(sent.slice(m.index! + matchText.length));
+      const named = forName ? cast.byAlias.get(forName[1]) : undefined;
+      if (named && named !== top) {
+        top = named;
+        if (bottom === named) bottom = ctx.partnerOf(named) ?? bottom;
+      }
+    }
     // "…slipping inch by inch, until Alex finally bottoms": he bottomed out, so he's the top.
     if (pat.id.startsWith("bottomed-for") && !/\bfor\b/.test(matchText) && /\b(?:finally|fully|all the way)\s+bottom/.test(matchText + " " + sent) && /\b(?:inch|slid|slip|push|sank|sink|thrust|sheath|buri|bury|eas)/i.test(sent)) {
       [top, bottom] = [bottom, top];

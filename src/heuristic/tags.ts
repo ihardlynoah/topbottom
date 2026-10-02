@@ -53,14 +53,20 @@ export function readTags(freeforms: string[], cast: Cast): TagInfo {
       if (t === "switching" || t.startsWith("switch") || t.startsWith("vers")) info.switching.push(tag);
       continue;
     }
-    for (const { re } of ROLE_PATTERNS) {
-      const m = tag.match(re);
-      if (!m) continue;
-      const [roleWord, name] = re === ROLE_PATTERNS[0].re ? [m[1], m[2]] : [m[2], m[1]];
-      const char = findChar(name);
-      if (char) {
-        info.roles.push({ char, role: normalizeRole(roleWord), tag });
-        break;
+    // "Top Castiel/Bottom Dean Winchester" is two role tags in one.
+    const parts = /^(?:power |service |pillow )?(?:bottom|top|switch|vers)\b.*\/\s*(?:power |service |pillow )?(?:bottom|top|switch|vers)\b/i.test(tag)
+      ? tag.split("/").map((x) => x.trim())
+      : [tag];
+    for (const part of parts) {
+      for (const { re } of ROLE_PATTERNS) {
+        const m = part.match(re);
+        if (!m) continue;
+        const [roleWord, name] = re === ROLE_PATTERNS[0].re ? [m[1], m[2]] : [m[2], m[1]];
+        const char = findChar(name);
+        if (char) {
+          info.roles.push({ char, role: normalizeRole(roleWord), tag });
+          break;
+        }
       }
     }
 
