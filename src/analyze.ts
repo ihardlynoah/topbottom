@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { type Ao3Meta, countWords } from "./ao3";
 import { oddsFromResult, splitOral } from "./roles";
 import type { ActResult, Analysis } from "./types";
-import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "./text";
+import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "./text";
 
 /** Claude's raw answer; converted to the shared Analysis shape below. */
 interface ClaudeAct extends Omit<ActResult, "confidence"> {
@@ -211,7 +211,7 @@ function isExplicit(p: string): boolean {
 /** Cut a long work down to its sex scenes (with surrounding context) plus the opening. */
 export function excerptExplicit(text: string, context = 3): { text: string; words: number } {
   const excerptSource = text.replace(
-    new RegExp(`${UNCERTAIN_NOTE_START}[\\s\\S]*?${UNCERTAIN_NOTE_END}`, "g"),
+    new RegExp(`${escapeMarker(UNCERTAIN_NOTE_START)}[\\s\\S]*?${escapeMarker(UNCERTAIN_NOTE_END)}`, "g"),
     "[[AO3_NOTE_BOUNDARY_UNCLEAR_OMITTED]]",
   );
   const paras = splitParagraphs(excerptSource);
