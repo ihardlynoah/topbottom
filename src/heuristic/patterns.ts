@@ -50,7 +50,7 @@ export interface CompiledPattern extends PatternDef {
 }
 
 const PENIS_ADJ =
-  "hard|thick|aching|leaking|throbbing|swollen|heavy|wet|slick|stiff|big|long|huge|rigid|straining|twitching|flushed|full|whole|fat|dripping|weeping|pretty|perfect|lubed|slicked|neglected|own|entire|impressive|spit-slick|spit-slicked|knotted|swelling|cut|uncut|red|angry";
+  "hypersensitive|oversensitive|sensitive|hot|eager|desperate|needy|heavy|hard|thick|aching|leaking|throbbing|swollen|heavy|wet|slick|stiff|big|long|huge|rigid|straining|twitching|flushed|full|whole|fat|dripping|weeping|pretty|perfect|lubed|slicked|neglected|own|entire|impressive|spit-slick|spit-slicked|knotted|swelling|cut|uncut|red|angry";
 const ASS_ADJ =
   "puckered|winking|trembling|spasming|fucked-out|well-used|tender|velvety|silky|tiny|furled|tight|slick|wet|loose|puffy|stretched|sensitive|twitching|fluttering|clenching|quivering|eager|needy|empty|furled|pink|swollen|little|perfect|lubed|slicked|gaping|greedy|virgin|own|pretty|spit-slick|spit-slicked|sloppy|abused|used|sore|hot|warm|soft|willing|waiting|untouched|clenched";
 const MOUTH_ADJ = "hot|wet|warm|open|eager|pretty|soft|swollen|perfect|waiting|willing|own|sweet|tight|filthy|slack|stretched|talented|clever|sinful|greedy";
@@ -384,7 +384,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:enter(?:s|ed|ing)?|penetrat(?:e|es|ed|ing)|breach(?:es|ed|ing)?|impal(?:e|es|ed|ing)|spear(?:s|ed|ing)?|took|take|takes|taking)\\s+{B:ass}(?=\\s*[,.;:!?—–]|\\s*$|\\s+(?:with|in one|in a|slowly|carefully|from behind|hard|deep|all the way|inch|bare|raw|for the first time|again|at last|finally)\\b)`,
+    src: `\\b{T}\\s+{aux}(?:enter(?:s|ed|ing)?|penetrat(?:e|es|ed|ing)|breach(?:es|ed|ing)?|impal(?:e|es|ed|ing)|spear(?:s|ed|ing)?|took|take|takes|taking)\\s+{B:ass}(?!\\s+with\\s+(?:him|her|them|me|you|us)\\b)(?=\\s*[,.;:!?—–]|\\s*$|\\s+(?:with|in one|in a|slowly|carefully|from behind|hard|deep|all the way|inch|bare|raw|for the first time|again|at last|finally)\\b)`,
   },
   {
     id: "fill",
@@ -403,7 +403,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 1,
     needsCtx: true,
-    src: `\\b{B}\\s+{aux}(?:rode|ride|rides|riding|ridden|bounc(?:e|es|ed|ing)\\s+on|fuck(?:s|ed|ing)?\\s+${SELF}\\s+(?:back\\s+|down\\s+)*(?:on(?:to)?)|impal(?:e|es|ed|ing)\\s+${SELF}\\s+on|lower(?:s|ed|ing)?\\s+${SELF}\\s+(?:down\\s+)?on(?:to)?|(?:sink|sank|sinks|sinking|sunk)\\s+(?:back\\s+|all the way\\s+|slowly\\s+)*down\\s+on(?:to)?|eas(?:e|es|ed|ing)\\s+${SELF}\\s+(?:down\\s+)?on(?:to)?|seat(?:s|ed|ing)?\\s+${SELF}\\s+on|work(?:s|ed|ing)?\\s+${SELF}\\s+(?:up\\s+and\\s+down\\s+|down\\s+)?on(?:to)?|push(?:es|ed|ing)?\\s+(?:${SELF}\\s+)?back\\s+on(?:to)?)\\s+{T:penis}(?!\\s+(?:thigh|face|mouth|tongue|fingers?|lap|knee|leg|chest|back|shoulders|horse|bike)s?\\b)`,
+    src: `\\b{B}\\s+{aux}(?:rode|ride|rides|riding|ridden|bounc(?:e|es|ed|ing)\\s+on|fuck(?:s|ed|ing)?\\s+${SELF}\\s+(?:back\\s+|down\\s+)*(?:on(?:to)?)|impal(?:e|es|ed|ing)\\s+${SELF}\\s+on|lower(?:s|ed|ing)?\\s+${SELF}\\s+(?:down\\s+)?on(?:to)?|(?:sink|sank|sinks|sinking|sunk)\\s+(?:back\\s+|all the way\\s+|slowly\\s+)*down\\s+on(?:to)?|eas(?:e|es|ed|ing)\\s+${SELF}\\s+(?:down\\s+)?on(?:to)?|seat(?:s|ed|ing)?\\s+${SELF}\\s+on|work(?:s|ed|ing)?\\s+${SELF}\\s+(?:up\\s+and\\s+down\\s+|down\\s+)?on(?:to)?|push(?:es|ed|ing)?\\s+(?:${SELF}\\s+)?back\\s+on(?:to)?)\\s+{T:penis}(?!\\s+(?:thigh|face|mouth|tongue|fingers?|lap|knee|leg|chest|back|shoulders|horse|bike)s?\\b)(?!\\s+through\\b)`,
   },
   {
     id: "grind-down",
@@ -841,6 +841,26 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.7,
     needsCtx: true,
     src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|thrust|eas|sheath|guid|rock|snap|fuck|press)\\w*\\s+(?:${SELF}\\s+)?(?:(?:back|forward|slowly|carefully|deep|all the way|right|finally|gently)\\s+)*(?:in|inside|home)(?![\\w-])(?!\\s*(?:to|the|a|an|his|her|their|my|your|front|back|line|time|place|close|closer|between|with|for|on|at|of|and then the)\\b)(?!\\s+[\\w-]+['’]s\\b)`,
+  },
+  {
+    // "Cas was scorching and slick and snug around Dean's cock"
+    id: "snug-around",
+    cat: "anal",
+    act: "anal sex (riding)",
+    subj: "b",
+    weight: 0.8,
+    needsPenis: true,
+    src: `\\b{B}\\s+{aux}(?:was|were|is|felt|feels|feel)\\s+(?:[\\w-]+,?\\s+(?:and\\s+)?){0,5}?(?:snug|tight|clenched|wrapped|hot|wet|slick)\\s+(?:and\\s+[\\w-]+\\s+)?around\\s+{T:penisReq}`,
+  },
+  {
+    // "Cas slowly rose and fell around him", "rising and falling on Dean's cock"
+    id: "rise-and-fall",
+    cat: "anal",
+    act: "anal sex (riding)",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:rose|rise|rises|rising)\\s+and\\s+(?:fell|fall|falls|falling)\\s+(?:around|on|over)\\s+{T:penis}`,
   },
   {
     id: "sank-down",

@@ -504,7 +504,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (!namedIn(c)) return c;
     // Not anyone else named later either: in a threesome, the pronoun is the third person.
     const later = new Set(cast.chars.filter(namedIn));
-    return ctx.partnerOf(c, g, later) ?? ctx.partnerOf(c, g) ?? c;
+    const strict = ctx.partnerOf(c, g, later);
+    if (strict && cast.pairings.some((p) => p.includes(strict) && p.includes(c))) return strict;
+    // Everyone plausible was named later ("He hollowed his cheeks … for Cas … in Dean's mouth"): a later
+    // possessive doesn't rule its owner out, rather than reaching for someone outside the scene.
+    const namedPlain = (x: Character) =>
+      x.aliases.length > 0 &&
+      new RegExp(`\\b(?:${x.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b(?!['’]s?\\b)`).test(rest);
+    if (!namedPlain(c)) return c;
+    const loose = ctx.partnerOf(c, g, new Set(cast.chars.filter(namedPlain)));
+    return (loose && cast.pairings.some((p) => p.includes(loose) && p.includes(c)) ? loose : strict) ?? ctx.partnerOf(c, g) ?? c;
   }
 
   const bodyCtxCache = new Map<number, boolean>();
@@ -632,7 +641,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         // "…," whispers Alex: a name after a speech verb is its subject.
         !/^(?:says|said|whispers|whispered|murmurs|murmured|asks|asked|groans|groaned|moans|moaned|breathes|breathed|growls|growled|gasps|gasped|mutters|muttered|replies|replied|begs|begged|pants|panted|laughs|laughed|sighs|sighed|whimpers|whimpered|hisses|hissed|purrs|purred|teases|teased|grunts|grunted|answers|answered|adds|added|continues|continued|corrects|corrected|leers|leered|demands|demanded|insists|insisted|admits|admitted|pleads|pleaded|chokes|choked|calls|called|cries|cried)$/.test(prev);
       // "…at Sam, who's leaning over Steve…": a relative clause makes Sam the subject of what follows.
-      const relative = /^,?\s*who\b/.test(prefix.slice(h.index! + h[0].length));
+      const relative = /^,?\s*who\b/.test(prefix.slice(h.index! + h[0].length)) ||
+        // "with Cas clenched tight and rolling his hips": "with X" + participle is a subject.
+        (prev === "with" && /^\s+(?:\w+ly\s+)?\w+(?:ed|ing)\b/.test(prefix.slice(h.index! + h[0].length)));
       if (isObject && !relative && !/^(?:He|She|They|I)$/.test(h[3])) continue;
       return resolveToken(h[3], prefix.slice(h.index! + h[0].length) + suffix);
     }
@@ -669,6 +680,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (prior && Ctx.compatible(prior, p.gender)) return prior;
       return ctx.subjectFor(p.gender);
     };
+    // '"…," he heard Cas' voice': the voice's owner said it.
+    const heard = new RegExp(`^[,.!?—–\\s]*(?:[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+\\s+)?(?:heard|hears|recognized|recognised)\\s+((?:${NAMES}))(?:['’]s?)?\\s+(?:\\w+\\s+)?voice`).exec(after);
+    if (heard) return cast.byAlias.get(heard[1]);
     const a1 = new RegExp(`^[,.!?—–\\s]*((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})\\b`).exec(after);
     if (a1) return resolve(a1[1]);
     const a2 = new RegExp(`^[,.!?—–\\s]*(?:${SAY})\\s+((?:${NAMES})|he|she|they)\\b`).exec(after);
@@ -803,6 +817,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     ctx.coSubjects = new Set(coChar ? [coChar] : []);
     ctx.curCat = pat.cat;
     const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
+    if (process.env.DBG && /rode him hard|let you fuck me|snug around Dean/.test(original)) console.log("HM", pat.id, JSON.stringify(m[0].slice(0,60)), tTok, bTok, nearSubj?.name, subjChar?.name, resolved?.top?.name, resolved?.bottom?.name);
     ctx.coSubjects.clear();
     if (!resolved) return;
     let { top, bottom } = resolved as { top: Character; bottom: Character };
@@ -840,6 +855,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // A bare "as he sank in" (into a hug, a bath) needs a cock, an ass or fingers somewhere in the paragraph.
     if (pat.id.startsWith("pushed-in") && !/\b(?:thrust|fuck|rut|snap|pound|slam)/i.test(matchText)) {
       if (![pi - 2, pi - 1, pi, pi + 1].some(bodyContext)) return;
+    }
+    // "opened the car door and slipped inside": a place, not a person.
+    if (pat.id.startsWith("pushed-in") && /\b(?:door|car|truck|van|cab|taxi|room|house|building|shop|store|bar|elevator|lift|tent|cabin|Impala|apartment|office|kitchen|bathroom)\b/.test(sent.slice(0, m.index))) return;
+    // "He hollowed his cheeks, creating a suction for Cas": the one named after "for" is getting sucked.
+    if (pat.id.startsWith("hollowed-cheeks")) {
+      const forName = new RegExp(`^[^.;]{0,40}?\\bfor\\s+(${NAMES})\\b`).exec(sent.slice(m.index! + matchText.length));
+      const named = forName ? cast.byAlias.get(forName[1]) : undefined;
+      if (named && named !== top) {
+        top = named;
+        if (bottom === named) bottom = ctx.partnerOf(named) ?? bottom;
+      }
     }
     // "…slipping inch by inch, until Alex finally bottoms": he bottomed out, so he's the top.
     if (pat.id.startsWith("bottomed-for") && !/\bfor\b/.test(matchText) && /\b(?:finally|fully|all the way)\s+bottom/.test(matchText + " " + sent) && /\b(?:inch|slid|slip|push|sank|sink|thrust|sheath|buri|bury|eas)/i.test(sent)) {
