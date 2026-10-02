@@ -490,6 +490,27 @@ export function buildCast(meta: Ao3Meta, narration: string, fullText = narration
     }
   }
 
+  // Tags that say who has what: "Omega Dean Winchester", "Trans Eddie Munson", "Transmasc Steve", "Trans Woman Nancy",
+  // "Futanari Korra". A tag naming a man this way gives him a vagina; one naming a woman gives her a penis. Generic
+  // omegaverse / mpreg tags (no name) only make men's anatomy uncertain, so the text decides scene by scene.
+  {
+    const tagText = [...meta.freeforms, ...meta.characters, ...meta.relationships];
+    const namesIn = (tag: string) => chars.filter((c) => c.name !== "Reader" && c.aliases.some((a) => a.length > 2 && new RegExp(`\\b${escapeRe(a)}\\b`, "i").test(tag)));
+    const MALE_VULVA_TAG = /\b(?:omega|omegas?\s+verse|male omega|mpreg|male pregnancy|trans(?:masc(?:uline)?|gender)?\s+(?:man|male|boy|guy)|transmasc|trans\s+(?!w|g)\w+|transgender|trans)\b/i;
+    const FEMALE_PENIS_TAG = /\b(?:futa(?:nari)?|dickgirl|trans\s+(?:woman|girl|female)|transfem(?:inine)?|intersex)\b/i;
+    for (const tag of tagText) {
+      const hit = namesIn(tag);
+      if (FEMALE_PENIS_TAG.test(tag)) {
+        for (const c of hit) if (c.gender !== "m") c.penis = true;
+      } else if (MALE_VULVA_TAG.test(tag)) {
+        for (const c of hit) if (c.gender === "m") c.vulva = true;
+      }
+    }
+    if (tagText.some((t) => /\b(?:omegaverse|a\/b\/o|alpha\/beta\/omega|mpreg|omega)\b/i.test(t))) {
+      for (const c of chars) if (c.gender === "m" && c.vulva === false) c.vulva = "maybe";
+    }
+  }
+
   const aliasPattern = [...byAlias.keys()]
     .sort((a, b) => b.length - a.length)
     .map(escapeRe)

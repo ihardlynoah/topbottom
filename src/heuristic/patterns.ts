@@ -927,6 +927,39 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{B}\\s+{aux}(?:dropp?|lower|sank|sink|push|press|bob|duck)\\w*\\s+(?:his|her|their|my|your)\\s+head\\s+(?:down\\s+)?(?:almost\\s+|nearly\\s+)?(?:fully|all the way|deeper)\\b(?!\\s+(?:back|up|to|against|onto|into|on|and (?:laughed|sighed|groaned|closed)|then (?:laughed|sighed|looked))\\b)`,
   },
   {
+    // "Korra suddenly looked up from her spot between her legs", "lifted his head from between Laurent's thighs"
+    id: "looked-up-from-between",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.7,
+    femaleTarget: "flip",
+        src: `\\b{B}\\s+{aux}(?:\\w+ly\\s+)?(?:look|glanc|peek|pull|lift|rais|came|come|surfac|emerg)\\w*\\s+(?:up\\s+)?(?:her|his|their)?\\s*(?:head\\s+)?(?:up\\s+)?from\\s+(?:(?:her|his|their)\\s+(?:spot\\s+)?)?between\\s+{T:poss}\\s+(?:legs|thighs)\\b`,
+  },
+  {
+    // "settled between Robin's thighs and licked her slowly", "knelt between his legs, mouthing at him"
+    id: "between-thighs-licked",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.8,
+    femaleTarget: "flip",
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:settl\\w*|knelt|kneel\\w*|lay|laid|moved|slid|slipped|got|crawled|dropped|positioned\\s+\\w+self)\\s+(?:\\w+\\s+){0,2}?between\\s+{T:poss}\\s+(?:thighs?|legs)\\b[^.!?]{0,40}?\\b(?:lick|lap|suck|tongu|nuzzl|devour|feast)\\w*`,
+  },
+  {
+    // "Nancy and Robin scissored until they both came"
+    id: "scissoring-pair",
+    cat: "vaginal",
+    act: "scissoring",
+    subj: "t",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{T}\\s+and\\s+{B}\\s+{aux}(?:scissor(?:s|ed|ing)?\\b(?!\\s+(?:(?:his|her|their|my|your|the|two|three|them)\\s+)?(?:fingers?|digits?|apart|open|them|his|her))|tribad\\w*)`,
+  },
+  {
     // "lowered his head between Laurent's thighs", "settled between his legs and lowered his mouth"
     id: "head-between-thighs",
     dedupe: true,
@@ -1103,7 +1136,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.8,
     needsCtx: true,
-    src: `\\b{B}\\s+{aux}(?:(?:sat|sit|sits|sitting|squat\\w*|settl\\w*|lower\\w*\\s+(?:himself|herself|themselves|myself|yourself)|rode|ride|rides|riding)\\s+(?:down\\s+)?(?:on|onto)\\s+{T:poss}\\s+(?:face|mouth|tongue)|rode\\s+{T:poss}\\s+(?:face|tongue)|(?:ride|rides|riding)\\s+{T:poss}\\s+(?:face|tongue)|(?:grind|grinds|grinding|ground|push\\w*|rock\\w*|press\\w*|roll\\w*|arch\\w*)\\s+(?:his\\s+(?:ass|arse|hips)\\s+)?(?:back\\s+)?(?:against|onto|on|into)\\s+{T:poss}\\s+(?:tongue|(?<=back\\s+(?:against|onto|on|into)\\s+\\S+\\s+)(?:face|mouth)))\\b(?![^.]*\\b(?:cock|dick|prick|cunt|pussy|clit)\\b)`,
+    src: `\\b{B}\\s+{aux}(?:(?:sat|sit|sits|sitting|squat\\w*|settl\\w*|lower\\w*\\s+(?:himself|herself|themselves|myself|yourself)|rode|ride|rides|riding)\\s+(?:down\\s+)?(?:on|onto)\\s+{T:poss}\\s+(?:face|mouth|tongue)|rode\\s+{T:poss}\\s+(?:face|tongue)|straddl\\w*\\s+{T:poss}\\s+(?:face|mouth)|(?:ride|rides|riding)\\s+{T:poss}\\s+(?:face|tongue)|(?:grind|grinds|grinding|ground|push\\w*|rock\\w*|press\\w*|roll\\w*|arch\\w*)\\s+(?:his\\s+(?:ass|arse|hips)\\s+)?(?:back\\s+)?(?:against|onto|on|into)\\s+{T:poss}\\s+(?:tongue|(?<=back\\s+(?:against|onto|on|into)\\s+\\S+\\s+)(?:face|mouth)))\\b(?![^.]*\\b(?:cock|dick|prick|cunt|pussy|clit)\\b)`,
   },
   {
     id: "passive-rimmed",
@@ -1122,6 +1155,25 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 1,
     src: `\\b{T}\\s+{aux}(?:lick|lap|suck|tongu|eat|ate|kiss|nuzzl|mouth|devour|feast|flick|circl)\\w*\\s+(?:(?:at|over|along|up|into|around|on|between|across)\\s+)*{B:vulvaReq}(?!\\s+with\\s+(?:his|her|their|my|your)\\s+(?:thumbs?|fingers?|fingertips?|hands?|knuckles?|palms?|cock|dick|length))`,
+  },
+  {
+    // "buried her face in Nancy's pussy", "pressed her mouth against Robin's cunt"
+    id: "face-in-vulva",
+    cat: "oral",
+    act: "cunnilingus",
+    subj: "t",
+    weight: 1,
+    src: `\\b{T}\\s+{aux}(?:bur(?:y|ied|ies|ying)|press\\w*|push\\w*|put|nestl\\w*|shov\\w*|smush\\w*|dove|dived|dive|dip\\w*)\\s+(?:(?:his|her|their|my|your)\\s+(?:\\w+\\s+)?)?(?:face|head|nose|mouth|lips)\\s+(?:\\w+\\s+){0,2}?(?:in(?:to)?|against|between|on|at)\\s+{B:vulvaReq}`,
+  },
+  {
+    // "they scissored", "scissoring their legs together", "ground their pussies together"
+    id: "scissoring",
+    cat: "vaginal",
+    act: "scissoring",
+    subj: "t",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}(?:scissor(?:s|ed|ing)?\\b(?!\\s+(?:(?:his|her|their|my|your|the|two|three|them)\\s+)?(?:fingers?|digits?|apart|open|them|his|her))|tribad\\w*|(?:ground|grind|grinds|grinding|rubb?ed|rub|rubs|rubbing)\\s+(?:their|her|our)\\s+(?:pussies|cunts|clits)\\s+together)`,
   },
   {
     id: "tongue-on-vulva",

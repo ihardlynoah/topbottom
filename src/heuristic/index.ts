@@ -839,6 +839,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "Oh, fuck me", "well fuck me", "holy shit, fuck me"
     if (/\b(?:oh|well|ah|god|jesus|christ|holy|bloody|shit|man|dude|ugh|wow|damn|hell|lord|mate|boy|seriously|honestly)\b[\s,!.]*$/.test(before)) return true;
     // An idiom: "fuck me sideways / running / dead / twice / gently with a chainsaw", "fuck me if I know"
+    // "so fuck me for trying to keep my lungs healthy": an accusation.
+    if (/^\s+for\b/.test(after)) return true;
     if (/^[,!]?\s*(?:sideways|running|dead|twice|blind|pink|silly|gently with|with a (?:spoon|chainsaw|cactus|rake|brick)|if\b|in the|up\b|over\b(?!\s+(?:the|this|that|my))|three ways|backwards)/.test(after)) return true;
     // A new clause after it: "Fuck me, it's cold", "fuck me, you're right", "fuck me, what a day"
     if (/^\s*[,!.—-]+\s*(?:i\b|i'm|i've|i'd|you're|you've|you were|it|it's|that|that's|this|there|we|he|she|they|what|how|why|who|where|when|look at|these|those|the|a\b|an\b|my|our|his|her)/.test(after)) return true;
@@ -973,6 +975,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.id.startsWith("licked-into") && !/\b(?:ass|arse|hole|rim|crack|cheeks|entrance|pucker)\b/i.test(matchText) && /\b(?:mouth|lips|kiss\w*)\b/i.test(para)) return;
     // "had his face in his ass and started licking": the object left out is the ass just named.
     if (pat.id.startsWith("began-to-suck") && /\b(?:ass|arse|asshole|hole|rim|cheeks|crack)\b/i.test(sent.slice(0, m.index!)) && !PENIS_CTX.test(sent)) return;
+    // "got between Stiles' legs and buried my tongue in his hole" is rimming, not this.
+    if (pat.id === "between-thighs-licked" && /\b(?:ass|arse|asshole|hole|rim|crack|cheeks)\b/i.test(sent.slice(m.index!, m.index! + m[0].length + 40))) return;
     // "spreads his legs to wipe them": he is cleaning someone, not offering himself.
     if (/^spread-(?:their-)?legs/.test(pat.id) && /^\s*(?:and\s+)?to\s+(?:wipe|clean|dry|wash|towel|inspect|examine|check|look|see)\b/i.test(after)) return;
     if (pat.id.startsWith("spread-their-legs") && [pi - 1, pi, pi + 1].some((i) => !!paras[i] && /\b(?:kneel\w*|drops? to his knees|mouth|lick\w*|nuzzl\w*|suck\w*|tongue)\b/i.test(paras[i]) && !/\b(?:hole|lube[ds]?|ass\b|arse|fingers?|prostate)\b/i.test(paras[i]))) return;
@@ -1091,6 +1095,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (NEG.test(m.groups?.aux ?? "") || NEG.test(prefix.slice(-40))) return;
       if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
       if (pat.signal.kind === "fingers" && /\bwhistl\w*/i.test(sent)) return;
+      if (cat === "oral" && oralKindOf(act) === "blowjob" && top.penis === false && bottom.penis === false && !/\b(?:strap\w*|dildo|harness|cock|dick|toy|vibrator)\b/i.test(para)) return;
       const actor = (pat.signal.actor ?? pat.subj) === "t" ? top : bottom;
       if (desires.some((d) => d.sentence === original && d.cat === cat && d.kind === pat.signal!.kind && d.who === actor)) return;
       const other = actor === top ? bottom : top;
@@ -1154,6 +1159,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         act = "cunnilingus";
       }
     }
+    // A cock-sucking hint between two people with no penis (and no strap-on or toy about) is something else: fingers in the mouth, a kiss.
+    if (cat === "oral" && oralKindOf(act) === "blowjob" && top.penis === false && bottom.penis === false && !/\b(?:strap\w*|dildo|harness|cock|dick|toy|vibrator)\b/i.test(para)) return;
     // "them"/"it" may be a thing, not a person ("sucks them into his mouth" = fingers): require the
     // sentence to name the body part the act needs.
     const thing = (tok?: string) => /^(?:them|it)$/i.test(tok ?? "");
@@ -1349,6 +1356,30 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   results.sort((a, b) => b.weight - a.weight);
 
   const notes: string[] = [];
+  // Rated Explicit / Not Rated and tagged only M/M (or only F/F), yet no act was recognised: the sex is probably there but
+  // written non-graphically or in phrasing the patterns miss, so point at the passages that read like sex scenes.
+  {
+    const cats = meta.categories.map((c) => c.trim().toUpperCase());
+    const kind = cats.includes("M/M") && cats.every((x) => x === "M/M" || x === "GEN") ? "M/M" : cats.includes("F/F") && cats.every((x) => x === "F/F" || x === "GEN") ? "F/F" : "";
+    const rated = /explicit|not rated/i.test(meta.rating ?? "");
+    const actCount = results.reduce((n, r) => n + [r.anal, r.blowjob, r.rimming, r.cunnilingus].reduce((m, a) => m + a.instances.length, 0) + (r.vaginal?.instances?.length ?? 0), 0);
+    if (kind && rated && actCount <= 1) {
+      const AROUSAL = /\b(?:moan\w*|gasp\w*|orgasm\w*|climax\w*|came|cum|thrust\w*|grind\w*|arch\w*|naked|nipples?|pleasure|unbutton\w*|undress\w*|writh\w*|shudder\w*|sheets|hips|between (?:her|his|their) (?:legs|thighs)|panting|breathless|sweat\w*|trembl\w*|clothes)\b/gi;
+      const scored = paras
+        .map((para, i) => ({ para, i, n: new Set((para.match(AROUSAL) ?? []).map((w) => w.toLowerCase())).size }))
+        .filter((x) => x.n >= 2 && x.para.length < 2500)
+        .sort((a, b) => b.n - a.n || a.i - b.i)
+        .slice(0, 3)
+        .sort((a, b) => a.i - b.i);
+      if (scored.length) {
+        const quote = (t: string) => `“${t.replace(/\s+/g, " ").trim().slice(0, 170)}${t.length > 170 ? "…" : ""}”`;
+        notes.push(
+          `This work is rated ${meta.rating} and tagged only ${kind}, but ${actCount ? "only one" : "no"} ${kind} sex act was recognized. The sex may be written without explicit detail, or in phrasing these patterns don't cover. Passages that read like sex scenes: ${scored.map((x) => quote(x.para)).join(" · ")}`,
+        );
+      }
+    }
+  }
+
   if (hasUncertainNotes) notes.push("Some AO3 chapter-note text had an unclear boundary and was excluded from pattern analysis.");
   if (!meta.relationships.length && !meta.characters.length && cast.chars.length) {
     notes.push(`No AO3 tags in this file, so characters were guessed from the text: ${cast.chars.map((c) => c.name).join(", ")}.`);
