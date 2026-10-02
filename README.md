@@ -1,4 +1,4 @@
-# Top/Bottom Finder
+# Trust the Tags But Verify
 
 A small web app: drop in an AO3 download (PDF, EPUB, HTML, or TXT) and it tells you
 
