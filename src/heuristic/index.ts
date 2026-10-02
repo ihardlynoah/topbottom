@@ -121,17 +121,19 @@ const CHAPTER_RE = /^(?:chapter|ch\.?|part)\s*(\d+|[ivxlc]+|one|two|three|four|f
 
 const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
 const FANTASY =
-  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
+  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
   /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
+/** "Yeah, maybe Dunk would stop his snide comments and stuff his mouth…": the whole sentence is a what-if. */
+const HYPO_SENT = /^\W*(?:[\w'’]+[,!]\s+)?(?:maybe|perhaps)\b[^.!?]*?\b(?:would|could|might|['’]d)\b/i;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
 /** Fantasy markers strong enough to cover the whole rest of the sentence ("the vision he'd clung to, which included…"). */
 const STRONG_FANTASY =
-  /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:imagin(?:ed|es|ing)|fantasi[sz](?:ed|es|ing)|daydream\w*|dream(?:ed|t|s|ing)?|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
+  /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:imagin(?:ed|es|ing)|fantasi[sz](?:ed|es|ing)|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const SCENE_BREAK = /^\s*(?:\*+|x{3,}|~+|-{3,}|—+|#+|o+0+o+|\* \* \*)\s*$/i;
-const FANTASY_PARA = /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:dream(?:ed|t|s|ing)?|fantasi[sz](?:ed|ing|es)|fantasy|daydream\w*|imagin(?:ed|es|ing))\b/i;
+const FANTASY_PARA = /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|fantasi[sz](?:ed|ing|es)|fantasy|daydream\w*|imagin(?:ed|es|ing))\b/i;
 
 const SAY =
   "said|says|say|asked|asks|begged|begs|whispered|whispers|murmured|murmurs|moaned|moans|groaned|groans|gasped|gasps|panted|pants|breathed|breathes|growled|growls|hissed|hisses|whined|whines|pleaded|pleads|demanded|demands|ordered|orders|told|tells|mumbled|mumbles|muttered|mutters|replied|replies|answered|answers|added|adds|choked out|managed|grunted|grunts|purred|purrs|rasped|rasps|sighed|sighs|laughed|laughs|snapped|snaps|teased|teases|urged|urges|insisted|insists|admitted|admits|confessed|confesses|sobbed|sobs|cried|cries|whimpered|whimpers|husked|drawled|offered|suggested|blurted|croaked|keened|ground out|bit out|gritted out|continued|promised|warned|commanded|instructed|repeated|agreed|protested|swore|cursed|chuckled|smirked|grinned|smiled|hummed|crooned|coaxed|praised|soothed|groused|whispered against|murmured against";
@@ -558,7 +560,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const WAKE = /\b(?:wak(?:e|es|ing)\s+up|woke|awake|jolt(?:s|ed)?\s+awake|snap(?:s|ped)?\s+out\s+of)\b/i;
     const fantasyPara = FANTASY_PARA.test(mp.slice(0, 160)) || (dreamRun > 0 && !WAKE.test(mp.slice(0, 160)) && !SCENE_BREAK.test(para));
     if (WAKE.test(mp) || SCENE_BREAK.test(para)) dreamRun = 0;
-    else if (/(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:dream(?:ed|t|s|ing)?|daydream\w*|fantasi[sz](?:ed|es|ing))\b/i.test(mp)) dreamRun = 2;
+    else if (/(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|daydream\w*|fantasi[sz](?:ed|es|ing))\b/i.test(mp)) dreamRun = 2;
     else if (dreamRun) dreamRun--;
     const sexy = SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`);
 
@@ -632,6 +634,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "Dean arches underneath Cas' tongue as he swallows him down": he is the one whose tongue it is.
     const under = new RegExp(`\\b(?:under|underneath|beneath)\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:tongue|mouth|lips|hands?|fingers|touch|ministrations|weight|body|attention)\\s*,?\\s*(?:as|while|when)\\s*$`).exec(prefix);
     if (under) return cast.byAlias.get(under[1]);
+    // "…as Dunk's hands kneaded his arse as he pressed his tongue…": the hands' owner carries on as "he".
+    const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+[^,;—]*?\\b(?:as|while|when)\\s*$`).exec(prefix);
+    if (handsOf) return cast.byAlias.get(handsOf[1]);
     // "—pressing him down, and Riddle with him—" is an aside, not the clause's subject.
     prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
     const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
@@ -814,10 +819,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
     const subjTok = pat.subj === "t" ? tTok : bTok;
     // "When Alex manages…, one of his digits slips lower": a possessive pronoun works the same way.
-    const nearSubj =
+    // "Dunk would… make him take him to the back of his throat": "him" after make/let is the one being made to,
+    // i.e. the causer's partner. (Not perception verbs: "Brad watched him getting fucked by Kyle".)
+    const causative = /^(?:him|her|them)$/.test(subjTok ?? "") && /\b(?:make|makes|made|making|let|lets|letting)\s+$/i.test(sent.slice(0, m.index));
+    const clauseSubj =
       !pat.elided && subjTok && (pronoun(subjTok) || /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(subjTok)) && m.index! > 0
         ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!))
         : undefined;
+    const causer = causative ? (clauseSubj ?? firstEntity(sent.slice(0, m.index)) ?? ctx.lastSubject) : undefined;
+    const nearSubj = causative ? causer && ctx.partnerOf(causer) : clauseSubj;
     const co = /([\p{L}'’]+)\s+and\s+$/u.exec(sent.slice(0, m.index));
     const coChar = co ? resolveToken(co[1]) : undefined;
     ctx.coSubjects = new Set(coChar ? [coChar] : []);
@@ -851,8 +861,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       return;
     }
     // "cupping his cheeks" while kissing: a face, not an ass.
-    if (pat.id.startsWith("grab-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
-        (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose)\b/i.test(sent))) return;
+    if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
+        (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose|head|cradl\w*|temples?|chin)\b/i.test(sent))) return;
     // "…until the ridges of Alex's knuckles … each time they slide past his rim": "they" are the fingers.
     // They're fingering, by whoever owns the fingers ("Alex's knuckles", "his fingers").
     if (/^they$/i.test(tTok ?? "") && /\b(?:fingers?|knuckles?|digits?|hands?|toys?|thumbs?)\b/i.test(sent.slice(0, m.index))) {
@@ -867,12 +877,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "Alex shudders and presses in harder" while kissing: not penetration.
     if (pat.id.startsWith("pushed-in") && /\bkiss/i.test(sent) && !ANAL_CTX.test(sent)) return;
+    // "…parted his lips, allowing Dunk's tongue to slip inside": a tongue in a kiss.
+    if (pat.id.startsWith("pushed-in") && /\btongues?\b/i.test(sent.slice(0, m.index! + m[0].length)) && /\b(?:lips|mouths?|kiss\w*)\b/i.test(sent) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent) && !FINGER_CTX.test(sent)) return;
     // A bare "as he sank in" (into a hug, a bath) needs a cock, an ass or fingers somewhere in the paragraph.
     if (pat.id.startsWith("pushed-in") && !/\b(?:thrust|fuck|rut|snap|pound|slam)/i.test(matchText)) {
       if (![pi - 2, pi - 1, pi, pi + 1].some(bodyContext)) return;
     }
     // "opened the car door and slipped inside": a place, not a person.
     if (pat.id.startsWith("pushed-in") && /\b(?:door|car|truck|van|cab|taxi|room|house|building|shop|store|bar|elevator|lift|tent|cabin|Impala|apartment|office|kitchen|bathroom)\b/.test(sent.slice(0, m.index))) return;
+    // "…slipped in just before the doors closed"
+    if (pat.id.startsWith("pushed-in") && /\b(?:doors?|elevator|lift|train|bus|subway|tube|taxi|cab|car)\b/i.test(sent) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent)) return;
     // "He hollowed his cheeks, creating a suction for Cas": the one named after "for" is getting sucked.
     if (pat.id.startsWith("hollowed-cheeks")) {
       const forName = new RegExp(`^[^.;]{0,40}?\\bfor\\s+(${NAMES})\\b`).exec(sent.slice(m.index! + matchText.length));
@@ -984,7 +998,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
     else if (DESIRE.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
-    else if (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window)) kind = "hypothetical";
+    else if (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix)) kind = "hypothetical";
 
     if (kind === "act") {
       if (negated) return;
