@@ -422,7 +422,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.8,
     needsCtx: true,
-    src: `\\b{B}\\s+{aux}(?:was|were|is|got|gets|get|getting|being|been|be)\\s+(?:(?:so|thoroughly|properly|well|roughly|finally|hard|fully|truly|good|completely|absolutely)\\s+)*(?:fucked|railed|pounded|bred|knotted|pegged|penetrated|screwed|impaled|breached|topped|plowed|ploughed|filled|stretched)\\b(?!\\s+(?:up|over|with (?:dread|fear|anger|joy|guilt|regret|warmth|affection|longing|emotion|tension|pride|hope|relief))\\b)(?:\\s+(?:\\w+\\s+){0,4}?by\\s+{T:penis})?`,
+    src: `\\b{B}\\s+{aux}(?:was|were|is|got|gets|get|getting|being|been|be)\\s+(?:(?:so|thoroughly|properly|well|roughly|finally|hard|fully|truly|good|completely|absolutely)\\s+)*(?:fucked|railed|pounded|bred|knotted|pegged|penetrated|screwed|impaled|breached|topped|plowed|ploughed|filled|stretched)\\b(?!\\s+(?:up|over|to the brim)\\b)(?!\\s+(?:up\\s+)?with\\s+(?!(?:[\\w-]+\\s+){0,2}(?:cock|dick|come|cum|seed|knot|fingers?|him|it|lube|length|toy|dildo|plug)\\b))(?:\\s+(?:\\w+\\s+){0,4}?by\\s+{T:penis})?`,
   },
   {
     id: "bottomed-for",
@@ -840,7 +840,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.7,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|thrust|eas|sheath|guid|rock|snap|fuck|press)\\w*\\s+(?:${SELF}\\s+)?(?:(?:back|forward|slowly|carefully|deep|all the way|right|finally|gently)\\s+)*(?:in|inside|home)(?![\\w-])(?!\\s*(?:to|the|a|an|his|her|their|my|your|front|back|line|time|place|close|closer|between|with|for|on|at|of|and then the)\\b)`,
+    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|thrust|eas|sheath|guid|rock|snap|fuck|press)\\w*\\s+(?:${SELF}\\s+)?(?:(?:back|forward|slowly|carefully|deep|all the way|right|finally|gently)\\s+)*(?:in|inside|home)(?![\\w-])(?!\\s*(?:to|the|a|an|his|her|their|my|your|front|back|line|time|place|close|closer|between|with|for|on|at|of|and then the)\\b)(?!\\s+[\\w-]+['’]s\\b)`,
   },
   {
     id: "sank-down",

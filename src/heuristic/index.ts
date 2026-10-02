@@ -507,6 +507,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return ctx.partnerOf(c, g, later) ?? ctx.partnerOf(c, g) ?? c;
   }
 
+  const bodyCtxCache = new Map<number, boolean>();
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
   scan();
   if (ctx.learnFromVotes()) scan();
@@ -740,6 +741,19 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return !around.sexy;
   }
 
+  /** Whether a paragraph mentions a cock, an ass, fingers or other sex-scene context (cached). */
+  function bodyContext(i: number): boolean {
+    if (i < 0 || i >= paras.length) return false;
+    let v = bodyCtxCache.get(i);
+    if (v === undefined) {
+      const p = paras[i];
+      v = PENIS_CTX.test(p) || ANAL_CTX.test(p) || FINGER_CTX.test(p) ||
+        /\b(?:naked|legs\s+(?:apart|wide|open)|spread|thighs|hips|lube\w*|slick\w*|condom)\b/i.test(p);
+      bodyCtxCache.set(i, v);
+    }
+    return v;
+  }
+
   function handleMatch(
     pat: CompiledPattern,
     m: RegExpMatchArray,
@@ -823,6 +837,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "Alex shudders and presses in harder" while kissing: not penetration.
     if (pat.id.startsWith("pushed-in") && /\bkiss/i.test(sent) && !ANAL_CTX.test(sent)) return;
+    // A bare "as he sank in" (into a hug, a bath) needs a cock, an ass or fingers somewhere in the paragraph.
+    if (pat.id.startsWith("pushed-in") && !/\b(?:thrust|fuck|rut|snap|pound|slam)/i.test(matchText)) {
+      if (![pi - 2, pi - 1, pi, pi + 1].some(bodyContext)) return;
+    }
     // "…slipping inch by inch, until Alex finally bottoms": he bottomed out, so he's the top.
     if (pat.id.startsWith("bottomed-for") && !/\bfor\b/.test(matchText) && /\b(?:finally|fully|all the way)\s+bottom/.test(matchText + " " + sent) && /\b(?:inch|slid|slip|push|sank|sink|thrust|sheath|buri|bury|eas)/i.test(sent)) {
       [top, bottom] = [bottom, top];
