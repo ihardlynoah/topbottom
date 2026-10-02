@@ -242,6 +242,9 @@ function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
   }
 }
 
+const GROUP_TAG =
+  /['’]s\s+(?:parents?|father|mother|dad|mom|family|siblings?|brothers?|sisters?|friends?|kids?|children|team|crew|exes?|ex-\w+|relatives?|grandparents?)\b|^(?:original|other|various|assorted)\b[^,]*\b(?:children|kids|characters|people|friends|family)\s+of\b|^(?:the\s+)?[\w' ]+\s+(?:family|household|crew|team|pack)$/i;
+
 export function buildCast(meta: Ao3Meta, narration: string, fullText = narration): Cast {
   // Generic OC tags ("Original Male Character(s)") are slots to fill from the text; named ones are just names.
   const OC_SLOT = "\u0000oc";
@@ -263,7 +266,9 @@ export function buildCast(meta: Ao3Meta, narration: string, fullText = narration
     const names = rel.split(sep).map((n) => n.trim()).filter(Boolean).map(readName);
     if (sep === "/" && names.length >= 2) pairNames.push(names);
   }
-  const charNames = meta.characters.map(readName);
+  // "Eddie Diaz's Parents", "Tommy Kinard's Father", "Original Children of Hen Wilson/Karen Wilson" are groups or
+  // relatives, not characters: left in, they share first names with the real ones and make them ambiguous.
+  const charNames = meta.characters.filter((c) => !GROUP_TAG.test(c)).map(readName);
   let names = [...pairNames.flat(), ...charNames].filter((n) => !n.startsWith(OC_SLOT));
   const guessed = !names.length;
   if (guessed) names = guessNames(fullText);
@@ -283,7 +288,9 @@ export function buildCast(meta: Ao3Meta, narration: string, fullText = narration
   // Fill generic OC slots with the most-mentioned names in the text that aren't canon characters.
   const ocPool: Character[] = [];
   if (generic.length && !guessed) {
-    const known = (n: string) => chars.some((c) => nameParts(n).some((p) => c.aliases.includes(p)) || c.aliases.includes(n));
+    const canonParts = (c: Character) => [...nameParts(c.name), ...(c.name.match(/"([^"]+)"/g) ?? []).map((q) => q.slice(1, -1))];
+    const known = (n: string) =>
+      chars.some((c) => nameParts(n).some((p) => c.aliases.includes(p) || canonParts(c).includes(p)) || c.aliases.includes(n) || canonParts(c).includes(n));
     const count = (n: string) => (fullText.match(new RegExp(`\\b${escapeRe(n.split(" ")[0])}\\b`, "g")) ?? []).length;
     const candidates = guessNames(fullText).filter((n) => !known(n.replace(/\s*"[^"]+"/, "")));
     const wanted = Math.max(

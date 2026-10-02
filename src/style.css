@@ -285,3 +285,16 @@ footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: 
   border: 1px solid var(--border);
   color: var(--muted);
 }
+
+/* Per-person role odds */
+.odds { margin: 10px 0 0; }
+.odds table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 4px; table-layout: fixed; }
+.odds th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.75rem; padding: 2px 6px 4px 0; }
+.odds td { padding: 3px 6px 3px 0; vertical-align: middle; }
+.odds td.who { font-weight: 600; overflow-wrap: anywhere; width: 34%; }
+.odds .cell { display: flex; align-items: center; gap: 6px; }
+.odds .bar { flex: 1; height: 5px; border-radius: 999px; background: var(--border); overflow: hidden; min-width: 28px; }
+.odds .fill { height: 100%; border-radius: 999px; background: var(--muted); }
+.odds .fill.likely { background: var(--ok); }
+.odds .fill.maybe { background: var(--unclear); }
+.odds .pct { font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: right; }

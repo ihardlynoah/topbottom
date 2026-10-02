@@ -5,7 +5,7 @@ import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerp
 import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, VaginalResult } from "./types";
+import type { ActResult, Analysis, Desire, RoleOdds, VaginalResult } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -312,6 +312,42 @@ function renderConfidence(c: ActResult["confidence"]): HTMLElement {
   return box;
 }
 
+/** "By person": how likely each partner is to take each role, in the act's own words. */
+function renderOdds(kind: ActKind, people: RoleOdds[]): HTMLElement {
+  const w = ROLE_WORDS[kind];
+  // Lead with the active role: the one topping, sucking or eating.
+  const cols: { label: string; key: "top" | "bottom" }[] =
+    kind === "anal" ? [{ label: "Tops", key: "top" }, { label: "Bottoms", key: "bottom" }]
+    : kind === "blowjob" ? [{ label: w.bottom, key: "bottom" }, { label: w.top, key: "top" }]
+    : [{ label: w.top, key: "top" }, { label: w.bottom, key: "bottom" }];
+  const box = el("div", "odds");
+  box.append(el("span", "mini-label", "By person"));
+  const table = el("table");
+  const head = el("tr");
+  head.append(el("th", undefined, ""), ...cols.map((c) => el("th", undefined, c.label)));
+  table.append(head);
+  for (const p of people) {
+    const tr = el("tr");
+    tr.append(el("td", "who", p.name));
+    for (const c of cols) {
+      const v = p[c.key];
+      const td = el("td");
+      const cell = el("div", "cell");
+      const bar = el("div", "bar");
+      const fill = el("div", `fill ${v >= 0.75 ? "likely" : v >= 0.4 ? "maybe" : ""}`);
+      fill.style.width = `${Math.round(v * 100)}%`;
+      bar.append(fill);
+      cell.append(bar, el("span", "pct", `${Math.round(v * 100)}%`));
+      td.append(cell);
+      td.title = `${p.name} ${c.key === "top" ? w.topVerb : w.bottomVerb}: ${Math.round(v * 100)}%`;
+      tr.append(td);
+    }
+    table.append(tr);
+  }
+  box.append(table);
+  return box;
+}
+
 function renderAct(kind: ActKind, act: ActResult): HTMLElement {
   const w = ROLE_WORDS[kind];
   const card = el("article", `card act verdict-${act.verdict}`);
@@ -330,6 +366,7 @@ function renderAct(kind: ActKind, act: ActResult): HTMLElement {
   }
   card.append(el("p", "summary", act.summary));
   card.append(renderConfidence(act.confidence));
+  if (act.people?.some((p) => p.top > 0.05 || p.bottom > 0.05)) card.append(renderOdds(kind, act.people));
   if (act.desires.length) card.append(renderDesires(act.desires, kind));
 
   if (act.instances.length) {

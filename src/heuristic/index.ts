@@ -32,7 +32,7 @@ import {
 } from "./patterns";
 import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
-import { ORAL_KINDS, type OralKind, ROLE_WORDS, oralKindOf, roleSummary } from "../roles";
+import { ORAL_KINDS, type OralKind, ROLE_WORDS, type RoleEvidence, oralKindOf, roleOdds, roleSummary } from "../roles";
 import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 
 type Basis = NonNullable<Instance["basis"]>;
@@ -119,7 +119,7 @@ const CHAPTER_RE = /^(?:chapter|ch\.?|part)\s*(\d+|[ivxlc]+|one|two|three|four|f
 
 // ───────────── context markers ─────────────
 
-const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
+const NEG = /\b(?:not|never|no longer|no way|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
 const FANTASY =
   /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
@@ -127,6 +127,8 @@ const DESIRE =
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
 /** "Yeah, maybe Dunk would stop his snide comments and stuff his mouth…": the whole sentence is a what-if. */
 const HYPO_SENT = /^\W*(?:[\w'’]+[,!]\s+)?(?:maybe|perhaps)\b[^.!?]*?\b(?:would|could|might|['’]d)\b/i;
+/** Sentences where "was fucked / screwed" is really about sex (anatomy, how, or sex words). */
+const IDIOM_SAFE = /\b(?:cock|dick|prick|ass|arse|hole|claim\w*|alphas?|omegas?|mate[ds]?|mating|cunt|pussy|clit\w*|vagina|cunny|slick|wet|dripping|womb|heat|rut|bred|breed\w*|inside|thrust\w*|knot\w*|lube[ds]?|prostate|come|cum|bed|mattress|sheets?|moan\w*|gasp\w*|whimper\w*|beg\w*|hard|deep(?:ly)?|slow(?:ly)?|senseless|raw|open|into|against|until|over the|on (?:his|her|their|the)\b|all night|good and proper)\b/i;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
 /** Fantasy markers strong enough to cover the whole rest of the sentence ("the vision he'd clung to, which included…"). */
@@ -482,8 +484,19 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   let turnSpeaker: Character | undefined;
   let turnQuote: Quote | undefined;
 
+  const subjectReG = new RegExp(subjectRe.source, "g");
   const firstEntity = (s: string): Character | undefined => {
-    const m = subjectRe.exec(s);
+    // A possessive name inside a prepositional phrase ("the look on Steve's face made Eddie so hard") isn't the
+    // subject, if an actual name or subject pronoun follows it (not just "his"/"my", which say nothing more).
+    subjectReG.lastIndex = 0;
+    const first = subjectRe.exec(s);
+    let m: RegExpExecArray | null = first;
+    if (first && /['’]s$/.test(first[1]) && /\b(?:on|in|at|of|from|into|to|over|with|across|around|against|onto|under|beneath|behind|beside|near|by|for|through|toward|towards|past)\s+$/i.test(s.slice(0, first.index + first[0].length - first[1].length))) {
+      let next: RegExpExecArray | null;
+      subjectReG.lastIndex = first.index + first[0].length;
+      next = subjectReG.exec(s);
+      if (next && !/^(?:[Hh]is|[Hh]er|[Tt]heir|[Mm]y)$/.test(next[1]) && !/['’]s$/.test(next[1])) m = next;
+    }
     if (!m || m.index > 80) return undefined;
     const tok = stripPoss(m[1]);
     const named = cast.byAlias.get(tok);
@@ -716,6 +729,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     for (const d of DIALOGUE) {
       const m = d.re.exec(lower);
       if (!m) continue;
+      // Suggestive lines ("take it", "you're so tight", "you're huge") only count when the narration around them
+      // is sexual: "please take it" can be a gift, "too proud to take it" help.
+      if (d.weight !== undefined && d.weight < 1 && d.kind === "said" && !around.sexy) continue;
       // "Fuck me, it's cold" / "Well, fuck me" / "fuck me sideways": an exclamation, not a request.
       if (/^fuck me$/.test(m[0]) && exasperated(lower, m.index!, around)) continue;
       // One line can match several phrasings of the same request ("I want you to fuck me").
@@ -861,6 +877,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       return;
     }
     // "cupping his cheeks" while kissing: a face, not an ass.
+    // "Eddie smacked his cheeks to wake himself up": "cheeks" with no ass word needs a sex scene around it.
+    if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum|backside|behind)\b/i.test(matchText) &&
+        ![pi - 2, pi - 1, pi, pi + 1].some((i) => !!paras[i] && (PENIS_CTX.test(paras[i]) || /\b(?:ass|arse|butt|hole|naked|undress\w*|moan\w*|lube\w*|condom|erection|aroused|thrust\w*|kiss\w*|bed)\b/i.test(paras[i])))) return;
+    // "He smacked his cheeks to wake himself up": a pronoun subject and its own possessive (He … his), no ass word.
+    if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum|backside|behind)\b/i.test(matchText) &&
+        (/^\W*(?:He|he)\b.*\bhis\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText) || /^\W*(?:She|she)\b.*\bher\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText) ||
+         /^\W*(?:They|they)\b.*\btheir\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText) || /^\W*I\b.*\bmy\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText))) return;
     if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
         (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose|head|cradl\w*|temples?|chin)\b/i.test(sent))) return;
     // "…until the ridges of Alex's knuckles … each time they slide past his rim": "they" are the fingers.
@@ -888,6 +911,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "…slipped in just before the doors closed"
     if (pat.id.startsWith("pushed-in") && /\b(?:doors?|elevator|lift|train|bus|subway|tube|taxi|cab|car)\b/i.test(sent) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent)) return;
     // "He hollowed his cheeks, creating a suction for Cas": the one named after "for" is getting sucked.
+    // "They were so screwed", "He was fucked": the idiom, unless a person does it ("by Dean"), it says how, or the
+    // sentence has anatomy or a sex word.
+    if (pat.id === "passive-fucked" && /\b(?:fucked|screwed)\b/i.test(matchText) && !/\bby\b/.test(matchText) && !IDIOM_SAFE.test(sent)) return;
+    // "mimicking the way Steve had hollowed his cheeks" (smoking), "the straw", "a drag": cheeks hollowed for something else.
+    if (pat.id.startsWith("hollowed-cheeks") && /\b(?:cigarettes?|smok\w*|vap\w*|drag|puff\w*|inhal\w*|exhal\w*|joint|blunt|pipe|straw|whistl\w*|fish face|kiss\w*|pout\w*|smoke)\b/i.test(para + " " + (paras[pi - 1] ?? "") + " " + (paras[pi + 1] ?? ""))) return;
+    // "sucked him into the drain", "sucking Steve back into reality": not a mouth.
+    if (/^sucked/.test(pat.id) && /^\s*(?:back\s+)?(?:into|out of|under|down the)\s+(?!(?:his|her|their|my|your)\s+(?:mouth|throat|lips)\b)/i.test(sent.slice(m.index! + m[0].length))) return;
+    // "(the shower) was about to open up and suck him into the drain" (the match ends at "him"; the tail is a place)
     if (pat.id.startsWith("hollowed-cheeks")) {
       const forName = new RegExp(`^[^.;]{0,40}?\\bfor\\s+(${NAMES})\\b`).exec(sent.slice(m.index! + matchText.length));
       const named = forName ? cast.byAlias.get(forName[1]) : undefined;
@@ -1002,6 +1033,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
     if (kind === "act") {
       if (negated) return;
+      // The newer oral patterns overlap each other and the older ones ("wraps his lips around Alex, a tap of his tongue
+      // around the head"): they add to a sentence's evidence only once.
+      const dup = pat.dedupe ? acts.find((a) => a.para === pi && a.sentence === original && a.cat === cat && a.top === top && a.bottom === bottom) : undefined;
+      if (dup) {
+        if (weight > dup.weight) { dup.weight = weight; dup.basis = basis; }
+        ctx.setPartners(cat, top, bottom);
+        ctx.lastSubject = pat.subj === "t" ? top : bottom;
+        return;
+      }
       acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original, holeGuess });
       ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;
@@ -1257,9 +1297,16 @@ function buildAct(
       dirs.set(k, [...(dirs.get(k) ?? []), h]);
     }
     const total = scene.hits.reduce((n, h) => n + h.weight, 0);
+    // For the stray-hit test each sentence counts once, however many patterns read it.
+    const once = (hs: ActHit[]) => {
+      const best = new Map<string, number>();
+      for (const h of hs) best.set(h.sentence, Math.max(best.get(h.sentence) ?? 0, h.weight));
+      return [...best.values()].reduce((n, x) => n + x, 0);
+    };
+    const totalOnce = once(scene.hits);
     for (const [, hs] of dirs) {
       const w = hs.reduce((n, h) => n + h.weight, 0);
-      if (w < Math.max(0.2, total * 0.3)) continue; // a stray hit against the scene's majority
+      if (once(hs) < Math.max(0.2, totalOnce * 0.3)) continue; // a stray hit against the scene's majority
       const best = [...hs].sort((a, b) => b.weight - a.weight || (a.basis === "named" ? -1 : 1))[0];
       const acts = [...new Set(hs.map((h) => h.act))];
       instances.push({
@@ -1447,5 +1494,41 @@ function buildAct(
 
   const score = Math.max(0.05, Math.min(0.97, base + (verdict === "none" ? 0 : tagAdj + desAdj)));
   const confidence: Confidence = { score, label: confidenceLabel(score), reasons };
-  return { verdict, top, bottom, summary, instances, desires: desireOut, confidence };
+
+  // ── per-person odds ──
+  const ev: RoleEvidence[] = [];
+  const doubt: RoleEvidence[] = [];
+  for (const e of sceneTops.values()) {
+    // Scenes worked out only from pronouns count for less.
+    const w = e.weight * (e.strong ? 1 : 0.75);
+    ev.push({ who: e.char.name, role: "top", weight: w, kind: "scene" }, { who: e.partner.name, role: "bottom", weight: w, kind: "scene" });
+  }
+  for (const d of sig) {
+    const t = desireTop(d);
+    const b = t && otherOf(t);
+    if (!t || !b) continue;
+    ev.push({ who: t, role: "top", weight: 0.15 * d.weight, kind: "hint" }, { who: b, role: "bottom", weight: 0.15 * d.weight, kind: "hint" });
+  }
+  if (roleTagsApply) {
+    // Tags alone reach about 60%; "Top X" also says a little about the partner.
+    const tagged = (who: string, role: Role) =>
+      tags.roles.some((r) => r.char.name === who && (r.role === role || r.role === "switch")) ||
+      tags.roles.some((r) => r.char.name !== who && r.role === (role === "top" ? "bottom" : "top"));
+    for (const r of tags.roles) {
+      const other = otherOf(r.char.name);
+      if (r.role === "switch") {
+        for (const role of ["top", "bottom"] as const) ev.push({ who: r.char.name, role, weight: 0.35, kind: "tag" });
+        continue;
+      }
+      const opp = r.role === "top" ? "bottom" : "top";
+      ev.push({ who: r.char.name, role: r.role, weight: 0.35, kind: "tag" });
+      if (other) ev.push({ who: other, role: opp, weight: 0.25, kind: "tag" });
+      // Unless the tags also give them the other role ("Top Castiel", "Top Dean" → they switch).
+      if (!tagSwitch && !tagged(r.char.name, opp)) doubt.push({ who: r.char.name, role: opp, weight: 0.3, kind: "tag" });
+      if (!tagSwitch && other && !tagged(other, r.role)) doubt.push({ who: other, role: r.role, weight: 0.3, kind: "tag" });
+    }
+    if (tags.switching.length) for (const c of pair) for (const role of ["top", "bottom"] as const) ev.push({ who: c.name, role, weight: 0.25, kind: "tag" });
+  }
+  const people = roleOdds(pair.map((c) => c.name), ev, doubt);
+  return { verdict, top, bottom, summary, instances, desires: desireOut, confidence, people };
 }
