@@ -54,6 +54,7 @@ export function escapeRe(s: string): string {
 function cleanTagName(tag: string): string {
   return tag
     .replace(/\([^)]*\)/g, "")
+    .replace(/\s+-\s+(?:Relationship|Character)s?\b/i, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -243,8 +244,6 @@ function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
   const sentences = narration.split(/(?<=[.!?])\s+/);
   for (const c of chars) {
     if (c.name === "Reader") continue;
-    if (allMale) { c.gender = "m"; continue; }
-    if (allFemale) { c.gender = "f"; continue; }
     // Votes: "X did something. He/She ..." (subject continuity) and reflexives in X's sentences.
     // Object pronouns ("X smiled at her") usually mean the *other* person, so they're ignored.
     let he = 0;
@@ -267,6 +266,8 @@ function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
     if (/^(?:Mrs|Ms|Miss|Lady|Queen|Princess|Mother|Sister|Aunt)\b/.test(c.name)) she += 5;
     if (he >= 2 && he > she * 2) c.gender = "m";
     else if (she >= 2 && she > he * 2) c.gender = "f";
+    // Nothing known and nothing clear in the text: the work's category (M/M, F/F) is the best guess.
+    if (c.gender === "u") c.gender = allMale ? "m" : allFemale ? "f" : "u";
   }
 }
 
