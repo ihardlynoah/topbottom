@@ -63,13 +63,31 @@ describe("who does what", () => {
 });
 
 describe("women in an M/M work", () => {
-  it("keeps canon women female, so a woman riding is vaginal", () => {
-    const a = analyzeWithPatterns(`${filler}\n\nEddie and Shannon were in bed, naked, and Shannon kissed Eddie. Shannon rode him, and he braced his feet to thrust up into her.`, {
-      ...meta,
-      relationships: ["Eddie Diaz/Shannon Diaz"],
-    }, { quiet: true });
-    const p = a.pairings.find((x) => /Shannon/.test(x.pairing))!;
+  const rel = { ...meta, relationships: ["Eddie Diaz/Shannon Diaz"] };
+  const one = `${filler}\n\nEddie and Shannon were in bed, naked, and Shannon kissed Eddie. Shannon rode him, and he braced his feet to thrust up into her.`;
+  const clear = `${filler}\n\nEddie and Shannon were in bed, naked. Eddie slid into Shannon and fucked her slowly. Later, Eddie pushed into Shannon again.`;
+  const shannon = (m: Ao3Meta, t: string) => analyzeWithPatterns(t, m, { quiet: true }).pairings.find((x) => /Shannon/.test(x.pairing));
+  it("drops a single pronoun-only reading that involves a woman when the work is tagged only M/M", () => {
+    const p = shannon(rel, one);
+    expect(!p || (p.anal.instances.length === 0 && p.vaginal.instances.length === 0)).toBe(true);
+  });
+  it("keeps a clear scene with a woman (both named, or seen more than once) as vaginal", () => {
+    const p = shannon(rel, clear)!;
     expect(p.anal.instances).toHaveLength(0);
     expect(p.vaginal.instances.length).toBeGreaterThan(0);
+  });
+  it("keeps the single reading too once another category (F/M) removes the presumption", () => {
+    const p = shannon({ ...rel, categories: ["M/M", "F/M"] }, one)!;
+    expect(p.anal.instances).toHaveLength(0);
+    expect(p.vaginal.instances.length).toBeGreaterThan(0);
+  });
+});
+
+describe("women-only works", () => {
+  const ff: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["F/F"], fandoms: ["9-1-1 (TV)"], relationships: ["Maddie Buckley/Athena Grant"], characters: ["Maddie Buckley", "Athena Grant", "Bobby Nash"] };
+  it("keeps a clear scene with a man in an F/F work (both named)", () => {
+    const t = `${filler}\n\nMaddie and Athena were in bed. Maddie licked Athena's pussy until she came. Bobby Nash slid his cock into Athena’s pussy and fucked her.`;
+    const a = analyzeWithPatterns(t, ff, { quiet: true });
+    expect(a.pairings.some((p) => /Bobby/.test(p.pairing) && p.vaginal.instances.length > 0)).toBe(true);
   });
 });
