@@ -294,8 +294,11 @@ class Ctx {
     );
   }
 
+  /** Whose "I" this stretch is, when sections are headed by the narrator's name ("Scott - Saturday, September 6, 2014"). */
+  narratorNow: Character | undefined;
+
   fixed(kind: "I" | "you"): Character | undefined {
-    return kind === "I" ? this.cast.narrator : this.cast.secondPerson;
+    return kind === "I" ? (this.narratorNow ?? this.cast.narrator) : this.cast.secondPerson;
   }
 }
 
@@ -500,7 +503,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     subjectReG.lastIndex = 0;
     const first = subjectRe.exec(s);
     let m: RegExpExecArray | null = first;
-    if (first && /['’]s$/.test(first[1]) && /\b(?:on|in|at|of|from|into|to|over|with|across|around|against|onto|under|beneath|behind|beside|near|by|for|through|toward|towards|past)\s+$/i.test(s.slice(0, first.index + first[0].length - first[1].length))) {
+    if (first && (/['’]s$/.test(first[1]) || /^(?:[Hh]is|[Hh]er|[Tt]heir|[Mm]y)$/.test(first[1])) && /\b(?:on|in|at|of|from|into|to|over|with|across|around|against|onto|under|beneath|behind|beside|near|by|for|through|toward|towards|past)\s+$/i.test(s.slice(0, first.index + first[0].length - first[1].length))) {
       let next: RegExpExecArray | null;
       subjectReG.lastIndex = first.index + first[0].length;
       next = subjectReG.exec(s);
@@ -554,6 +557,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   chapters = [];
   chapter = "";
   prevSpeaker = undefined;
+  ctx.narratorNow = undefined;
   ambiguousHoles = 0;
   holeVotes.clear();
   ctx.partners.clear();
@@ -566,6 +570,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       chapter = para.length > 60 ? para.slice(0, 60) + "…" : para;
     }
     chapters[pi] = chapter;
+    // Alternating first person: a short heading that is just a character's name (and a date) says whose "I" follows.
+    if (cast.narrator && para.length <= 80) {
+      const head = new RegExp(`^\\s*(${NAMES})(?:\\s*[-–—:]\\s*[^.!?“”"]{0,60})?\\s*$`).exec(para);
+      const who = head ? cast.byAlias.get(head[1]) : undefined;
+      if (who) ctx.narratorNow = who;
+    }
     // Turn-taking: '"Cock," he says, his slippery fingers…' answers the last speaker, and the narration
     // that follows is about the one who answered.
     turnSpeaker = undefined;
@@ -663,6 +673,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const other = subj && ctx.partnerOf(subj);
       if (other) return other;
     }
+    // "Dean arches underneath Cas' tongue as he swallows him down, humming around his length while his fingers slip inside
+    // him": the "he" is the one whose tongue it is, for the rest of the sentence.
+    const underLong = new RegExp(`\\b(?:under|underneath|beneath)\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:tongue|mouth|lips|hands?|fingers|touch|ministrations|weight|body|attention)\\s*,?\\s*(?:as|while|when)\\s+(?:he|she)\\b([^.!?]*)$`).exec(prefix);
+    if (underLong && !new RegExp(`\\b(?:${NAMES})\\b`).test(underLong[2])) return cast.byAlias.get(underLong[1]);
     // "…as Dunk's hands kneaded his arse as he pressed his tongue…": the hands' owner carries on as "he".
     const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+[^,;—]*?\\b(?:as|while|when)\\s*$`).exec(prefix);
     if (handsOf) return cast.byAlias.get(handsOf[1]);
@@ -957,6 +971,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "scoots forwards, pushing his knees apart" before a blowjob: getting between someone's knees to kneel and suck.
     // "gently works his mouth open … as he licks into Buck": a kiss.
     if (pat.id.startsWith("licked-into") && !/\b(?:ass|arse|hole|rim|crack|cheeks|entrance|pucker)\b/i.test(matchText) && /\b(?:mouth|lips|kiss\w*)\b/i.test(para)) return;
+    // "had his face in his ass and started licking": the object left out is the ass just named.
+    if (pat.id.startsWith("began-to-suck") && /\b(?:ass|arse|asshole|hole|rim|cheeks|crack)\b/i.test(sent.slice(0, m.index!)) && !PENIS_CTX.test(sent)) return;
     // "spreads his legs to wipe them": he is cleaning someone, not offering himself.
     if (/^spread-(?:their-)?legs/.test(pat.id) && /^\s*(?:and\s+)?to\s+(?:wipe|clean|dry|wash|towel|inspect|examine|check|look|see)\b/i.test(after)) return;
     if (pat.id.startsWith("spread-their-legs") && [pi - 1, pi, pi + 1].some((i) => !!paras[i] && /\b(?:kneel\w*|drops? to his knees|mouth|lick\w*|nuzzl\w*|suck\w*|tongue)\b/i.test(paras[i]) && !/\b(?:hole|lube[ds]?|ass\b|arse|fingers?|prostate)\b/i.test(paras[i]))) return;
@@ -1159,7 +1175,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "just not yet, not before he bottomed out" delays an act and "it didn't take long for Dean to cum" is an idiom:
     // neither says the act doesn't happen.
     const negWindow = window.slice(-40).replace(/\bwithout\s+(?:any\s+|much\s+|further\s+|more\s+|so much as\s+|a\s+)*(?:preamble|ado|hesitation|hesitating|warning|ceremony|delay|word|sound|protest|pause|question|complaint|fanfare|prelude|resistance|effort|being asked|asking|waiting|thought)\b|\b(?:just\s+)?not\s+(?:just\s+)?(?:yet|before|until|quite|now)\b|\b(?:did|does|do|would|will|won|could)(?:n['’]t| not)\s+take\s+(?:long|much|any time|a lot)\b/gi, " ");
-    const negated = NEG.test(aux) || NEG.test(negWindow);
+    // "if Cas doesn't fuck him soon, he might die": a conditional, which says it is wanted, not refused.
+    const ifNot = /\bif\s+(?:[\w'’-]+\s+){0,2}(?:doesn['’]t|don['’]t|didn['’]t|won['’]t|hadn['’]t|isn['’]t|wasn['’]t)\s*$/i.test(window) || (/\bif\s+(?:[\w'’-]+\s+){0,2}$/i.test(window) && NEG.test(aux));
+    const negated = !ifNot && (NEG.test(aux) || NEG.test(negWindow));
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
     else if (DESIRE_LEAD.test(sent) || DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
