@@ -1152,7 +1152,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       } else if (hole === "ambiguous" && !holeGuess) {
         ambiguousHoles++;
         return;
-      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|plug|vibrator|vibe|beads|wand)\b/i.test(para)) {
+      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|butt ?plug|vibrator|anal beads)\b/i.test(para)) {
         // A woman "fucking" someone with no strap-on mentioned: not anal penetration by her.
         return;
       }
@@ -1259,7 +1259,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     if (wordsOnly) return "ambiguous";
     // A woman with no penis "fucking" someone without a strap-on: it's her vagina involved.
-    if (top.penis === false && top.vulva === true && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|plug|vibrator|vibe|beads|wand)\b/i.test(para)) return "vaginal";
+    if (top.penis === false && top.vulva === true && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|butt ?plug|vibrator|anal beads)\b/i.test(para)) return "vaginal";
     const v = VULVA_CTX.test(para);
     const a = ANAL_CTX.test(para);
     if (bottom.vulva === false) return "anal";
