@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { hasAo3Meta, romanticPairings } from "./ao3";
 import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerptExplicit } from "./analyze";
 import { type ExtractedWork, extractFile } from "./extract";
-import { analyzeWithPatterns } from "./heuristic";
+import { runPatterns } from "./heuristic/run";
 import type { ActResult, Analysis, Desire, VaginalResult } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -154,18 +154,17 @@ async function handleFile(file: File) {
     return;
   }
   renderMeta(current, file.name);
-  // Let the page paint the metadata before the (synchronous) pattern pass.
+  // Pattern analysis runs in a background worker; long explicit fics can take a few seconds.
   const work = current;
-  setTimeout(() => {
-    if (current !== work) return;
-    try {
-      const result = analyzeWithPatterns(work.text, work.meta);
+  runPatterns(work.text, work.meta)
+    .then((result) => {
+      if (current !== work) return;
       renderAnalysis(result, els.roleResults, els.notes);
       fillMetaFromAnalysis(result);
-    } catch (err) {
-      showError(`Pattern analysis failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, 0);
+    })
+    .catch((err) => {
+      if (current === work) showError(`Pattern analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
   if (els.autoRun.checked && els.apiKey.value.trim()) void runAnalysis();
 }
 
@@ -205,7 +204,9 @@ function renderMeta(work: ExtractedWork, filename: string) {
 
   if (!hasAo3Meta(meta)) els.otherPairings.textContent = "No AO3 tags in this file.";
 
-  els.roleResults.replaceChildren(el("p", "hint", "Reading…"));
+  const reading = el("p", "hint");
+  reading.append(el("span", "spinner"), "Reading the fic…");
+  els.roleResults.replaceChildren(reading);
   els.notes.hidden = true;
   els.claudeResults.replaceChildren();
   els.claudeNotes.hidden = true;
@@ -262,7 +263,7 @@ const ROLE_VERB: Record<Desire["role"], [string, string]> = { top: ["top", "topp
 /** "Harry wants to bottom", "Draco imagines topping", "Harry doesn't want to top". */
 function desirePhrase(d: Pick<Desire, "who" | "role" | "wants" | "kind" | "act">): string {
   const [verb, ing] = ROLE_VERB[d.role];
-  if (d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering") return `${d.who}: ${d.act} (hints ${verb})`;
+  if (d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep") return `${d.who}: ${d.act} (hints ${verb})`;
   if (!d.wants) return `${d.who} doesn't want to ${verb}`;
   switch (d.kind) {
     case "said": return `${d.who} asks to ${verb}`;
