@@ -298,3 +298,17 @@ footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: 
 .odds .fill.likely { background: var(--ok); }
 .odds .fill.maybe { background: var(--unclear); }
 .odds .pct { font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: right; }
+
+/* Vibe rating */
+.vibe { margin: 0 0 16px; }
+.vibe-title { margin: 0 0 8px; font-size: 0.9rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.vibe-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.vibe-card { padding: 12px 14px; }
+.vibe-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.vibe-name { overflow-wrap: anywhere; }
+.vibe-label { font-weight: 700; font-size: 0.95rem; }
+.vibe-scale { position: relative; height: 8px; border-radius: 4px; margin: 10px 0 2px; background: linear-gradient(90deg, #7c6bd6, #b9b4c9 50%, #d6866b); }
+.vibe-marker { position: absolute; top: -4px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px; background: var(--text); box-shadow: 0 0 0 2px var(--surface); }
+.vibe-ends { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); }
+.vibe-conf { margin: 8px 0 4px; font-size: 0.85rem; }
+.vibe-basis { margin: 4px 0 0; padding-left: 18px; font-size: 0.8rem; color: var(--muted); }

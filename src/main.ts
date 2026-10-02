@@ -5,7 +5,7 @@ import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerp
 import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, RoleOdds, VaginalResult } from "./types";
+import type { ActResult, Analysis, Desire, RoleOdds, VaginalResult, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -409,12 +409,44 @@ function renderVaginal(v: VaginalResult): HTMLElement {
   return card;
 }
 
+/** Overall vibe per partner: a five-step scale from total top to total bottom, with confidence and what it rests on. */
+function renderVibe(vibe: VibeRating[]): HTMLElement {
+  const box = el("section", "vibe");
+  box.append(el("h5", "vibe-title", "Vibe"));
+  const row = el("div", "vibe-row");
+  for (const v of vibe) {
+    const card = el("article", `card vibe-card vibe-${v.label.toLowerCase().replace(/\s+/g, "-")}`);
+    const head = el("div", "vibe-head");
+    head.append(el("strong", "vibe-name", v.name), el("span", "vibe-label", v.label));
+    card.append(head);
+    if (v.label !== "Unclear") {
+      const scale = el("div", "vibe-scale");
+      const marker = el("span", "vibe-marker");
+      marker.style.left = `${Math.round(((v.score + 1) / 2) * 100)}%`;
+      scale.append(marker);
+      const ends = el("div", "vibe-ends");
+      ends.append(el("span", undefined, "Total bottom"), el("span", undefined, "Vers"), el("span", undefined, "Total top"));
+      card.append(scale, ends);
+    }
+    card.append(el("p", "vibe-conf", `Confidence: ${v.confidence.label} · ${Math.round(v.confidence.score * 100)}%`));
+    if (v.basis.length) {
+      const ul = el("ul", "vibe-basis");
+      for (const b of v.basis) ul.append(el("li", undefined, b));
+      card.append(ul);
+    } else card.append(el("p", "hint", "No evidence either way."));
+    row.append(card);
+  }
+  box.append(row);
+  return box;
+}
+
 function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) {
   target.replaceChildren();
   if (!a.pairings.length) target.append(el("p", "hint", "Couldn't identify the characters in this work."));
   for (const p of a.pairings) {
     const block = el("div", "pairing-block");
     if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
+    if (p.vibe?.length) block.append(renderVibe(p.vibe));
     const grid = el("div", "grid two");
     grid.append(renderAct("anal", p.anal), renderAct("blowjob", p.blowjob), renderAct("rimming", p.rimming));
     if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus));
