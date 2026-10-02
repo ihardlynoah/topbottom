@@ -175,8 +175,11 @@ export interface RoleEvidence {
   who: string;
   role: Role;
   weight: number;
-  /** Scenes are seen on the page; hints and tags only point (hints alone are capped at about 45%). */
-  kind: "scene" | "hint" | "tag";
+  /**
+   * Scenes are seen on the page. Everything else only points: behaviour ("hint": ogling, touching, lead-up),
+   * what someone says they want or have done ("desire"), and AO3 role tags ("tag").
+   */
+  kind: "scene" | "hint" | "desire" | "tag";
 }
 
 /**
@@ -193,13 +196,19 @@ export function roleOdds(names: string[], evidence: RoleEvidence[], doubt: RoleE
     const seen = sum(who, role, "scene");
     const opposite = sum(who, role === "top" ? "bottom" : "top", "scene");
     // One shaky scene against many the other way is more likely a misread than a switch.
-    const e = (seen ? (seen * seen) / (seen + 0.5 * opposite) : 0) + Math.min(0.35, sum(who, role, "hint")) + sum(who, role, "tag");
+    // Without a scene, behaviour tops out near 40% and plain statements of wanting or past experience near 60%;
+    // together they can reach about 70%.
+    const pointing = Math.min(0.7, Math.min(0.35, sum(who, role, "hint")) + Math.min(0.55, sum(who, role, "desire")));
+    const e = (seen ? (seen * seen) / (seen + 0.5 * opposite) : 0) + pointing + sum(who, role, "tag");
     let p = 1 - Math.exp(-e / 0.6);
     for (const d of doubt) if (d.who === who && d.role === role) p *= 1 - d.weight * Math.exp(-seen);
     return Math.round(Math.max(0.02, Math.min(0.97, p)) * 100) / 100;
   };
   return names.map((name) => ({ name, top: score(name, "top"), bottom: score(name, "bottom") }));
 }
+
+/** Hint kinds that are behaviour rather than something said or done. */
+const BEHAVIOUR = new Set<Desire["kind"]>(["ogling", "touch", "fingering", "prep", "fingers", "solo"]);
 
 /** Evidence from a finished result (for Claude's answers): each scene counts fully, each hint a little. */
 export function oddsFromResult(act: Pick<ActResult, "instances" | "desires">, names: string[]): RoleOdds[] {
@@ -211,9 +220,11 @@ export function oddsFromResult(act: Pick<ActResult, "instances" | "desires">, na
   }
   for (const d of act.desires) {
     const role: Role = d.wants ? d.role : d.role === "top" ? "bottom" : "top";
-    ev.push({ who: d.who, role, weight: 0.15, kind: "hint" });
+    const kind = BEHAVIOUR.has(d.kind) ? "hint" : "desire";
+    const w = kind === "hint" ? 0.15 : 0.2;
+    ev.push({ who: d.who, role, weight: w, kind });
     const other = names.find((n) => n !== d.who);
-    if (other) ev.push({ who: other, role: role === "top" ? "bottom" : "top", weight: 0.1, kind: "hint" });
+    if (other) ev.push({ who: other, role: role === "top" ? "bottom" : "top", weight: w * 0.7, kind });
   }
   return roleOdds(names, ev);
 }
