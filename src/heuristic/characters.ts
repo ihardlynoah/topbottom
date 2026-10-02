@@ -14,6 +14,8 @@ export interface Character {
   vulva: Anatomy;
   /** Has a penis. Men by default; women when the text says so (trans women, futa). */
   penis: Anatomy;
+  /** An original character (not from the source canon), named from the text or an OC tag. */
+  original?: boolean;
 }
 
 export interface Cast {
@@ -39,7 +41,7 @@ const TITLE_WORDS = new Set(
 
 /** Names that are also ordinary words; only safe because matching is case-sensitive. */
 const NOT_NAMES = new Set(
-  "I I'm I'd I'll I've A An The He She They It We You His Her Their My Your Our This That There Then When What Where Why How Who Oh Ah God Christ Jesus Fuck Yes No Not But And Or So If Just Okay OK Ok Well Now Still Even Maybe Please Thank Thanks Sorry Hey Hi Hello Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December English French Chapter Mr Mrs Ms Dr Sir Lord Lady TV Christmas Halloween Mum Mom Dad Mama Papa Uncle Aunt Grandma Grandpa Instead Later Before After Once Twice Something Nothing Everything Anything Someone Everyone Nobody Neither Either Both Every Each Some Any Too Also Because While Since Until Though Although Yeah Yep Nope Shit Damn Hell Wait Look Listen Come Go Stop Don't Can't Won't Didn't Wasn't Isn't It's That's There's He's She's They're We're You're Let's Alpha Alphas Omega Omegas Beta Betas Sir Ma'am Mister Alright Yeah Hey Wow Dude Man Babe Baby Sweetheart Honey Darling Christ Lord Heaven Hell Jesus Mary Angel".split(
+  "I I'm I'd I'll I've A An The He She They It We You His Her Their My Your Our This That There Then When What Where Why How Who Oh Ah God Christ Jesus Fuck Yes No Not But And Or So If Just Okay OK Ok Well Now Still Even Maybe Please Thank Thanks Sorry Hey Hi Hello Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December English French Chapter Mr Mrs Ms Dr Sir Lord Lady TV Christmas Halloween Mum Mom Dad Mama Papa Uncle Aunt Grandma Grandpa Instead Later Before After Once Twice Something Nothing Everything Anything Someone Everyone Nobody Neither Either Both Every Each Some Any Too Also Because While Since Until Though Although Yeah Yep Nope Shit Damn Hell Wait Look Listen Come Go Stop Don't Can't Won't Didn't Wasn't Isn't It's That's There's He's She's They're We're You're Let's Alpha Alphas Omega Omegas Beta Betas Sir Ma'am Mister Alright Yeah Hey Wow Dude Man Babe Baby Sweetheart Honey Darling Christ Lord Heaven Hell Jesus Mary Angel Hmm Hmmm Mmm Mm Um Uh Ugh Huh Gods Seven Ser Delta Gamma Kappa Sigma Theta Phi Psi Chi Epsilon Zeta Lambda Tau Rho Iota Upsilon Omicron".split(
     " ",
   ),
 );
@@ -57,6 +59,44 @@ function cleanTagName(tag: string): string {
 
 function isReaderTag(name: string): boolean {
   return /^(reader|you|y\/n|original reader character)$/i.test(name);
+}
+
+export interface OcTag {
+  /** The OC's name, when the tag gives one ("Kyle (Original Character)", "Original Male Character - Kyle"). */
+  name?: string;
+  gender: Gender;
+  /** "Original Male Character(s)": possibly more than one. */
+  plural: boolean;
+}
+
+const OC_WORDS = /^original\s+(?:(male|female|non-?binary|nb|trans(?:gender)?\s+(?:male|female)|man|woman)\s+)?(?:characters?|char)\b/i;
+const OC_ABBR = /^O([MF])?Cs?\b/;
+
+/** Recognize AO3's original-character tags; undefined for anything else. */
+export function parseOc(raw: string): OcTag | undefined {
+  const tag = raw.trim();
+  if (isReaderTag(cleanTagName(tag)) || /reader/i.test(tag)) return undefined;
+  const plural = /\(s\)|characters\b|\bO[MF]?Cs\b/i.test(tag);
+  const genderOf = (w?: string): Gender => {
+    const x = (w ?? "").toLowerCase();
+    if (/^(?:trans(?:gender)?\s+)?(?:male|man|m)$/.test(x)) return "m";
+    if (/^(?:trans(?:gender)?\s+)?(?:female|woman|f)$/.test(x)) return "f";
+    return "u";
+  };
+  // "Kyle (Original Character)", "Mira (OFC)"
+  for (const m of tag.matchAll(/\(([^)]*)\)/g)) {
+    const inner = m[1].trim();
+    const w = OC_WORDS.exec(inner) ?? OC_ABBR.exec(inner);
+    const base = cleanTagName(tag);
+    if (w && base && !OC_WORDS.test(base) && !OC_ABBR.test(base)) return { name: base, gender: genderOf(w[1]), plural: false };
+  }
+  const base = tag.replace(/\(s\)/gi, "").replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  const m = OC_WORDS.exec(base) ?? OC_ABBR.exec(base);
+  if (!m) return undefined;
+  // "Original Male Character - Kyle", "OMC: Kyle", "Original Character Kyle"
+  const rest = base.slice(m[0].length).replace(/^s?\s*(?:[-–—:|,]\s*)?/, "").trim();
+  const name = /^\p{Lu}/u.test(rest) && !/^(?:Characters?|Work)$/i.test(rest) ? rest : undefined;
+  return { name, gender: genderOf(m[1]), plural: plural && !name };
 }
 
 function nameParts(name: string): string[] {
@@ -112,6 +152,8 @@ export function guessNames(text: string): string[] {
   const lower = new Map<string, number>();
   for (const m of text.matchAll(/\b([\p{L}][\p{L}'’-]{1,20})\b/gu)) {
     const w = m[1].replace(/['’]s$/, "");
+    // "We’ll", "Don’t": contractions aren't names.
+    if (/['’](?:ll|re|ve|d|m|t)$/i.test(w)) continue;
     if (/^\p{Lu}\p{Ll}/u.test(w)) caps.set(w, (caps.get(w) ?? 0) + 1);
     else if (/^\p{Ll}/u.test(w)) lower.set(w, (lower.get(w) ?? 0) + 1);
   }
@@ -127,6 +169,13 @@ export function guessNames(text: string): string[] {
     .slice(0, 10)
     .map(([w]) => w);
 
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const apart = (a: string, b: string) => {
+    const ra = new RegExp(`\\b${escapeRe(a)}\\b`);
+    const rb = new RegExp(`\\b${escapeRe(b)}\\b`);
+    const pair = new RegExp(`\\b${escapeRe(a)}\\s+${escapeRe(b)}\\b`, "g");
+    return sentences.filter((x) => ra.test(x.replace(pair, "")) && rb.test(x.replace(pair, ""))).length;
+  };
   // "Dean Winchester": a candidate that mostly follows another one is that character's surname.
   const surnameOf = new Map<string, string>();
   for (const a of candidates) {
@@ -134,6 +183,9 @@ export function guessNames(text: string): string[] {
       if (a === b) continue;
       const together = (text.match(new RegExp(`\\b${escapeRe(a)}\\s+${escapeRe(b)}\\b`, "g")) ?? []).length;
       if (together >= 2 && together >= (caps.get(b) ?? 0) * 0.4) surnameOf.set(b, a);
+      // "Draco Malfoy" once, then "Draco" in one POV and "Malfoy" in the other: two names that sit together
+      // but almost never share a sentence otherwise are one person.
+      else if (together >= 1 && !surnameOf.has(b) && apart(a, b) <= Math.max(1, together)) surnameOf.set(b, a);
     }
   }
   // "Cas" for "Castiel": a short candidate that starts another, longer one is its nickname.
@@ -187,19 +239,66 @@ function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
   }
 }
 
-export function buildCast(meta: Ao3Meta, narration: string): Cast {
+export function buildCast(meta: Ao3Meta, narration: string, fullText = narration): Cast {
+  // Generic OC tags ("Original Male Character(s)") are slots to fill from the text; named ones are just names.
+  const OC_SLOT = "\u0000oc";
+  const generic: OcTag[] = [];
+  const namedOcs = new Map<string, Gender>();
+  const readName = (raw: string): string => {
+    const oc = parseOc(raw);
+    if (!oc) return cleanTagName(raw);
+    if (oc.name) {
+      namedOcs.set(oc.name.toLowerCase(), oc.gender);
+      return oc.name;
+    }
+    generic.push(oc);
+    return `${OC_SLOT}${generic.length - 1}`;
+  };
   const pairNames: string[][] = [];
   for (const rel of meta.relationships) {
     const sep = rel.includes("/") ? "/" : "&";
-    const names = rel.split(sep).map(cleanTagName).filter(Boolean);
+    const names = rel.split(sep).map((n) => n.trim()).filter(Boolean).map(readName);
     if (sep === "/" && names.length >= 2) pairNames.push(names);
   }
-  let names = [...pairNames.flat(), ...meta.characters];
+  const charNames = meta.characters.map(readName);
+  let names = [...pairNames.flat(), ...charNames].filter((n) => !n.startsWith(OC_SLOT));
   const guessed = !names.length;
-  if (guessed) names = guessNames(narration);
+  if (guessed) names = guessNames(fullText);
   const chars = makeChars(names);
   // Guessed names carry their nickname in quotes for alias building; show them without it.
   if (guessed) for (const c of chars) c.name = c.name.replace(/\s*"[^"]+"/, "");
+  for (const c of chars) {
+    const g = namedOcs.get(c.name.toLowerCase());
+    if (g !== undefined) {
+      c.original = true;
+      if (g !== "u") c.gender = g;
+    }
+  }
+  const originalWork = meta.fandoms.some((f) => /^original work$/i.test(f.trim()));
+  if (guessed && (generic.length || originalWork)) for (const c of chars) c.original = true;
+
+  // Fill generic OC slots with the most-mentioned names in the text that aren't canon characters.
+  const ocPool: Character[] = [];
+  if (generic.length && !guessed) {
+    const known = (n: string) => chars.some((c) => nameParts(n).some((p) => c.aliases.includes(p)) || c.aliases.includes(n));
+    const count = (n: string) => (fullText.match(new RegExp(`\\b${escapeRe(n.split(" ")[0])}\\b`, "g")) ?? []).length;
+    const candidates = guessNames(fullText).filter((n) => !known(n.replace(/\s*"[^"]+"/, "")));
+    const wanted = Math.max(
+      generic.filter((g, i) => pairNames.some((ns) => ns.includes(`${OC_SLOT}${i}`))).length,
+      generic.some((g) => g.plural) ? 4 : 1,
+    );
+    const top = candidates.length ? count(candidates[0]) : 0;
+    for (const n of candidates.filter((n) => count(n) >= Math.max(4, top * 0.15)).slice(0, wanted)) {
+      const [c] = makeChars([n]);
+      c.name = c.name.replace(/\s*"[^"]+"/, "");
+      c.original = true;
+      chars.push(c);
+      ocPool.push(c);
+    }
+    // One gender for a slot of OCs tagged "Original Male Character(s)".
+    const tagGender = generic.find((g) => g.gender !== "u")?.gender;
+    if (tagGender && generic.every((g) => g.gender === tagGender || g.gender === "u")) for (const c of ocPool) c.gender = tagGender;
+  }
 
   const byAlias = new Map<string, Character>();
   const find = (raw: string) => {
@@ -212,7 +311,17 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   };
   const pairings: [Character, Character][] = [];
   for (const names of pairNames) {
-    const cs = names.map(find).filter((c): c is Character => !!c);
+    const cs: Character[] = [];
+    for (const n of names) {
+      if (n.startsWith(OC_SLOT)) {
+        // Each OC slot takes the next most-mentioned OC not already in this relationship.
+        const oc = ocPool.find((c) => !cs.includes(c));
+        if (oc) cs.push(oc);
+        continue;
+      }
+      const c = find(n);
+      if (c) cs.push(c);
+    }
     // Poly pairings (A/B/C) become every two-person combination.
     for (let i = 0; i < cs.length; i++)
       for (let j = i + 1; j < cs.length; j++) if (cs[i] !== cs[j]) pairings.push([cs[i], cs[j]]);
@@ -262,14 +371,28 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
 
   let narrator: Character | undefined;
   if (firstPerson > 0.006) {
-    // The narrator is the main character whose name rarely appears in narration.
-    const candidates = (pairings[0] ?? chars.slice(0, 2)).filter((c) => c !== reader);
-    narrator = candidates.sort((a, b) => mentions(a) - mentions(b))[0];
+    // "POV Ron Weasley" settles it.
+    for (const f of meta.freeforms) {
+      const m = /^POV:?\s+(?!first|second|third|alternating|multiple|outsider|switching)(.+)$/i.exec(f.trim());
+      const c = m ? find(m[1]) : undefined;
+      if (c && c !== reader) { narrator = c; break; }
+    }
+    if (!narrator) {
+      // Otherwise the narrator is a main character whose name shows up in dialogue ("Ron, bed") but rarely in
+      // narration, where they're "I".
+      const total = (c: Character) =>
+        c.aliases.length ? (fullText.match(new RegExp(`\\b(?:${c.aliases.map(escapeRe).join("|")})\\b`, "g")) ?? []).length : 0;
+      const inPairs = new Set(pairings.flat());
+      const byTotal = [...chars].filter((c) => c !== reader).sort((a, b) => total(b) - total(a));
+      const pool = inPairs.size ? chars.filter((c) => inPairs.has(c) && c !== reader) : byTotal.slice(0, 4);
+      const ratio = (c: Character) => (mentions(c) + 1) / (total(c) + 1);
+      narrator = [...pool].sort((a, b) => ratio(a) - ratio(b) || mentions(a) - mentions(b))[0];
+    }
   }
 
   // Anatomy: default by gender, overridden when the text names a character's parts.
   // Unambiguous words only ("folds" also means sheets, "lips" means a mouth).
-  const VULVA_WORDS = "pussy|cunt|front ?hole|clit|clitoris|vagina|labia|t-?dick";
+  const VULVA_WORDS = "pussy|cunt|front ?hole|clit|clitoris|vagina|labia|t-?dick|seam(?!\\s+of)";
   const PENIS_WORDS = "cock|dick|prick|erection|hard-?on|balls";
   const maleVulva = new RegExp(`\\bhis\\s+(?:[\\w-]+\\s+)?(?:${VULVA_WORDS})\\b`, "i").test(narration);
   const femalePenis = new RegExp(`\\bher\\s+(?:[\\w-]+\\s+)?(?:${PENIS_WORDS})\\b`, "i").test(narration);
@@ -296,9 +419,11 @@ export function buildCast(meta: Ao3Meta, narration: string): Cast {
   // Guess pairings when tags don't give any: the two most-mentioned characters, plus a third if
   // they're mentioned nearly as often (threesomes).
   if (!pairings.length && chars.length >= 2) {
-    const top = [...chars].sort((a, b) => mentions(b) - mentions(a)).slice(0, 3);
+    // The narrator counts as mentioned every time they're "I".
+    const weight = (c: Character) => (c === narrator ? Math.max(mentions(c), ...chars.map(mentions)) : mentions(c));
+    const top = [...chars].sort((a, b) => weight(b) - weight(a)).slice(0, 3);
     pairings.push([top[0], top[1]]);
-    if (top[2] && mentions(top[2]) >= mentions(top[1]) * 0.5) {
+    if (top[2] && weight(top[2]) >= weight(top[1]) * 0.5) {
       pairings.push([top[0], top[2]], [top[1], top[2]]);
     }
   }
