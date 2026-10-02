@@ -69,13 +69,6 @@ const AUX =
 const HER_OBJ =
   "her(?=\\s*(?:[,.;:!?—–)\"”]|$)|\\s+(?:and|as|with|to|in|on|at|up|down|off|out|open|hard|harder|again|deep|deeper|slowly|until|while|so|over|onto|into|back|apart|wide|from|for|through|like|then|now|properly|thoroughly|gently|roughly|senseless|raw|good|before|after|when|if|but|or|without|against|between|inside|all|right|there|here|once|twice|too|that|this|until|deeply|fast|faster|slow)\\b)";
 
-/** Descriptive stand-ins for names: "the blond", "the other man", "the alpha". */
-const EPI_ADJ =
-  "other|older|younger|taller|shorter|smaller|bigger|larger|elder|blond(?:e)?|brunet(?:te)?|redhead(?:ed)?|ginger|dark-haired|fair-haired|curly-haired|red-haired|blond-haired|blonde-haired|silver-haired|gr[ae]y-haired|black-haired|brown-haired";
-const EPI_NOUN =
-  "man|boy|guy|male|lad|teen|teenager|woman|girl|lady|wizard|witch|alpha|omega|beta|werewolf|wolf|vampire|hunter|soldier|agent|detective|captain|prince|king|knight|demon|angel|hero|villain|auror|doctor|human|elf|mutant|android|god|guard|lieutenant|sergeant|commander|sheriff|deputy|kid|one";
-export const EPITHET = `[Tt]he\\s+(?:(?:${EPI_ADJ})(?:\\s+(?:${EPI_NOUN}))?|(?:${EPI_NOUN.replace("|one", "")}))`;
-
 /** Split a regex group body on its top-level "|". */
 function topLevelAlts(body: string): string[] {
   const out: string[] = [];
@@ -195,8 +188,12 @@ const MANUAL_GATES: Record<string, string> = {
   "mouth-watered-oral": "water",
 };
 
+/** Placeholder that stands in for an epithet inside a sentence ("Epithet0", "Epithet1", ...). */
+export const EPITHET_TOKEN = "Epithet\\d+";
+
 export function compilePatterns(defs: PatternDef[], aliasPattern: string): CompiledPattern[] {
-  const NAMES = `${aliasPattern || "(?!)"}|${EPITHET}`;
+  // Epithets ("the tall blond") are swapped for placeholder tokens before matching; see EPITHET_TOKEN.
+  const NAMES = `${aliasPattern || "(?!)"}|${EPITHET_TOKEN}`;
   const counters = { t: 0, b: 0 };
   const g = (role: "t" | "b") => `${role}_${++counters[role]}`;
   const bare = (role: "t" | "b") =>

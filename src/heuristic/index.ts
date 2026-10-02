@@ -16,20 +16,21 @@ import {
   type VaginalResult,
   confidenceLabel,
 } from "../types";
-import { type Cast, type Character, type Gender, buildCast, escapeRe } from "./characters";
+import { type Cast, type Character, type Gender, buildCast } from "./characters";
 import {
   ANAL_CTX,
   type Cat,
   VULVA_CTX,
   type CompiledPattern,
   DIALOGUE,
-  EPITHET,
+  EPITHET_TOKEN,
   FINGER_CTX,
   PATTERNS,
   PENIS_CTX,
   SEX_CTX,
   compilePatterns,
 } from "./patterns";
+import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
 
 type Basis = NonNullable<Instance["basis"]>;
@@ -142,6 +143,8 @@ class Ctx {
   votes = new Map<string, Map<Character, number>>();
   /** Epithets resolved in the current sentence, so they mean the same thing throughout it. */
   private sentence = new Map<string, Character | undefined>();
+  /** The epithets replaced by "Epithet<n>" tokens in the current sentence. */
+  epiTable: string[] = [];
   constructor(private cast: Cast) {}
 
   reset() {
@@ -150,27 +153,37 @@ class Ctx {
     this.sentence.clear();
   }
 
-  newSentence() {
+  newSentence(epiTable: string[] = []) {
     this.sentence.clear();
+    this.epiTable = epiTable;
   }
 
-  /** "The blond", "the other man": a learned mapping, else the person who isn't the current subject. */
+  /** Resolve an "Epithet<n>" placeholder token, if that's what this is. */
+  token(tok: string): Character | undefined | null {
+    const m = /^Epithet(\d+)$/.exec(tok);
+    if (!m) return null;
+    const text = this.epiTable[Number(m[1])];
+    return text ? this.epithet(text) : undefined;
+  }
+
+  /** "The blond", "the taller man": a learned mapping, else the person who isn't the current subject. */
   epithet(tok: string): Character | undefined {
-    const key = normEpithet(tok);
-    const known = this.epithets.get(key);
-    if (known) return known;
-    if (this.sentence.has(key)) return this.sentence.get(key);
-    const g: Gender | "any" = /\b(?:man|boy|guy|male|lad|king|prince)\b/.test(key)
-      ? "m"
-      : /\b(?:woman|girl|lady|queen|princess|witch)\b/.test(key)
-        ? "f"
-        : "any";
-    const c = this.lastSubject ? this.partnerOf(this.lastSubject, g) : this.recent.find((r) => Ctx.compatible(r, g));
-    this.sentence.set(key, c);
-    if (c) {
-      const v = this.votes.get(key) ?? new Map<Character, number>();
-      v.set(c, (v.get(c) ?? 0) + 1);
-      this.votes.set(key, v);
+    const { keys, gender, other } = canonEpithet(tok);
+    for (const k of keys) {
+      const known = this.epithets.get(k);
+      if (known && Ctx.compatible(known, gender)) return known;
+    }
+    const cacheKey = keys[0] ?? tok.toLowerCase();
+    if (this.sentence.has(cacheKey)) return this.sentence.get(cacheKey);
+    const c = this.lastSubject ? this.partnerOf(this.lastSubject, gender) : this.recent.find((r) => Ctx.compatible(r, gender));
+    this.sentence.set(cacheKey, c);
+    // "The other man" is always relative, so it never becomes a fixed mapping.
+    if (c && keys.length && !other) {
+      for (const k of keys) {
+        const v = this.votes.get(k) ?? new Map<Character, number>();
+        v.set(c, (v.get(c) ?? 0) + 1);
+        this.votes.set(k, v);
+      }
     }
     return c;
   }
@@ -179,7 +192,7 @@ class Ctx {
   learnFromVotes(): boolean {
     let learned = false;
     for (const [key, v] of this.votes) {
-      if (this.epithets.has(key) || key === "the other" || /^the other\b/.test(key)) continue;
+      if (this.epithets.has(key)) continue;
       const total = [...v.values()].reduce((a, b) => a + b, 0);
       const [best, n] = [...v.entries()].sort((a, b) => b[1] - a[1])[0];
       if (total >= 3 && n / total >= 0.7) {
@@ -227,9 +240,6 @@ function stripPoss(tok: string) {
   return tok.replace(/['’]s$/, "");
 }
 
-function normEpithet(tok: string) {
-  return stripPoss(tok).toLowerCase().replace(/\s+/g, " ").replace(/blonde/, "blond").replace(/brunette/, "brunet");
-}
 
 interface Slot {
   char?: Character;
@@ -243,10 +253,8 @@ function readSlot(tok: string | undefined, cast: Cast, ctx: Ctx): Slot | undefin
   const name = stripPoss(tok);
   const byName = cast.byAlias.get(name);
   if (byName) return { char: byName };
-  if (/^the\s/i.test(name)) {
-    const c = ctx.epithet(name);
-    return c ? { char: c, epithet: true } : undefined;
-  }
+  const viaEpithet = ctx.token(name);
+  if (viaEpithet !== null) return viaEpithet ? { char: viaEpithet, epithet: true } : undefined;
   const p = pronoun(name);
   if (!p) return undefined;
   if ("fixed" in p) {
@@ -311,38 +319,6 @@ function resolvePair(
   return { top, bottom, basis };
 }
 
-/** Epithets we can pin down up front: hair colour ("Draco's blond hair") and Alpha/Omega tags. */
-function learnEpithets(cast: Cast, freeforms: string[], narration: string): Map<string, Character> {
-  const map = new Map<string, Character>();
-  const HAIR: [RegExp, string[]][] = [
-    [/^(?:blond|blonde|platinum|golden|fair|white-blond|pale)$/, ["the blond", "the blond man", "the blond boy", "the fair-haired", "the blond-haired"]],
-    [/^(?:dark|black|brown|chestnut|raven|ebony)$/, ["the brunet", "the brunet man", "the dark-haired", "the black-haired", "the brown-haired"]],
-    [/^(?:red|ginger|auburn|copper)$/, ["the redhead", "the ginger", "the red-haired", "the redheaded"]],
-    [/^(?:silver|grey|gray|white)$/, ["the silver-haired", "the grey-haired", "the gray-haired"]],
-  ];
-  const owners = new Map<string, Set<Character>>();
-  for (const c of cast.chars) {
-    if (!c.aliases.length) continue;
-    const re = new RegExp(`\\b(?:${c.aliases.map(escapeRe).join("|")})['’]s\\s+(?:[\\w-]+\\s+){0,2}?([\\w-]+)\\s+(?:hair|curls|locks|head of hair|mop|fringe)\\b`, "g");
-    for (const m of narration.matchAll(re)) {
-      for (const [colour, keys] of HAIR) {
-        if (!colour.test(m[1].toLowerCase())) continue;
-        for (const k of keys) owners.set(k, (owners.get(k) ?? new Set()).add(c));
-      }
-    }
-  }
-  for (const [k, set] of owners) if (set.size === 1) map.set(k, [...set][0]);
-
-  // AO3 tags like "Alpha Derek Hale", "Omega Stiles Stilinski".
-  for (const tag of freeforms) {
-    const m = tag.match(/^(alpha|omega|beta)\s+(.+)$/i);
-    if (!m) continue;
-    const name = m[2].replace(/\([^)]*\)/g, "").trim().toLowerCase();
-    const c = cast.chars.find((x) => x.name.toLowerCase() === name || x.aliases.some((a) => a.toLowerCase() === name));
-    if (c && !map.has(`the ${m[1].toLowerCase()}`)) map.set(`the ${m[1].toLowerCase()}`, c);
-  }
-  return map;
-}
 
 function groupValue(groups: Record<string, string | undefined> | undefined, role: "t" | "b") {
   if (!groups) return undefined;
@@ -369,7 +345,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const patterns = compilePatterns(PATTERNS, cast.aliasPattern);
   const NAMES = cast.aliasPattern || "(?!)";
   const nameRe = new RegExp(`\\b(?:${NAMES})(?:['’]s)?\\b`, "g");
-  const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES})(?:['’]s)?|${EPITHET}(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
+  const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES}|${EPITHET_TOKEN})(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
+  const epithetRe = new RegExp(EPITHET, "g");
   const ctx = new Ctx(cast);
   ctx.epithets = learnEpithets(cast, meta.freeforms, narration);
 
@@ -386,7 +363,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const tok = stripPoss(m[1]);
     const named = cast.byAlias.get(tok);
     if (named) return named;
-    if (/^the\s/i.test(tok)) return ctx.epithet(tok);
+    const viaEpithet = ctx.token(tok);
+    if (viaEpithet !== null) return viaEpithet;
     const p = pronoun(tok);
     if (!p) return undefined;
     return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
@@ -415,9 +393,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const sexy = SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`);
 
     for (const [s0, s1] of sentenceSpans(mp)) {
-      const sent = mp.slice(s0, s1);
+      // Swap epithets for short tokens once, instead of every pattern carrying the whole epithet list.
+      const epiTable: string[] = [];
+      let sent = mp.slice(s0, s1);
+      if (/\b[Tt]he\s/.test(sent)) {
+        sent = sent.replace(epithetRe, (e) => `Epithet${epiTable.push(e) - 1}`);
+      }
       const original = para.slice(s0, s1).trim();
-      ctx.newSentence();
+      ctx.newSentence(epiTable);
       const subj = firstEntity(sent);
       if (subj) ctx.lastSubject = subj;
 
@@ -455,7 +438,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   /** The subject of an earlier verb in "X smiled and sucked him off": nearest name/he/she that isn't an object. */
   function elidedSubject(prefix: string): Character | undefined {
-    const re = new RegExp(`(?:^|([\\w'’]+)[\\s,]+)((?:${NAMES})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
+    const re = new RegExp(`(?:^|([\\w'’]+)[\\s,]+)((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
     for (let i = hits.length - 1; i >= 0; i--) {
       const prev = (hits[i][1] ?? "").toLowerCase();
@@ -467,6 +450,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const tok = hits[i][2];
       const named = cast.byAlias.get(tok);
       if (named) return named;
+      const viaEpithet = ctx.token(tok);
+      if (viaEpithet !== null) return viaEpithet;
       const p = pronoun(tok);
       if (p) return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
     }

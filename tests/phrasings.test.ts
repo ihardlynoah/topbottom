@@ -174,6 +174,15 @@ const CASES: [string, Exp][] = [
   ["Did Harry fuck him last night?", null],
   ["The blond rolled his eyes.", null],
   ["Harry was so tight with Draco these days.", null],
+  // round 5: descriptive epithets (fallback rule: the person who isn't the current subject)
+  ["Harry kissed Draco. The taller man pushed into him.", ["anal", D, H]],
+  ["Draco pulled Harry close. The smaller man sank down on him.", ["anal", D, H]],
+  ["Harry kissed Draco. The older of the two sucked him off.", ["oral", H, D]],
+  ["Draco pinned Harry. The dark-haired wizard rode him.", ["anal", D, H]],
+  ["Harry kissed Draco. The tall blond fucked him.", ["anal", D, H]],
+  ["The older students laughed.", null],
+  ["The American flag waved over the building.", null],
+  ["The tall grass rustled.", null],
 ];
 
 it("pattern engine phrasing accuracy", () => {

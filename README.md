@@ -28,9 +28,16 @@ word count is estimated and the main characters are guessed from frequently capi
    left out (“climbed on top and rode him”). Innocent look-alikes (“sucked in a breath”, “blew him a kiss”,
    “fingers in his hair”, “pushed into the room”) are excluded.
 3. **Pronouns and epithets**: “he”/“she” as a subject means the last subject; the other person in a two-person
-   sex scene is the partner. Epithets (“the blond”, “the other man”, “the alpha”) are learned from hair colour
-   (“Draco’s blond hair”), Alpha/Omega tags, and consistent use across the fic (a second pass), falling back to
-   “the person who isn’t the current subject”. Each scene shows whether roles came from names or pronouns.
+   sex scene is the partner. Epithets are recognized for hair colour (“the blond”, “the redhead”, “the
+   dark-haired man”), height (“the taller man”, “the shorter of the two”), size (“the bigger man”, “the
+   smaller one”), age (“the older wizard”, “the younger man”, “the thirty-year-old”), nationality (“the
+   American”, “the Brit”, “the Frenchman”), roles (“the alpha”, “the auror”), and stacks of these (“the tall
+   American soldier”). Who they mean is learned from the text: “Draco’s blond hair”, “Harry was taller than
+   Draco”, “Steve towered over Tony”, “Steve was a big man”, “Draco was two years older”, “Steve’s American
+   accent”, “Bucky was from Russia”, “Draco, the blond,”, Alpha/Omega tags, and consistent use across the
+   fic (a second pass). With two main characters, the opposite is inferred (taller known → shorter is the
+   other). Otherwise an epithet falls back to “the person who isn’t the current subject”. Each scene shows
+   whether roles came from names or pronouns/epithets.
 4. **Desire / fantasy**: wanting (“he wanted Draco to fuck him”), imagining (“imagined Harry sucking him
    off”), hypotheticals, habits (“he’d always bottomed”), dialogue requests (“Fuck me,” Harry begged;
    “I want to ride you”), and negations (“didn’t want to bottom”). These are listed separately and never
