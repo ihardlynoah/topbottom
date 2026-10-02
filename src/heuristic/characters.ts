@@ -343,6 +343,22 @@ export function buildCast(meta: Ao3Meta, narration: string, fullText = narration
     if (tagGender && generic.every((g) => g.gender === tagGender || g.gender === "u")) for (const c of ocPool) c.gender = tagGender;
   }
 
+  // A tagged character who never appears by name ("The Mute") is whoever the text calls the original character it
+  // filled in: take over that character's name rather than leaving two people.
+  if (ocPool.length && !guessed) {
+    const hits = (w: string) => (fullText.match(new RegExp(`\\b${escapeRe(w)}\\b`, "g")) ?? []).length;
+    const used = (c: Character) => c.aliases.filter((a) => !TITLE_WORDS.has(a)).reduce((n, a) => n + hits(a), 0);
+    for (const c of [...chars]) {
+      if (c.name === "Reader" || c.original || !ocPool.length || used(c) > 0) continue;
+      const oc = ocPool.shift()!;
+      c.name = oc.name;
+      c.aliases = [...new Set([...c.aliases, ...oc.aliases])];
+      if (c.gender === "u") c.gender = oc.gender;
+      c.original = true;
+      chars.splice(chars.indexOf(oc), 1);
+    }
+  }
+
   const byAlias = new Map<string, Character>();
   const find = (raw: string) => {
     const n = cleanTagName(raw);

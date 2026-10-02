@@ -654,6 +654,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "Dean arches underneath Cas' tongue as he swallows him down": he is the one whose tongue it is.
     const under = new RegExp(`\\b(?:under|underneath|beneath)\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:tongue|mouth|lips|hands?|fingers|touch|ministrations|weight|body|attention)\\s*,?\\s*(?:as|while|when)\\s*$`).exec(prefix);
     if (under) return cast.byAlias.get(under[1]);
+    // "Diarmuid trembled beneath him as he continued to lick his cock": he is the him of the first clause, the other one.
+    const beneathHim = new RegExp(`(?:^|[.!?,;]\\s+)(${NAMES})\\s+(?:[\\w'’-]+\\s+){1,4}?(?:beneath|underneath|below|under)\\s+(?:him|her)\\s*,?\\s*(?:as|while|when)\\s*$`).exec(prefix);
+    if (beneathHim && /^\s*(?:he|she)\b/i.test(suffix)) {
+      const subj = cast.byAlias.get(beneathHim[1]);
+      const other = subj && ctx.partnerOf(subj);
+      if (other) return other;
+    }
     // "…as Dunk's hands kneaded his arse as he pressed his tongue…": the hands' owner carries on as "he".
     const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+[^,;—]*?\\b(?:as|while|when)\\s*$`).exec(prefix);
     if (handsOf) return cast.byAlias.get(handsOf[1]);
@@ -687,6 +694,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         (prev === "with" && /^\s+(?:\w+ly\s+)?\w+(?:ed|ing)\b/.test(prefix.slice(h.index! + h[0].length))) ||
         // "it didn't take long for Dean to cum, spilling into his mouth": X in "for X to <verb>" is the verb's subject.
         (prev === "for" && /^\s+to\s+\w+/.test(prefix.slice(h.index! + h[0].length)));
+      // "he wasn't the man who pushed Laurent to the door to fuck him": the epithet describes the copula's subject, who
+      // is the one doing what follows.
+      if (relative && /^Epithet\d+$/.test(h[3]) && i > 0 && /\b(?:was|were|is|am|are|be|been)(?:n['’]t| not)?\s+$/i.test(prefix.slice(0, h.index! + h[0].length - h[3].length))) continue;
       if (isObject && !relative && !/^(?:He|She|They|I)$/.test(h[3])) continue;
       return resolveToken(h[3], prefix.slice(h.index! + h[0].length) + suffix);
     }
@@ -896,6 +906,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     ctx.coSubjects.clear();
     if (!resolved) return;
     let { top, bottom } = resolved as { top: Character; bottom: Character };
+    // '"Laurent." He hisses and swats his ass': a line that is just a name is spoken to that person, so the "He" after it
+    // is the other one.
+    {
+      const subjectChar = pat.subj === "t" ? top : bottom;
+      const tokOfSubject = pat.subj === "t" ? tTok : bTok;
+      const spoken = new RegExp(`[“"]\\s*(${NAMES})\\s*[.,!?…]*\\s*[”"]\\s*(?:He|She|They)\\b[^“"”]*$`).exec(original.slice(0, m.index!));
+      if (spoken && (pat.elided || /^(?:he|she|they)$/i.test(tokOfSubject ?? "")) && cast.byAlias.get(spoken[1]) === subjectChar) [top, bottom] = [bottom, top];
+    }
     let { basis } = resolved;
     let act = pat.act;
     let cat = pat.cat;
@@ -922,6 +940,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "cupping his cheeks" while kissing: a face, not an ass.
     // "scoots forwards, pushing his knees apart" before a blowjob: getting between someone's knees to kneel and suck.
+    // "spreads his legs to wipe them": he is cleaning someone, not offering himself.
+    if (/^spread-(?:their-)?legs/.test(pat.id) && /^\s*(?:and\s+)?to\s+(?:wipe|clean|dry|wash|towel|inspect|examine|check|look|see)\b/i.test(after)) return;
     if (pat.id.startsWith("spread-their-legs") && [pi - 1, pi, pi + 1].some((i) => !!paras[i] && /\b(?:kneel\w*|drops? to his knees|mouth|lick\w*|nuzzl\w*|suck\w*|tongue)\b/i.test(paras[i]) && !/\b(?:hole|lube[ds]?|ass\b|arse|fingers?|prostate)\b/i.test(paras[i]))) return;
     // "Eddie smacked his cheeks to wake himself up": "cheeks" with no ass word needs a sex scene around it.
     if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum|backside|behind)\b/i.test(matchText) &&
@@ -931,7 +951,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         (/^\W*(?:He|he)\b.*\bhis\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText) || /^\W*(?:She|she)\b.*\bher\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText) ||
          /^\W*(?:They|they)\b.*\btheir\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText) || /^\W*I\b.*\bmy\s+(?:\w+\s+){0,2}cheeks\b/.test(matchText))) return;
     if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
-        (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose|head|cradl\w*|temples?|chin)\b/i.test(sent))) return;
+        (/\b(?:cup|pinch|pat|tap|stroke)\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose|head|cradl\w*|temples?|chin)\b/i.test(sent))) return;
     // "…until the ridges of Alex's knuckles … each time they slide past his rim": "they" are the fingers.
     // They're fingering, by whoever owns the fingers ("Alex's knuckles", "his fingers").
     if (/^they$/i.test(tTok ?? "") && /\b(?:fingers?|knuckles?|digits?|hands?|toys?|thumbs?)\b/i.test(sent.slice(0, m.index))) {
@@ -1118,6 +1138,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     else if (DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
     else if (
+      !/\bas (?:if|though)\s+(?:he|she|they)\s+(?:wasn['’]t|weren['’]t|was not|were not|hadn['’]t been|had not been)\s+(?:the\s+(?:man|guy|one|person|boy|woman|girl)|Epithet\d+)\s+(?:who|that)\b/i.test(prefix) &&
       !(/\bas (?:if|though)\s*$/i.test(prefix) && /\b(?:isn['’]t|wasn['’]t|aren['’]t|weren['’]t|is not|was not|were not|not)\b[^.!?]*\benough\b/i.test(sent.slice(m.index!))) &&
       (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) ||
       (/\bso\s*$/i.test(window) && /\b(?:can|could|might|may|will|would)\b/i.test(aux)) ||
