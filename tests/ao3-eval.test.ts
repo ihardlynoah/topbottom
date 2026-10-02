@@ -8,12 +8,18 @@ import { describe, it } from "vitest";
 import { emptyMeta } from "../src/ao3";
 import { extractFromHtml } from "../src/extract";
 import { analyzeWithPatterns } from "../src/heuristic";
-import type { ActResult } from "../src/types";
+import { type ActKind, ROLE_WORDS } from "../src/roles";
+import type { ActResult, PairingResult } from "../src/types";
 
 const dir = process.env.AO3_DIR;
 
-const fmtAct = (a: ActResult) =>
-  `${a.verdict}${a.top ? ` (top ${a.top} / bottom ${a.bottom})` : ""} · ${a.confidence.label} ${Math.round(a.confidence.score * 100)}% · ${a.instances.length} scenes, ${a.desires.length} hints`;
+const fmtAct = (a: ActResult, kind: ActKind = "anal") => {
+  const w = ROLE_WORDS[kind];
+  const roles = kind === "blowjob" ? `${a.bottom} ${w.bottomVerb} / ${a.top} ${w.topVerb}` : kind === "anal" ? `top ${a.top} / bottom ${a.bottom}` : `${a.top} ${w.topVerb} / ${a.bottom} ${w.bottomVerb}`;
+  return `${a.verdict}${a.top ? ` (${roles})` : ""} · ${a.confidence.label} ${Math.round(a.confidence.score * 100)}% · ${a.instances.length} scenes, ${a.desires.length} hints`;
+};
+const fmtOral = (p: PairingResult) =>
+  `blowjobs: ${fmtAct(p.blowjob, "blowjob")} · rimming: ${fmtAct(p.rimming, "rimming")}${p.cunnilingus.verdict !== "none" ? ` · cunnilingus: ${fmtAct(p.cunnilingus, "cunnilingus")}` : ""}`;
 
 describe.skipIf(!dir)("AO3 evaluation", () => {
   it("analyzes each fic blind, then shows its tags", () => {
@@ -28,7 +34,7 @@ describe.skipIf(!dir)("AO3 evaluation", () => {
       out.push(`Characters guessed → pairings: ${a.pairings.map((p) => p.pairing).join("; ") || "none"}`);
       for (const p of a.pairings.slice(0, 2)) {
         out.push(`- **${p.pairing}** anal: ${fmtAct(p.anal)}`);
-        out.push(`  oral: ${fmtAct(p.oral)}`);
+        out.push(`  ${fmtOral(p)}`);
         if (p.vaginal.applicable) out.push(`  vaginal: ${p.vaginal.summary}`);
         for (const i of [...p.anal.instances, ...p.oral.instances].slice(0, 6)) out.push(`  - ${i.top} → ${i.bottom} · ${i.act} · ${i.basis} · “${i.evidence.slice(0, 140)}”`);
       }
@@ -36,7 +42,7 @@ describe.skipIf(!dir)("AO3 evaluation", () => {
       // Same text with its real AO3 tags (what the website does).
       const tagged = analyzeWithPatterns(work.text, work.meta, { quiet: true });
       out.push("### With tags");
-      for (const p of tagged.pairings.slice(0, 3)) out.push(`- **${p.pairing}** anal: ${fmtAct(p.anal)} · oral: ${fmtAct(p.oral)}${p.vaginal.applicable ? ` · vaginal: ${p.vaginal.occurs ? "yes" : "no"}` : ""}`);
+      for (const p of tagged.pairings.slice(0, 3)) out.push(`- **${p.pairing}** anal: ${fmtAct(p.anal)} · ${fmtOral(p)}${p.vaginal.applicable ? ` · vaginal: ${p.vaginal.occurs ? "yes" : "no"}` : ""}`);
       out.push("### Tags (checked afterwards)");
       out.push(`Fandom: ${work.meta.fandoms.join(", ")}`);
       out.push(`Relationships: ${work.meta.relationships.join(", ")}`);

@@ -61,12 +61,20 @@ const ANUS = `butt-?hole|anus|sphincter|rosebud|starfish|back ?door|back entranc
 export const ASS = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|${ANUS}|front ?hole|hole|entrance|rim|opening|bum|butt|insides?|prostate|body|backside|channel|pussy|cunt|vagina|folds|cervix|sex)`;
 const RIM = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|${ANUS}|hole|entrance|rim|(?:ass |arse |butt )?crack|cleft|crease|taint|perineum)`;
 const MOUTH = `(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:mouth|lips|throat|tongue)`;
-const FACE = `(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:mouth|throat|face)`;
+const FACE = `(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:mouth|throat|face)\\b`;
+
+/** "…to stand between them", "and stepped between them": the legs being spread are someone else's. */
+const BETWEEN_THEM = `\\s+(?:apart\\s+|wide\\s+)?(?:to|and|so (?:he|she|they) could)\\s+(?:\\w+\\s+){0,2}?(?:stand|step|kneel|settl|fit|slot|get|mov|climb|crawl|press|wedg|sett|nestl|lay|lie|position)\\w*\\s+(?:(?:himself|herself|themselves)\\s+)?between`;
+
+/** Words that put a "took him deep" sentence in someone's mouth. */
+const ORAL_WORDS = `(?:mouth|throat|lips|swallow\\w*|gag\\w*|tongue|hum(?:s|med|ming)?|suck\\w*|chok\\w*|jaw|saliva|spit|drool\\w*|bob\\w*|blow\\w*|knees|frenulum)`;
+const ORAL_FREE = new RegExp(`^(?!.*\\b${ORAL_WORDS}\\b)`, "i");
+const ORAL_NEAR = new RegExp(`\\b${ORAL_WORDS}\\b`, "i");
 const VULVA = `(?:(?:\\w+)\\s+)?(?:clit(?:oris)?|pussy|cunt|folds|slit|labia|vulva|sex|cunny|front ?hole|t-?dick)`;
 export const FINGERS = `(?:fingers?|digits?|knuckles?|thumb|fingertips?)`;
 
 const AUX =
-  "(?<aux>(?:(?:was|were|is|are|had|has|have|been|being|be|kept|keeps|started|starts|began|begins|continued|continues|would|could|will|can|might|must|should|shall|wanted|wants|want|needed|needs|need|longed|wished|tried|tries|going|gonna|wanna|got|get|gets|did|does|do|finally|just|then|still|already|almost|barely|never|not|to|also|immediately|eventually|again|always|usually|often|sometimes|only|rarely|soon|now|quickly|really|actually|lazily|happily|greedily|[a-z]+ly|[a-z]+n['’]t|'d|’d|'ll|’ll|used)\\s+){0,4})";
+  "(?<aux>(?:(?:was|were|is|are|had|has|have|been|being|be|kept|keeps|started|starts|began|begins|proceeds|proceeded|proceed|went on|goes on|continued|continues|would|could|will|can|might|must|should|shall|wanted|wants|want|needed|needs|need|longed|wished|tried|tries|going|gonna|wanna|got|get|gets|did|does|do|finally|just|then|still|already|almost|barely|never|not|to|also|immediately|eventually|again|always|usually|often|sometimes|only|rarely|soon|now|quickly|really|actually|lazily|happily|greedily|[a-z]+ly|[a-z]+n['’]t|'d|’d|'ll|’ll|used)\\s+){0,4})";
 
 /** Words after a bare "her" that show it's an object, not a possessive ("fucked her hard" vs "her hair"). */
 const HER_OBJ =
@@ -359,7 +367,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "t",
     weight: 1,
-    src: `\\b{T:penisReq}\\s+(?:(?:was|is|still|now|finally|fully|deep|all the way|balls-deep|buried|lodged|seated|sheathed|nestled|halfway|already|so)\\s+)+(?:inside|in|up)\\s+{B:ass}`,
+    src: `\\b{T:penisReq}\\s+(?:(?:was|is|still|now|finally|fully|deep|all the way|balls-deep|buried|lodged|seated|sheathed|nestled|halfway|already|so)\\s+)*(?:(?<=\\s(?:was|is|still|now|finally|fully|deep|way|balls-deep|buried|lodged|seated|sheathed|nestled|halfway|already|so)\\s+)(?:in|up)|inside)\\s+{B:ass}`,
   },
   {
     id: "came-inside",
@@ -385,7 +393,39 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:enter(?:s|ed|ing)?|penetrat(?:e|es|ed|ing)|breach(?:es|ed|ing)?|impal(?:e|es|ed|ing)|spear(?:s|ed|ing)?|took|take|takes|taking)\\s+{B:ass}(?!\\s+with\\s+(?:him|her|them|me|you|us)\\b)(?=\\s*[,.;:!?—–]|\\s*$|\\s+(?:with|in one|in a|slowly|carefully|from behind|hard|deep|all the way|inch|bare|raw|for the first time|again|at last|finally)\\b)`,
+    src: `\\b{T}\\s+{aux}(?:enter(?:s|ed|ing)?|penetrat(?:e|es|ed|ing)|breach(?:es|ed|ing)?|impal(?:e|es|ed|ing)|spear(?:s|ed|ing)?)\\s+{B:ass}(?!\\s+with\\s+(?:him|her|them|me|you|us)\\b)(?=\\s*[,.;:!?—–]|\\s*$|\\s+(?:with|in one|in a|slowly|carefully|from behind|hard|deep|all the way|inch|bare|raw|for the first time|again|at last|finally)\\b)`,
+  },
+  {
+    // "Stiles spread his legs and let Derek in"
+    id: "let-in",
+    cat: "anal",
+    act: "anal sex",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    needs: /\b(?:spread\w*|legs|thighs|knees|hole|ass|arse|inside|open(?:ed|ing)?|lube\w*|slick\w*|cock|dick|stretch\w*)\b/i,
+    src: `\\b{B}\\s+{aux}(?:(?:\\w+\\s+){0,6}?and\\s+)?(?:let|lets|letting)\\s+(?!(?:him|her|them|me|you)\\b){T}\\s+(?:in|inside)\\b(?!\\s*(?:to|the|through|on)\\b)`,
+  },
+  {
+    // "Derek's hips snapped against Stiles' ass"
+    id: "hips-against-ass",
+    cat: "anal",
+    act: "anal sex",
+    subj: "t",
+    weight: 0.7,
+    needsCtx: true,
+    src: `\\b{T:poss}\\s+(?:hips|pelvis|thighs|balls)\\s+(?:\\w+\\s+)?(?:snap|slap|smack|slam|pound|crash|thrust|stutter|pistol|jerk|bang|smash)\\w*\\s+(?:\\w+\\s+)?(?:against|into|up into|forward into)\\s+{B:assReq}`,
+  },
+  {
+    // "Derek took Stiles from behind". A bare "Aerion took him" is usually the one receiving (often a mouth),
+    // and "Stiles took him deep" is the one being entered (took-deep), so a manner word is required.
+    id: "take-x",
+    cat: "anal",
+    act: "anal sex",
+    subj: "t",
+    weight: 0.45,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}(?:took|take|takes|taking)\\s+{B:ass}(?=\\s+(?:in one|in a single|slowly|carefully|from behind|hard|harder|rough(?:ly)?|bare|raw|for the first time|against|over|on (?:the|his|her|their)|right there)\\b)`,
   },
   {
     id: "fill",
@@ -394,7 +434,8 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.5,
     needsCtx: true,
-    needsPenis: true,
+    // A cock, or what it leaves: "filled him with his come".
+    needs: /\b(?:cock|dick|prick|length|shaft|erection|member|strap|dildo|knot|girth|come|cum|seed|load|spunk)\b/i,
     src: `\\b{T}\\s+{aux}(?:fill(?:s|ed|ing)?|split(?:s|ting)?|claim(?:s|ed|ing)?|wreck(?:s|ed|ing)?|ruin(?:s|ed|ing)?|stuff(?:s|ed|ing)?)\\s+{B:ass}(?:\\s+(?:up|open|apart|full))?`,
   },
   {
@@ -439,7 +480,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "t",
     weight: 0.8,
-    src: `\\b{T}\\s+{aux}top(?:s|ped|ping)?\\b(?!\\s+(?:up|off|of|with|the|it|that|this|out|his|her|their|my|your|a|an)\\b)(?:\\s+{B})?`,
+    src: `\\b{T}\\s+{aux}top(?:s|ped|ping)?\\b(?!\\s+(?:up|off|of|with|the|it|that|this|out|his|her|their|my|your|a|an|to|and)\\b|\\s*-)(?:\\s+{B})?`,
   },
 
   // ───────────── ANAL: fingering ─────────────
@@ -539,7 +580,21 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.7,
     needsCtx: true,
-    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking)\\s+(?:{T}|{T:penisReq}|him|it)\\s+(?:all the way\\s+)?(?:in\\s+)?(?:to the hilt|to the base|to the root|balls[- ]deep)\\b(?![^.]*\\b(?:mouth|throat|lips|swallow\\w*|gag\\w*|tongue)\\b)`,
+    // "The Englishman hummed around him, taking him all the way to the root" is a blowjob (took-to-root).
+    needs: ORAL_FREE,
+    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking)\\s+(?:{T}|{T:penisReq}|him|it)\\s+(?:all the way\\s+)?(?:in\\s+)?(?:to the hilt|to the base|to the root|balls[- ]deep)\\b`,
+  },
+  {
+    // "Stiles took him deep, rocking in his lap": "deep" alone could be a blowjob, so the sentence must say
+    // it's anal and mustn't mention a mouth.
+    id: "took-deep",
+    cat: "anal",
+    act: "anal sex (riding)",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    needs: new RegExp(`^(?=${ORAL_FREE.source}).*\\b(?:ass|arse|hole|rim|lap|hips|thighs|rode|rid(?:e|es|ing)|sank|sink\\w*|stretch\\w*|inside|clench\\w*|prostate)\\b`, "i"),
+    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking)\\s+(?:{T}|{T:penisReq}|him|it)\\s+(?:deep(?:er)?|all the way(?:\\s+in)?|every inch|inch by inch)\\b`,
   },
   {
     id: "took-down-root",
@@ -549,6 +604,17 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.7,
     needsCtx: true,
     src: `\\b{B}\\s+{aux}(?:took|take|takes|taking|swallow(?:s|ed|ing)?)\\s+(?:{T}|{T:penisReq}|him|it)\\s+(?:all the way\\s+)?down\\s+to\\s+the\\s+(?:root|base|hilt)\\b`,
+  },
+  {
+    // "hummed around him, taking him all the way to the root"
+    id: "took-to-root",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    needs: ORAL_NEAR,
+    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking|swallow(?:s|ed|ing)?)\\s+(?:{T}|{T:penisReq}|him|it)\\s+(?:all the way\\s+)?(?:in\\s+)?(?:to the hilt|to the base|to the root|balls[- ]deep|deep(?:er)?|all the way)\\b`,
   },
   {
     id: "took-down",
@@ -684,7 +750,9 @@ export const PATTERNS: PatternDef[] = [
     act: "face-fucking",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|thrust(?:s|ing)?|push(?:es|ed|ing)?|rock(?:s|ed|ing)?|snap(?:s|ped|ping)?|pump(?:s|ed|ing)?|slid|slide|slides|sliding|drove|drive|drives|driving|slam(?:s|med|ming)?)\\s+(?:(?:${SELF}|{x's}\\s+{PENIS}|{x's}\\s+hips)\\s+)?${DEPTH}(?:in(?:to|side)?\\s+|between\\s+|past\\s+|down\\s+)?{B:faceReq}`,
+    // Only "fuck" can take the mouth as a direct object; the other verbs need "into/past/down…", so kisses
+    // ("slid his mouth to Aerion's", "snapped his mouth shut", "slammed their mouths together") don't count.
+    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?\\s+(?:(?:${SELF}|{x's}\\s+{PENIS}|{x's}\\s+hips)\\s+)?${DEPTH}(?:(?:in(?:to|side)?|between|past|down)\\s+)?|(?:thrust(?:s|ing)?|push(?:es|ed|ing)?|rock(?:s|ed|ing)?|snap(?:s|ped|ping)?|pump(?:s|ed|ing)?|slid|slide|slides|sliding|drove|drive|drives|driving|slam(?:s|med|ming)?)\\s+(?:(?:${SELF}|{x's}\\s+{PENIS}|{x's}\\s+hips)\\s+)?${DEPTH}(?:in(?:to|side)?|between|past|down)\\s+){B:faceReq}(?!\\s+with\\s+(?:his|her|their|my|your)\\s+(?:tongue|fingers?|thumb))`,
   },
   {
     id: "face-fucked",
@@ -726,6 +794,25 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     src: `\\b{T}\\s+{aux}(?:fed|feeds|feed|feeding)\\s+{B}\\s+{x's}\\s+{PENIS}`,
+  },
+
+  {
+    // "Stiles had Derek's cock in his mouth", "with Derek's cock between his lips"
+    id: "had-cock-in-mouth",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    src: `\\b{B}\\s+{aux}(?:had|has|have|having|held|holds|hold|kept|keeps|keep)\\s+{T:penisReq}\\s+(?:\\w+\\s+){0,2}?(?:in|between|past|down|inside)\\s+(?:his|her|their|my|your)\\s+(?:mouth|lips|throat)\\b`,
+  },
+  {
+    // "Stiles tongued at Derek's slit", "licked at the slit of Derek's cock"
+    id: "licked-slit",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    src: `\\b{B}\\s+{aux}(?:lick|tongu|lap|flick|prob|dip|kiss|suck|mouth|nuzzl)\\w*\\s+(?:(?:his|her|their)\\s+tongue\\s+)?(?:(?:at|over|across|into|against|along|around|up)\\s+)?(?:{T:poss}\\s+(?:slit|frenulum|balls|sac|foreskin)|the\\s+(?:slit|frenulum)\\s+(?:of|on)\\s+{T:penisReq})\\b`,
   },
 
   // ───────────── ORAL: rimming (top = the one eating ass) ─────────────
@@ -810,6 +897,26 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     src: `\\b{T}\\s+{aux}(?:buri\\w*|bury|press(?:es|ed|ing)?|shov\\w*|nuzzl\\w*|push(?:es|ed|ing)?)\\s+(?:his|her|their|my|your)\\s+(?:face|tongue|mouth|nose)\\s+(?:in|between|against|into)\\s+(?:{B:rimReq}|{B:poss}\\s+(?:ass\\s+|arse\\s+)?cheeks)`,
+  },
+  {
+    // "Derek licked Stiles open"
+    id: "licked-open",
+    cat: "oral",
+    act: "rimming",
+    subj: "t",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}(?:lick|tongu|eat|ate)\\w*\\s+{B}\\s+(?:open|loose|wet|sloppy)\\b`,
+  },
+  {
+    // "Stiles sat on Derek's face", "rode his face", "ground back against Derek's tongue"
+    id: "sat-on-face",
+    cat: "oral",
+    act: "rimming",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:(?:sat|sit|sits|sitting|squat\\w*|settl\\w*|lower\\w*\\s+(?:himself|herself|themselves|myself|yourself)|rode|ride|rides|riding)\\s+(?:down\\s+)?(?:on|onto)\\s+{T:poss}\\s+(?:face|mouth|tongue)|rode\\s+{T:poss}\\s+(?:face|tongue)|(?:ride|rides|riding)\\s+{T:poss}\\s+(?:face|tongue)|(?:grind|grinds|grinding|ground|push\\w*|rock\\w*|press\\w*|roll\\w*|arch\\w*)\\s+(?:his\\s+(?:ass|arse|hips)\\s+)?(?:back\\s+)?(?:against|onto|on|into)\\s+{T:poss}\\s+(?:tongue|(?<=back\\s+(?:against|onto|on|into)\\s+\\S+\\s+)(?:face|mouth)))\\b(?![^.]*\\b(?:cock|dick|prick|cunt|pussy|clit)\\b)`,
   },
   {
     id: "passive-rimmed",
@@ -972,7 +1079,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:lin(?:e|es|ed|ing)|position(?:s|ed|ing)?|align(?:s|ed|ing)?)\\s+(?:${SELF}|{x's}\\s+{PENIS})\\s+up(?:\\s+(?:with|against|at)\\s+{B:ass})?`,
+    src: `\\b{T}\\s+{aux}(?:lin(?:e|es|ed|ing)|position(?:s|ed|ing)?|align(?:s|ed|ing)?)\\s+(?:${SELF}|{x's}\\s+{PENIS})\\s+up(?!\\s+(?:with|against|at|for|behind|beside|next to)\\s+(?:the|a|an|his|her|their|my|your)\\b(?!\\s+(?:\\w+\\s+)?(?:hole|ass|arse|entrance|rim)\\b))(?:\\s+(?:with|against|at)\\s+{B:ass})?`,
   },
   {
     id: "slicked-self",
@@ -1072,7 +1179,18 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.7,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:spread|parted|opened|spreads|parts|opens|spreading|parting|opening)\\s+(?:his|her|their|my|your)\\s+(?:legs|thighs|knees)(?:\\s+(?:wider\\s+|wide\\s+)?for\\s+{T})?`,
+    // Not "spreading his legs to stand between them": that's someone else's legs.
+    src: `\\b{B}\\s+{aux}(?:spread|parted|opened|spreads|parts|opens|spreading|parting|opening)\\s+(?:his|her|their|my|your)\\s+(?:legs|thighs|knees)(?!${BETWEEN_THEM})(?:\\s+(?:wider\\s+|wide\\s+)?for\\s+{T})?`,
+  },
+  {
+    // "hoisted him onto the counter, spreading his legs to stand between them"
+    id: "spread-their-legs",
+    cat: "anal",
+    act: "spreading someone's legs",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "prep", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:spread|parted|opened|pushed|nudged|pried|spreads|parts|opens|pushes|nudges|spreading|parting|opening|pushing|nudging|prying)\\s+(?:(?:his|her|their)\\s+(?:legs|thighs|knees)(?=${BETWEEN_THEM})|{B:poss}\\s+(?:legs|thighs|knees)(?:\\s+(?:apart|open|wide|wider))?)`,
   },
   {
     id: "hands-and-knees",
@@ -1326,7 +1444,7 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "anal", act: "anal sex", role: "top", kind: "identity", re: /\bi(?:'m|’m| am) (?:a |such a |more of a |usually a |kind of a |kinda a |total |a total )?top\b/ },
   { cat: "anal", act: "anal sex", role: "top", kind: "identity", re: /\bi (?:usually |always |only |mostly |prefer to |like to |love to |want to |wanna |'d like to |’d like to |would like to |'d rather |’d rather )top\b/ },
   // anal — said during sex: "you're so tight" (speaker is inside), "you're so big" (speaker is receiving)
-  { cat: "anal", act: "anal sex", role: "top", kind: "said", weight: 0.8, re: /\byou(?:'re| are| feel| felt| were)\s+(?:so\s+|fucking\s+|still\s+|always\s+|perfect\s+and\s+)*tight\b|\byou feel (?:so )?(?:good|amazing|perfect|incredible|fucking good)? ?around me\b|\b(?:clench|squeez|tighten)\w* (?:around|on) me\b|\btake (?:it(?=\s*(?:[,.!?]|$|\s+(?:all|deep|like|for me|baby|sweetheart|good|so well)\b))|my (?:cock|dick|knot)\b)/ },
+  { cat: "anal", act: "anal sex", role: "top", kind: "said", weight: 0.8, re: /\byou(?:'re| are| feel| felt| were)\s+(?:so\s+|fucking\s+|still\s+|always\s+|perfect\s+and\s+)*tight\b|\byou feel (?:so )?(?:good|amazing|perfect|incredible|fucking good)? ?around me\b|\b(?:clench|squeez|tighten)\w* (?:around|on) me\b|(?<!\b(?:i|i'll|i’ll|i will|i'd|i’d|we|we'll|we’ll|i can|i could|i'd rather|i’d rather|i guess i'll|i guess i’ll)\s+)\btake (?:it(?=\s*(?:[,.!?]|$|\s+(?:all|deep|like|for me|baby|sweetheart|good|so well)\b))|my (?:cock|dick|knot)\b)/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", weight: 0.8, re: /\byou(?:'re| are| feel| felt)\s+(?:so\s+|fucking\s+)*(?:big|huge|deep|thick)\b|\b(?:i'm|i’m|i am|i feel|feel|feels|i'm just)\s+so (?:full|deep)\b|^\W*so (?:full|deep)\b|\bso full of (?:you|your)\b|\bstretch(?:ing)? me\b|\b(?:need|want|crave)\s+(?:your|that)\s+(?:cock|dick|knot)\b(?!\s+in my mouth)/ },
   { cat: "anal", act: "anal sex", role: "top", kind: "said", weight: 0.7, re: /(?:^|[.!?,]\s*|now,?\s+|please,?\s+|just\s+)(?:bend over|turn over|on your (?:stomach|hands and knees)|spread (?:your legs|'em|them)|present yourself|show me (?:your|that) (?:hole|ass))\b/ },
   // oral — said during sex

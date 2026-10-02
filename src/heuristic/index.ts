@@ -32,6 +32,7 @@ import {
 } from "./patterns";
 import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
+import { ORAL_KINDS, type OralKind, ROLE_WORDS, oralKindOf, roleSummary } from "../roles";
 import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 
 type Basis = NonNullable<Instance["basis"]>;
@@ -120,17 +121,19 @@ const CHAPTER_RE = /^(?:chapter|ch\.?|part)\s*(\d+|[ivxlc]+|one|two|three|four|f
 
 const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
 const FANTASY =
-  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
+  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
-  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?prospect of|the promise of|the idea of|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
+  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
+/** "Yeah, maybe Dunk would stop his snide comments and stuff his mouth…": the whole sentence is a what-if. */
+const HYPO_SENT = /^\W*(?:[\w'’]+[,!]\s+)?(?:maybe|perhaps)\b[^.!?]*?\b(?:would|could|might|['’]d)\b/i;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
 /** Fantasy markers strong enough to cover the whole rest of the sentence ("the vision he'd clung to, which included…"). */
 const STRONG_FANTASY =
-  /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:imagin(?:ed|es|ing)|fantasi[sz](?:ed|es|ing)|daydream\w*|dream(?:ed|t|s|ing)?|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
+  /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:imagin(?:ed|es|ing)|fantasi[sz](?:ed|es|ing)|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const SCENE_BREAK = /^\s*(?:\*+|x{3,}|~+|-{3,}|—+|#+|o+0+o+|\* \* \*)\s*$/i;
-const FANTASY_PARA = /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:dream(?:ed|t|s|ing)?|fantasi[sz](?:ed|ing|es)|fantasy|daydream\w*|imagin(?:ed|es|ing))\b/i;
+const FANTASY_PARA = /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|fantasi[sz](?:ed|ing|es)|fantasy|daydream\w*|imagin(?:ed|es|ing))\b/i;
 
 const SAY =
   "said|says|say|asked|asks|begged|begs|whispered|whispers|murmured|murmurs|moaned|moans|groaned|groans|gasped|gasps|panted|pants|breathed|breathes|growled|growls|hissed|hisses|whined|whines|pleaded|pleads|demanded|demands|ordered|orders|told|tells|mumbled|mumbles|muttered|mutters|replied|replies|answered|answers|added|adds|choked out|managed|grunted|grunts|purred|purrs|rasped|rasps|sighed|sighs|laughed|laughs|snapped|snaps|teased|teases|urged|urges|insisted|insists|admitted|admits|confessed|confesses|sobbed|sobs|cried|cries|whimpered|whimpers|husked|drawled|offered|suggested|blurted|croaked|keened|ground out|bit out|gritted out|continued|promised|warned|commanded|instructed|repeated|agreed|protested|swore|cursed|chuckled|smirked|grinned|smiled|hummed|crooned|coaxed|praised|soothed|groused|whispered against|murmured against";
@@ -557,7 +560,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const WAKE = /\b(?:wak(?:e|es|ing)\s+up|woke|awake|jolt(?:s|ed)?\s+awake|snap(?:s|ped)?\s+out\s+of)\b/i;
     const fantasyPara = FANTASY_PARA.test(mp.slice(0, 160)) || (dreamRun > 0 && !WAKE.test(mp.slice(0, 160)) && !SCENE_BREAK.test(para));
     if (WAKE.test(mp) || SCENE_BREAK.test(para)) dreamRun = 0;
-    else if (/(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:dream(?:ed|t|s|ing)?|daydream\w*|fantasi[sz](?:ed|es|ing))\b/i.test(mp)) dreamRun = 2;
+    else if (/(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|daydream\w*|fantasi[sz](?:ed|es|ing))\b/i.test(mp)) dreamRun = 2;
     else if (dreamRun) dreamRun--;
     const sexy = SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`);
 
@@ -631,6 +634,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "Dean arches underneath Cas' tongue as he swallows him down": he is the one whose tongue it is.
     const under = new RegExp(`\\b(?:under|underneath|beneath)\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:tongue|mouth|lips|hands?|fingers|touch|ministrations|weight|body|attention)\\s*,?\\s*(?:as|while|when)\\s*$`).exec(prefix);
     if (under) return cast.byAlias.get(under[1]);
+    // "…as Dunk's hands kneaded his arse as he pressed his tongue…": the hands' owner carries on as "he".
+    const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+[^,;—]*?\\b(?:as|while|when)\\s*$`).exec(prefix);
+    if (handsOf) return cast.byAlias.get(handsOf[1]);
     // "—pressing him down, and Riddle with him—" is an aside, not the clause's subject.
     prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
     const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
@@ -813,10 +819,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
     const subjTok = pat.subj === "t" ? tTok : bTok;
     // "When Alex manages…, one of his digits slips lower": a possessive pronoun works the same way.
-    const nearSubj =
+    // "Dunk would… make him take him to the back of his throat": "him" after make/let is the one being made to,
+    // i.e. the causer's partner. (Not perception verbs: "Brad watched him getting fucked by Kyle".)
+    const causative = /^(?:him|her|them)$/.test(subjTok ?? "") && /\b(?:make|makes|made|making|let|lets|letting)\s+$/i.test(sent.slice(0, m.index));
+    const clauseSubj =
       !pat.elided && subjTok && (pronoun(subjTok) || /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(subjTok)) && m.index! > 0
         ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!))
         : undefined;
+    const causer = causative ? (clauseSubj ?? firstEntity(sent.slice(0, m.index)) ?? ctx.lastSubject) : undefined;
+    const nearSubj = causative ? causer && ctx.partnerOf(causer) : clauseSubj;
     const co = /([\p{L}'’]+)\s+and\s+$/u.exec(sent.slice(0, m.index));
     const coChar = co ? resolveToken(co[1]) : undefined;
     ctx.coSubjects = new Set(coChar ? [coChar] : []);
@@ -850,8 +861,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       return;
     }
     // "cupping his cheeks" while kissing: a face, not an ass.
-    if (pat.id.startsWith("grab-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
-        (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose)\b/i.test(sent))) return;
+    if ((pat.id.startsWith("grab-ass") || pat.id === "hands-on-ass") && /cheeks\b/.test(matchText) && !/\b(?:ass|arse|butt|bum)\b/i.test(matchText) &&
+        (/\bcup\w*\b/i.test(matchText) || /\b(?:kiss\w*|face|eyes?|tears?|lips|jaw|blush\w*|flush\w*|smil\w*|forehead|nose|head|cradl\w*|temples?|chin)\b/i.test(sent))) return;
     // "…until the ridges of Alex's knuckles … each time they slide past his rim": "they" are the fingers.
     // They're fingering, by whoever owns the fingers ("Alex's knuckles", "his fingers").
     if (/^they$/i.test(tTok ?? "") && /\b(?:fingers?|knuckles?|digits?|hands?|toys?|thumbs?)\b/i.test(sent.slice(0, m.index))) {
@@ -866,12 +877,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "Alex shudders and presses in harder" while kissing: not penetration.
     if (pat.id.startsWith("pushed-in") && /\bkiss/i.test(sent) && !ANAL_CTX.test(sent)) return;
+    // "…parted his lips, allowing Dunk's tongue to slip inside": a tongue in a kiss.
+    if (pat.id.startsWith("pushed-in") && /\btongues?\b/i.test(sent.slice(0, m.index! + m[0].length)) && /\b(?:lips|mouths?|kiss\w*)\b/i.test(sent) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent) && !FINGER_CTX.test(sent)) return;
     // A bare "as he sank in" (into a hug, a bath) needs a cock, an ass or fingers somewhere in the paragraph.
     if (pat.id.startsWith("pushed-in") && !/\b(?:thrust|fuck|rut|snap|pound|slam)/i.test(matchText)) {
       if (![pi - 2, pi - 1, pi, pi + 1].some(bodyContext)) return;
     }
     // "opened the car door and slipped inside": a place, not a person.
     if (pat.id.startsWith("pushed-in") && /\b(?:door|car|truck|van|cab|taxi|room|house|building|shop|store|bar|elevator|lift|tent|cabin|Impala|apartment|office|kitchen|bathroom)\b/.test(sent.slice(0, m.index))) return;
+    // "…slipped in just before the doors closed"
+    if (pat.id.startsWith("pushed-in") && /\b(?:doors?|elevator|lift|train|bus|subway|tube|taxi|cab|car)\b/i.test(sent) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent)) return;
     // "He hollowed his cheeks, creating a suction for Cas": the one named after "for" is getting sucked.
     if (pat.id.startsWith("hollowed-cheeks")) {
       const forName = new RegExp(`^[^.;]{0,40}?\\bfor\\s+(${NAMES})\\b`).exec(sent.slice(m.index! + matchText.length));
@@ -893,7 +908,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (oc && oc !== top) [top, bottom] = [oc, top];
     }
     // "…when a second finger began pushing into him": fingers named in the sentence (and no cock) mean fingering.
-    if (cat === "anal" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + sent) && !PENIS_CTX.test(sent)) act = "fingering";
+    // Fingers busy elsewhere ("his fingers tangling in Alex's curls") don't make it fingering.
+    const fingerSent = sent.replace(/\b(?:fingers?|fingertips?|digits?|knuckles?)\b[^,.;]{0,40}?\b(?:hair|curls|locks|sheets?|pillows?|shoulders?|back|neck|jaw|cheeks?|face|scalp|nape|arms?|biceps?|hands?|chest|headboard|blankets?)\b/gi, "");
+    if (cat === "anal" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + fingerSent) && !PENIS_CTX.test(sent)) act = "fingering";
     if (pat.id === "prostate" && FINGER_CTX.test(sent) && !PENIS_CTX.test(sent)) act = "fingering";
 
     // Hints, not acts: checking out an ass, grabbing it, staring at a bulge...
@@ -958,7 +975,6 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         act = "cunnilingus";
       }
     }
-    if (pat.id === "enter" && /\b(?:took|take|takes|taking)\b/.test(matchText)) weight *= 0.5;
     // "them"/"it" may be a thing, not a person ("sucks them into his mouth" = fingers): require the
     // sentence to name the body part the act needs.
     const thing = (tok?: string) => /^(?:them|it)$/i.test(tok ?? "");
@@ -982,7 +998,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
     else if (DESIRE.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
-    else if (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window)) kind = "hypothetical";
+    else if (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix)) kind = "hypothetical";
 
     if (kind === "act") {
       if (negated) return;
@@ -1084,12 +1100,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const pairTags = tagsFor(tags, members as [Character, Character], isMain);
     const pair = members as [Character, Character];
     const anal = buildAct("anal", pActs.filter((a) => a.cat === "anal"), pDes.filter((d) => d.cat === "anal"), pairTags, pair, meta, where);
-    const oral = buildAct("oral", pActs.filter((a) => a.cat === "oral"), pDes.filter((d) => d.cat === "oral"), pairTags, pair, meta, where);
+    const oralActs = pActs.filter((a) => a.cat === "oral");
+    const oralDes = pDes.filter((d) => d.cat === "oral");
+    const oral = buildAct("oral", oralActs, oralDes, pairTags, pair, meta, where);
+    const [blowjob, rimming, cunnilingus] = ORAL_KINDS.map((kind) =>
+      buildAct("oral", oralActs.filter((a) => oralKindOf(a.act) === kind), oralDes.filter((d) => oralKindOf(d.act) === kind), pairTags, pair, meta, where, kind),
+    );
     const vaginal = buildVaginal(pActs.filter((a) => a.cat === "vaginal"), pair, meta, where);
     const weight = pActs.reduce((n, a) => n + a.weight, 0) + pDes.length * 0.2 + (isMain ? 0.01 : 0);
     // Skip incidental pairs with almost nothing (likely misresolved pronouns); a tagged pair needs less.
     if (!isMain && weight < (tagged ? 0.5 : 1.2)) continue;
-    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, vaginal, weight, key });
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
 
@@ -1122,7 +1143,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     source: "patterns",
     fandom: meta.fandoms.join(", "),
     main_pairing: romantic[0] ?? results[0]?.pairing ?? "",
-    pairings: results.map(({ pairing, anal, oral, vaginal }) => ({ pairing, anal, oral, vaginal })),
+    pairings: results.map(({ weight: _w, key: _k, ...p }) => p),
     notes: notes.join(" "),
   };
 }
@@ -1172,14 +1193,16 @@ function buildVaginal(hits: ActHit[], pair: [Character, Character], meta: Ao3Met
 interface PairTags {
   roles: { char: Character; role: "top" | "bottom" | "switch"; tag: string }[];
   switching: string[];
-  actTags: { anal: string[]; oral: string[] };
+  actTags: Record<"anal" | "oral" | OralKind, string[]>;
 }
 
 function tagsFor(info: TagInfo, pair: [Character, Character], isMain: boolean): PairTags {
   return {
     roles: info.roles.filter((r) => pair.includes(r.char)),
     switching: isMain ? info.switching : [],
-    actTags: isMain ? { anal: info.anal, oral: info.oral } : { anal: [], oral: [] },
+    actTags: isMain
+      ? { anal: info.anal, oral: info.oral, blowjob: info.blowjobs, rimming: info.rimming, cunnilingus: info.oral.filter((t) => /cunnilingus|eating out|pussy/i.test(t)) }
+      : { anal: [], oral: [], blowjob: [], rimming: [], cunnilingus: [] },
   };
 }
 
@@ -1215,9 +1238,11 @@ function buildAct(
   pair: [Character, Character],
   meta: Ao3Meta,
   where: (pi: number) => string,
+  /** One oral act, reported in its own words; without it, oral sex as a whole. */
+  kind?: OralKind,
 ): ActResult {
   const otherOf = (name: string) => pair.find((c) => c.name !== name)?.name;
-  const label = cat === "anal" ? "anal sex" : "oral sex";
+  const label = kind ? ROLE_WORDS[kind].label : cat === "anal" ? "anal sex" : "oral sex";
   const reasons: string[] = [];
   const instances: Instance[] = [];
 
@@ -1283,16 +1308,16 @@ function buildAct(
     const isSwitch = !!minor && (minor.scenes >= 2 || minor.strong);
     if (isSwitch) {
       verdict = "switch";
-      summary = `They switch: ${major.char.name} tops in ${plural(major.scenes, "scene")}, ${minor.char.name} in ${plural(minor.scenes, "scene")}.`;
+      summary = roleSummary(kind ?? "anal", "switch", { name: major.char.name, partner: major.partner.name, scenes: major.scenes }, { name: minor.char.name, scenes: minor.scenes });
       base = evidence * (0.55 + 0.45 * Math.min(1, minor.weight / 2));
-      reasons.push(`${plural(major.scenes + minor.scenes, "scene")} found, with each person on top at least once`);
+      reasons.push(`${plural(major.scenes + minor.scenes, "scene")} found, with each person ${kind ? "in each role" : "on top"} at least once`);
     } else {
       verdict = "one_way";
       const consistency = major.weight / totalW;
-      summary = `${major.char.name} tops (${plural(major.scenes, "scene")}).`;
-      if (minor) summary += ` One possible exception where ${minor.char.name} tops — check the quoted line.`;
+      summary = roleSummary(kind ?? "anal", "one_way", { name: major.char.name, partner: major.partner.name, scenes: major.scenes });
+      if (minor) summary += ` One possible exception where ${minor.char.name} ${kind ? ROLE_WORDS[kind].topVerb : "tops"} — check the quoted line.`;
       base = evidence * (0.45 + 0.55 * consistency);
-      reasons.push(`${plural(major.scenes, "scene")} with ${major.char.name} on top${minor ? `, 1 weak contrary hit` : ""}`);
+      reasons.push(`${plural(major.scenes, "scene")} ${kind ? `where ${ROLE_WORDS[kind].scene(major.char.name, major.partner.name)}` : `with ${major.char.name} on top`}${minor ? `, 1 weak contrary hit` : ""}`);
     }
     const named = decisive.filter((h) => h.basis === "named").length;
     const viaPronoun = decisive.length - named;
@@ -1329,7 +1354,7 @@ function buildAct(
       else if (tagTops.length || tagBottoms.length) reasons.push(`tagged “${(tagTops[0] ?? tagBottoms[0]).tag}”, but the text shows switching`);
     }
   }
-  const actTags = cat === "anal" ? tags.actTags.anal : tags.actTags.oral;
+  const actTags = cat === "anal" ? tags.actTags.anal : kind ? tags.actTags[kind] : tags.actTags.oral;
   if (actTags.length && verdict !== "none") {
     tagAdj += 0.05;
     reasons.push(`tagged “${actTags[0]}”`);
@@ -1403,7 +1428,7 @@ function buildAct(
       const [who, w] = desireRank[0];
       const n = sig.filter((d) => desireTop(d) === who).length;
       const kinds = [...new Set(sig.filter((d) => desireTop(d) === who).map((d) => (isBehaviour(d) ? d.kind : "desire/fantasy")))];
-      summary = `No on-page ${label} recognized, but ${plural(n, "hint")} (${kinds.join(", ")}) point to ${who} as the top.`;
+      summary = `No on-page ${label} recognized, but ${plural(n, "hint")} (${kinds.join(", ")}) point to ${kind === "blowjob" ? `${otherOf(who) ?? "the other"} ${ROLE_WORDS.blowjob.bottomIng}` : kind ? `${who} ${ROLE_WORDS[kind].topIng}` : `${who} as the top`}.`;
       base = Math.min(0.45, 0.15 + w * 0.06);
       reasons.push("based only on hints: what characters want, imagine, look at, or do short of sex");
       desAdj = 0;

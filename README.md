@@ -7,7 +7,12 @@ A small web app: drop in an AO3 download (PDF, EPUB, HTML, or TXT) and it tells 
 3. **Word count**
 4. **Who tops and bottoms**, and whether anyone switches:
    - **Anal:** top = penetrative partner, bottom = anally receptive partner.
-   - **Oral:** top = penetrative partner (getting their dick sucked, or eating ass), bottom = orally receptive partner (sucking dick, or having their ass eaten).
+   - **Oral**, reported per act in plain words rather than top/bottom:
+     - **Blowjobs:** who sucks cock and who gets sucked.
+     - **Rimming:** who eats ass and whose ass gets eaten.
+     - **Cunnilingus** (shown when someone in the pair has a vagina): who eats out and who gets eaten out.
+
+     Each act gets its own verdict, so someone who both sucks and rims their partner isn't mistaken for a switch.
 
 ## How it works
 
@@ -63,7 +68,7 @@ word count is estimated and the main characters are guessed from frequently capi
    or grabbing their ass, grinding against it, lining up, slicking up or rolling on a condom suggests top;
    staring at someone’s crotch or bulge, a mouth watering at it, grinding one’s ass back, spreading one’s legs,
    getting on hands and knees, or kneeling between someone’s legs suggests bottom. Sucking on someone’s
-   fingers (or having fingers pushed into one’s mouth) suggests an oral bottom; fingering oneself or using a
+   fingers (or having fingers pushed into one’s mouth) suggests the person sucking cock; fingering oneself or using a
    dildo, plug or toy on oneself (“fingered himself open”, “rode the plug”) suggests an anal bottom. Dialogue counts too
    (“nice ass”, “you’re so tight” → speaker tops; “you feel so big”, “I need your knot” → speaker bottoms).
    “Fuck me” only counts as a request when it is one: not after an interjection (“well, fuck me”), before a

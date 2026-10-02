@@ -2,6 +2,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { type Ao3Meta, countWords } from "./ao3";
+import { splitOral } from "./roles";
 import type { ActResult, Analysis } from "./types";
 import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "./text";
 
@@ -175,6 +176,7 @@ ORAL
 - Bottom = the orally receptive partner: the person sucking dick, or the person having their ass eaten.
 - So in a blowjob, the one receiving it is the top; in rimming, the one doing the rimming is the top.
 - If cunnilingus occurs, treat it like rimming (the one doing the licking is the top) and label the act "cunnilingus".
+- Label each oral instance "blowjob", "rimming" or "cunnilingus" (or e.g. "blowjob, deepthroating"), one act per instance; results are shown per act as who sucks cock / gets sucked and who eats ass / gets their ass eaten.
 
 SWITCHING
 - verdict "switch" means each partner is the top at least once for that act category anywhere in the work. Set top/bottom to whoever tops more often (if it's even, pick either and say so in the summary).
@@ -275,6 +277,7 @@ function toAnalysis(a: ClaudeAnswer): Analysis {
       pairing: p.pairing,
       anal: act(p.anal),
       oral: act(p.oral),
+      ...splitOral(act(p.oral), p.pairing),
       vaginal: {
         occurs: p.vaginal.occurs,
         applicable: p.vaginal.occurs || p.vaginal.instances.length > 0,
