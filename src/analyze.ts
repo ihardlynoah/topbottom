@@ -2,35 +2,16 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { type Ao3Meta, countWords } from "./ao3";
+import type { ActResult, Analysis } from "./types";
 
-export type Verdict = "none" | "one_way" | "switch" | "unclear";
-
-export interface Instance {
-  top: string;
-  bottom: string;
-  act: string;
-  where: string;
-  evidence: string;
+/** Claude's raw answer; converted to the shared Analysis shape below. */
+interface ClaudeAct extends Omit<ActResult, "confidence"> {
+  confidence: { level: "High" | "Medium" | "Low"; reasons: string[] };
 }
-
-export interface ActResult {
-  verdict: Verdict;
-  top: string;
-  bottom: string;
-  summary: string;
-  instances: Instance[];
-}
-
-export interface PairingResult {
-  pairing: string;
-  anal: ActResult;
-  oral: ActResult;
-}
-
-export interface Analysis {
+interface ClaudeAnswer {
   fandom: string;
   main_pairing: string;
-  pairings: PairingResult[];
+  pairings: { pairing: string; anal: ClaudeAct; oral: ClaudeAct }[];
   notes: string;
 }
 
@@ -67,8 +48,35 @@ const actSchema = {
     bottom: { type: "string", description: "The usual/primary bottom. Empty string if verdict is none or unclear." },
     summary: { type: "string", description: "One or two sentences, e.g. 'Harry tops every time (3 scenes).' or 'Mostly Draco tops; Harry tops once in ch. 12.'" },
     instances: { type: "array", items: instanceSchema },
+    desires: {
+      type: "array",
+      description: "Lines where a character wants, asks for, imagines, or rejects a role in this act (not counted as instances).",
+      items: {
+        type: "object",
+        properties: {
+          who: { type: "string" },
+          role: { type: "string", enum: ["top", "bottom"] },
+          wants: { type: "boolean", description: "false if they say they do NOT want this role." },
+          kind: { type: "string", enum: ["said", "wanted", "fantasy", "hypothetical", "identity"] },
+          act: { type: "string" },
+          where: { type: "string" },
+          evidence: { type: "string", description: "Short paraphrase." },
+        },
+        required: ["who", "role", "wants", "kind", "act", "where", "evidence"],
+        additionalProperties: false,
+      },
+    },
+    confidence: {
+      type: "object",
+      properties: {
+        level: { type: "string", enum: ["High", "Medium", "Low"] },
+        reasons: { type: "array", items: { type: "string" }, description: "One to three short reasons." },
+      },
+      required: ["level", "reasons"],
+      additionalProperties: false,
+    },
   },
-  required: ["verdict", "top", "bottom", "summary", "instances"],
+  required: ["verdict", "top", "bottom", "summary", "instances", "desires", "confidence"],
   additionalProperties: false,
 };
 
@@ -119,6 +127,13 @@ SWITCHING
 - verdict "switch" means each partner is the top at least once for that act category anywhere in the work. Set top/bottom to whoever tops more often (if it's even, pick either and say so in the summary).
 - verdict "one_way" means every instance has the same top.
 - Count only sex that actually happens between characters in the story (including flashbacks). Do not count fantasies, dreams, or sex that is only talked about, but do mention them in notes if they hint at roles. If sex is clearly implied but cut away from (fade to black) and roles are stated or obvious, count it and say it was implied in the evidence.
+
+DESIRE / FANTASY
+- Separately from what happens, list lines where a character wants, asks for, imagines, dreams about, or says they prefer a role ("I want you to fuck me", "he'd always bottomed", "he imagined Draco on his knees"), or says they do NOT want a role (wants: false). kind: said (dialogue), wanted (narrated desire), fantasy (imagined/dreamed), hypothetical (would/if), identity (habit or self-description like "I'm a bottom").
+- These do not count as instances, but use them in your confidence.
+
+CONFIDENCE
+- High: clear on-page scenes with unambiguous roles. Medium: some ambiguity (pronoun confusion, few scenes, implied sex). Low: mostly inferred from desire lines, tags, or vague text.
 
 OTHER RULES
 - Use the characters' names as they appear in the AO3 relationship tags when available.
@@ -186,6 +201,22 @@ function metaBlock(meta: Ao3Meta): string {
 
 export class RefusalError extends Error {}
 
+const LEVEL_SCORE = { High: 0.9, Medium: 0.62, Low: 0.3 } as const;
+
+function toAnalysis(a: ClaudeAnswer): Analysis {
+  const act = (x: ClaudeAct): ActResult => ({
+    ...x,
+    confidence: { score: LEVEL_SCORE[x.confidence.level], label: x.confidence.level, reasons: x.confidence.reasons },
+  });
+  return {
+    source: "claude",
+    fandom: a.fandom,
+    main_pairing: a.main_pairing,
+    pairings: a.pairings.map((p) => ({ pairing: p.pairing, anal: act(p.anal), oral: act(p.oral) })),
+    notes: a.notes,
+  };
+}
+
 export async function analyzeWork(opts: {
   apiKey: string;
   model: ModelId;
@@ -232,5 +263,5 @@ export async function analyzeWork(opts: {
   }
   const textBlock = message.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new Error("Claude returned no answer.");
-  return JSON.parse(textBlock.text) as Analysis;
+  return toAnalysis(JSON.parse(textBlock.text) as ClaudeAnswer);
 }

@@ -8,12 +8,15 @@ export interface Ao3Meta {
   fandoms: string[];
   relationships: string[];
   characters: string[];
+  /** "Additional Tags" (freeform tags), e.g. "Bottom Harry Potter", "Rimming". */
+  freeforms: string[];
+  categories: string[];
   words?: number;
   chapters?: string;
 }
 
 export function emptyMeta(): Ao3Meta {
-  return { fandoms: [], relationships: [], characters: [] };
+  return { fandoms: [], relationships: [], characters: [], freeforms: [], categories: [] };
 }
 
 /** True if the metadata has the fields AO3 always includes. */
@@ -72,6 +75,8 @@ export function parseAo3FromDom(doc: Document): Ao3Meta {
     if (/^fandoms?$/.test(label)) meta.fandoms = tags;
     else if (/^relationships?$/.test(label)) meta.relationships = tags;
     else if (/^characters?$/.test(label)) meta.characters = tags;
+    else if (label === "additional tags") meta.freeforms = tags;
+    else if (/^categor(y|ies)$/.test(label)) meta.categories = tags;
     else if (label === "rating") meta.rating = tags[0];
     else if (label === "stats") {
       meta.words = parseWords(text);
@@ -114,6 +119,8 @@ export function parseAo3FromText(text: string): Ao3Meta {
     if (/^fandoms?$/.test(label) && !meta.fandoms.length) meta.fandoms = splitTags(value);
     else if (/^relationships?$/.test(label) && !meta.relationships.length) meta.relationships = splitTags(value);
     else if (/^characters?$/.test(label) && !meta.characters.length) meta.characters = splitTags(value);
+    else if (label === "additional tags" && !meta.freeforms.length) meta.freeforms = splitTags(value);
+    else if (/^categor(y|ies)$/.test(label) && !meta.categories.length) meta.categories = splitTags(value);
     else if (label === "rating" && !meta.rating) meta.rating = value.split(" ")[0];
   }
   // PDFs sometimes put "Words:" outside a "Stats:" label.
@@ -133,6 +140,8 @@ export function mergeMeta(a: Ao3Meta, b: Ao3Meta): Ao3Meta {
     fandoms: a.fandoms.length ? a.fandoms : b.fandoms,
     relationships: a.relationships.length ? a.relationships : b.relationships,
     characters: a.characters.length ? a.characters : b.characters,
+    freeforms: a.freeforms.length ? a.freeforms : b.freeforms,
+    categories: a.categories.length ? a.categories : b.categories,
     words: a.words ?? b.words,
     chapters: a.chapters ?? b.chapters,
   };

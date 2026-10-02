@@ -234,3 +234,54 @@ button:disabled { opacity: 0.6; cursor: progress; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: center; }
+
+/* ---- hybrid results ---- */
+.source-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  white-space: nowrap;
+}
+.optional { font-weight: 400; color: var(--muted); font-size: 0.85rem; }
+#claude #settings { margin: 0 0 12px; }
+#claude #settings > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+#claude #settings[open] > summary { margin-bottom: 10px; }
+
+.mini-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.confidence { margin: 8px 0; }
+.conf-row { display: flex; align-items: center; gap: 8px; }
+.conf-bar { flex: 1; height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; min-width: 60px; }
+.conf-fill { height: 100%; border-radius: 999px; background: var(--unclear); }
+.conf-high .conf-fill { background: var(--ok); }
+.conf-low .conf-fill { background: var(--accent); }
+.conf-text { font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.conf-reasons { margin: 4px 0 0; font-size: 0.8rem; color: var(--muted); }
+
+.desires { margin: 8px 0; padding-top: 8px; border-top: 1px dashed var(--border); }
+.desire-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  font-size: 0.78rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--switch) 15%, transparent);
+  color: var(--text);
+}
+.basis {
+  margin-left: 6px;
+  font-size: 0.7rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}

@@ -1,0 +1,779 @@
+// Free, offline top/bottom analysis using sentence patterns instead of AI.
+//
+// Pipeline: split into paragraphs and sentences → mask dialogue → find act patterns in narration →
+// resolve names/pronouns to characters → classify each hit as an act, a desire, or a fantasy →
+// read dialogue for what speakers ask for → group hits into scenes → verdict + confidence per pairing.
+
+import { type Ao3Meta, romanticPairings } from "../ao3";
+import {
+  type ActResult,
+  type Analysis,
+  type Confidence,
+  type Desire,
+  type Instance,
+  type PairingResult,
+  type Role,
+  confidenceLabel,
+} from "../types";
+import { type Cast, type Character, type Gender, buildCast } from "./characters";
+import {
+  ANAL_CTX,
+  type Cat,
+  type CompiledPattern,
+  DIALOGUE,
+  FINGER_CTX,
+  PATTERNS,
+  PENIS_CTX,
+  SEX_CTX,
+  TRIGGER,
+  compilePatterns,
+} from "./patterns";
+import { type TagInfo, readTags } from "./tags";
+
+type Basis = NonNullable<Instance["basis"]>;
+
+interface ActHit {
+  cat: Cat;
+  act: string;
+  top: Character;
+  bottom: Character;
+  weight: number;
+  basis: Basis;
+  para: number;
+  sentence: string;
+}
+
+interface DesireHit {
+  cat: Cat;
+  act: string;
+  who: Character;
+  partner?: Character;
+  role: Role;
+  wants: boolean;
+  kind: Desire["kind"];
+  para: number;
+  sentence: string;
+}
+
+// ───────────── text helpers ─────────────
+
+interface Quote {
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** Replace dialogue with spaces (same length) so narration patterns don't fire on speech. */
+export function maskQuotes(p: string, singleQuotes: boolean): { masked: string; quotes: Quote[] } {
+  const quotes: Quote[] = [];
+  const re = singleQuotes
+    ? /(^|[\s(—–-])‘((?:[^’]|’(?=\p{L}))*)’(?=[\s,.;:!?—–)-]|$)/gu
+    : /“([^”]*)”?|"([^"]*)"?/g;
+  let masked = p;
+  for (const m of p.matchAll(re)) {
+    const lead = singleQuotes ? m[1].length : 0;
+    const start = m.index! + lead;
+    const end = m.index! + m[0].length;
+    const text = singleQuotes ? m[2] : (m[1] ?? m[2] ?? "");
+    quotes.push({ start, end, text });
+    masked = masked.slice(0, start + 1) + " ".repeat(Math.max(0, end - start - 2)) + masked.slice(end - 1);
+  }
+  return { masked, quotes };
+}
+
+/** Sentence boundaries (start indices) in a paragraph. */
+function sentenceSpans(p: string): [number, number][] {
+  const spans: [number, number][] = [];
+  const re = /[.!?…]+["”’)]*\s+(?=["“‘(]?[\p{Lu}\d])/gu;
+  let start = 0;
+  for (const m of p.matchAll(re)) {
+    const end = m.index! + m[0].length;
+    // Don't split after common abbreviations.
+    if (/\b(?:Mr|Mrs|Ms|Dr|St|Mt|Jr|Sr|vs|etc)\.\s*$/.test(p.slice(start, end))) continue;
+    spans.push([start, end]);
+    start = end;
+  }
+  if (start < p.length) spans.push([start, p.length]);
+  return spans;
+}
+
+const CHAPTER_RE = /^(?:chapter|ch\.?|part)\s*(\d+|[ivxlc]+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|[a-z]+teen|twenty[\w-]*|thirty[\w-]*)\b/i;
+
+// ───────────── context markers ─────────────
+
+const NEG = /\b(?:not|never|no longer|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
+const FANTASY =
+  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|dream(?:ed|t|s|ing)?|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn)\b/i;
+const DESIRE =
+  /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you) to|plead\w* (?:for|with)|itch(?:ed|ing)? to)\b/i;
+const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like)\b/i;
+const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
+const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
+const FANTASY_PARA = /\b(?:dream(?:ed|t|s|ing)?|fantasi[sz](?:ed|ing|es)|fantasy|daydream\w*|imagin(?:ed|es|ing))\b/i;
+
+const SAY =
+  "said|says|say|asked|asks|begged|begs|whispered|whispers|murmured|murmurs|moaned|moans|groaned|groans|gasped|gasps|panted|pants|breathed|breathes|growled|growls|hissed|hisses|whined|whines|pleaded|pleads|demanded|demands|ordered|orders|told|tells|mumbled|mumbles|muttered|mutters|replied|replies|answered|answers|added|adds|choked out|managed|grunted|grunts|purred|purrs|rasped|rasps|sighed|sighs|laughed|laughs|snapped|snaps|teased|teases|urged|urges|insisted|insists|admitted|admits|confessed|confesses|sobbed|sobs|cried|cries|whimpered|whimpers|husked|drawled|offered|suggested|blurted|croaked|keened|ground out|bit out|gritted out|continued|promised|warned|commanded|instructed|repeated|agreed|protested|swore|cursed|chuckled|smirked|grinned|smiled|hummed|crooned|coaxed|praised|soothed|groused|whispered against|murmured against";
+
+// ───────────── character resolution ─────────────
+
+type PronounInfo = { gender: Gender | "any" } | { fixed: "I" | "you" };
+
+function pronoun(tok: string): PronounInfo | undefined {
+  switch (tok.toLowerCase()) {
+    case "he": case "him": case "his": return { gender: "m" };
+    case "she": case "her": return { gender: "f" };
+    case "they": case "them": case "their": return { gender: "any" };
+    case "i": case "me": case "my": return { fixed: "I" };
+    case "you": case "your": return { fixed: "you" };
+  }
+  return undefined;
+}
+
+class Ctx {
+  recent: Character[] = [];
+  lastSubject?: Character;
+  constructor(private cast: Cast) {}
+
+  mention(c: Character | undefined) {
+    if (!c) return;
+    this.recent = [c, ...this.recent.filter((r) => r !== c)].slice(0, 10);
+  }
+
+  static compatible(c: Character, g: Gender | "any") {
+    return g === "any" || c.gender === "u" || c.gender === g;
+  }
+
+  /** Who a subject pronoun (he/she) most likely refers to: the last subject, or the last-mentioned match. */
+  subjectFor(g: Gender | "any"): Character | undefined {
+    if (this.lastSubject && Ctx.compatible(this.lastSubject, g)) return this.lastSubject;
+    return this.recent.find((c) => Ctx.compatible(c, g));
+  }
+
+  /** The other person in a two-person scene. */
+  partnerOf(x: Character, g: Gender | "any" = "any"): Character | undefined {
+    const paired = new Set(this.cast.pairings.filter((p) => p.includes(x)).map((p) => (p[0] === x ? p[1] : p[0])));
+    const near = this.recent.slice(0, 6).filter((c) => c !== x && Ctx.compatible(c, g));
+    return (
+      near.find((c) => paired.has(c)) ??
+      near[0] ??
+      [...paired].find((c) => Ctx.compatible(c, g)) ??
+      this.cast.pairings.flat().find((c) => c !== x && Ctx.compatible(c, g))
+    );
+  }
+
+  fixed(kind: "I" | "you"): Character | undefined {
+    return kind === "I" ? this.cast.narrator : this.cast.secondPerson;
+  }
+}
+
+function stripPoss(tok: string) {
+  return tok.replace(/['’]s$/, "");
+}
+
+interface Slot {
+  char?: Character;
+  pron?: PronounInfo;
+}
+
+function readSlot(tok: string | undefined, cast: Cast, ctx: Ctx): Slot | undefined {
+  if (!tok) return undefined;
+  const name = stripPoss(tok);
+  const byName = cast.byAlias.get(name);
+  if (byName) return { char: byName };
+  const p = pronoun(name);
+  if (!p) return undefined;
+  if ("fixed" in p) {
+    const c = ctx.fixed(p.fixed);
+    return c ? { char: c } : undefined;
+  }
+  return { pron: p };
+}
+
+function slotGender(s: Slot): Gender | "any" {
+  return s.pron && "gender" in s.pron ? s.pron.gender : "any";
+}
+
+/** Turn the matched T/B tokens into characters. */
+function resolvePair(
+  tTok: string | undefined,
+  bTok: string | undefined,
+  subj: "t" | "b",
+  cast: Cast,
+  ctx: Ctx,
+  /** For elided-subject matches: the subject found earlier in the sentence. */
+  subjChar?: Character,
+): { top?: Character; bottom?: Character; basis: Basis } | undefined {
+  let t = readSlot(tTok, cast, ctx);
+  let b = readSlot(bTok, cast, ctx);
+  if (subjChar) {
+    if (subj === "t") t = { char: subjChar };
+    else b = { char: subjChar };
+  }
+  if (tTok && !t) return undefined;
+  if (bTok && !b) return undefined;
+
+  let top = t?.char;
+  let bottom = b?.char;
+  let basis: Basis = "named";
+
+  if (t && b) {
+    if (top && !bottom) {
+      bottom = ctx.partnerOf(top, slotGender(b));
+      basis = "pronoun";
+    } else if (bottom && !top) {
+      top = ctx.partnerOf(bottom, slotGender(t));
+      basis = "pronoun";
+    } else if (!top && !bottom) {
+      const [s, o] = subj === "t" ? [t, b] : [b, t];
+      const sc = ctx.subjectFor(slotGender(s));
+      const oc = sc ? ctx.partnerOf(sc, slotGender(o)) : undefined;
+      [top, bottom] = subj === "t" ? [sc, oc] : [oc, sc];
+      basis = "pronoun";
+    }
+  } else {
+    // Only one side mentioned ("he bottomed out", "he was fucked"): the other is the scene partner.
+    const only = (t ?? b)!;
+    const c = only.char ?? ctx.subjectFor(slotGender(only));
+    const other = c ? ctx.partnerOf(c) : undefined;
+    if (t) [top, bottom] = [c, other];
+    else [top, bottom] = [other, c];
+    basis = "inferred";
+  }
+  if (!top || !bottom || top === bottom) return undefined;
+  return { top, bottom, basis };
+}
+
+function groupValue(groups: Record<string, string | undefined> | undefined, role: "t" | "b") {
+  if (!groups) return undefined;
+  for (const [k, v] of Object.entries(groups)) if (v !== undefined && k.startsWith(`${role}_`)) return v;
+  return undefined;
+}
+
+// ───────────── main analysis ─────────────
+
+export interface PatternOptions {
+  /** Leave out the "how this works" caveats in notes (for tests). */
+  quiet?: boolean;
+}
+
+export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOptions = {}): Analysis {
+  const paras = text.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+  const doubleQuotes = (text.match(/[“"]/g) ?? []).length;
+  const singleQuotes = doubleQuotes < 4 && (text.match(/(^|\s)‘/g) ?? []).length >= 4;
+  const masked = paras.map((p) => maskQuotes(p, singleQuotes));
+  const narration = masked.map((m) => m.masked).join("\n");
+
+  const cast = buildCast(meta, narration);
+  const tags = readTags(meta.freeforms, cast);
+  const patterns = compilePatterns(PATTERNS, cast.aliasPattern);
+  const NAMES = cast.aliasPattern || "(?!)";
+  const nameRe = new RegExp(`\\b(?:${NAMES})(?:['’]s)?\\b`, "g");
+  const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES})(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
+  const ctx = new Ctx(cast);
+
+  const acts: ActHit[] = [];
+  const desires: DesireHit[] = [];
+  const chapters: string[] = [];
+  let chapter = "";
+  let prevSpeaker: Character | undefined;
+
+  const firstEntity = (s: string): Character | undefined => {
+    const m = subjectRe.exec(s);
+    if (!m || m.index > 80) return undefined;
+    const tok = stripPoss(m[1]);
+    const named = cast.byAlias.get(tok);
+    if (named) return named;
+    const p = pronoun(tok);
+    if (!p) return undefined;
+    return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+  };
+
+  for (let pi = 0; pi < paras.length; pi++) {
+    const para = paras[pi];
+    const { masked: mp, quotes } = masked[pi];
+    if (para.length < 120 && CHAPTER_RE.test(para)) {
+      chapter = para.length > 60 ? para.slice(0, 60) + "…" : para;
+    }
+    chapters[pi] = chapter;
+    const fantasyPara = FANTASY_PARA.test(mp.slice(0, 160));
+
+    for (const [s0, s1] of sentenceSpans(mp)) {
+      const sent = mp.slice(s0, s1);
+      const original = para.slice(s0, s1).trim();
+      const subj = firstEntity(sent);
+      if (subj) ctx.lastSubject = subj;
+
+      if (TRIGGER.test(sent)) {
+        const sexy = SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`);
+        const penisy = PENIS_CTX.test(sent);
+        for (const pat of patterns) {
+          if (pat.needsCtx && !sexy) continue;
+          if (pat.needsPenis && !penisy) continue;
+          pat.re.lastIndex = 0;
+          for (const m of sent.matchAll(pat.re)) {
+            handleMatch(pat, m, sent, original, pi, fantasyPara, para);
+          }
+        }
+      }
+
+      // Update who's been mentioned, in order.
+      for (const m of sent.matchAll(nameRe)) ctx.mention(cast.byAlias.get(stripPoss(m[0])));
+      if (cast.narrator && /\b(?:I|me|my)\b/.test(sent)) ctx.mention(cast.narrator);
+      if (subj) ctx.mention(subj);
+    }
+
+    // Dialogue: attribute each quote to a speaker and look for requests/desires.
+    let paraSpeaker: Character | undefined;
+    for (const q of quotes) {
+      const speaker = attributeSpeaker(para, mp, q) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
+      if (!speaker) continue;
+      paraSpeaker = speaker;
+      scanDialogue(q.text, speaker, pi);
+    }
+    if (paraSpeaker) prevSpeaker = paraSpeaker;
+  }
+
+  /** The subject of an earlier verb in "X smiled and sucked him off": nearest name/he/she that isn't an object. */
+  function elidedSubject(prefix: string): Character | undefined {
+    const re = new RegExp(`(?:^|([\\w'’]+)[\\s,]+)((?:${NAMES})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
+    const hits = [...prefix.matchAll(re)];
+    for (let i = hits.length - 1; i >= 0; i--) {
+      const prev = (hits[i][1] ?? "").toLowerCase();
+      // A name right after a verb or preposition is an object ("spread Draco open"), not a subject.
+      const isObject =
+        !!prev &&
+        !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh)$/.test(prev);
+      if (isObject && !/^(?:He|She|They|I)$/.test(hits[i][2])) continue;
+      const tok = hits[i][2];
+      const named = cast.byAlias.get(tok);
+      if (named) return named;
+      const p = pronoun(tok);
+      if (p) return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+    }
+    return undefined;
+  }
+
+  function attributeSpeaker(para: string, mp: string, q: Quote): Character | undefined {
+    const after = para.slice(q.end, q.end + 80);
+    const before = mp.slice(Math.max(0, q.start - 80), q.start);
+    const resolve = (tok: string | undefined) => {
+      if (!tok) return undefined;
+      const named = cast.byAlias.get(stripPoss(tok));
+      if (named) return named;
+      const p = pronoun(tok);
+      if (!p) return undefined;
+      return "fixed" in p ? ctx.fixed(p.fixed) : ctx.subjectFor(p.gender);
+    };
+    const a1 = new RegExp(`^[,.!?—–\\s]*((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})\\b`).exec(after);
+    if (a1) return resolve(a1[1]);
+    const a2 = new RegExp(`^[,.!?—–\\s]*(?:${SAY})\\s+((?:${NAMES})|he|she|they)\\b`).exec(after);
+    if (a2) return resolve(a2[1]);
+    const b1 = new RegExp(`((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})(?:\\s+[\\w’']+){0,4}?[,:]?\\s*["“‘]?\\s*$`).exec(before);
+    if (b1) return resolve(b1[1]);
+    // Otherwise, whoever the narration in this paragraph is about.
+    const narr = mp.replace(/["“”‘’]\s*/g, " ").trim();
+    return narr.length > 5 ? firstEntity(narr) : undefined;
+  }
+
+  function scanDialogue(line: string, speaker: Character, pi: number) {
+    const lower = line.toLowerCase().replace(/’/g, "'");
+    for (const d of DIALOGUE) {
+      const m = d.re.exec(lower);
+      if (!m) continue;
+      const before = lower.slice(Math.max(0, m.index - 30), m.index);
+      const negated = /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:\w+\s+){0,2}$/.test(before);
+      desires.push({
+        cat: d.cat,
+        act: d.act,
+        who: speaker,
+        partner: ctx.partnerOf(speaker),
+        role: d.role,
+        wants: !negated,
+        kind: d.kind,
+        para: pi,
+        sentence: `“${line.trim()}”`,
+      });
+    }
+  }
+
+  function handleMatch(
+    pat: CompiledPattern,
+    m: RegExpMatchArray,
+    sent: string,
+    original: string,
+    pi: number,
+    fantasyPara: boolean,
+    para: string,
+  ) {
+    const tTok = groupValue(m.groups, "t");
+    const bTok = groupValue(m.groups, "b");
+    let subjChar: Character | undefined;
+    if (pat.elided) {
+      subjChar = elidedSubject(sent.slice(0, m.index));
+      if (!subjChar) return;
+    }
+    const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar);
+    if (!resolved) return;
+    let { top, bottom } = resolved as { top: Character; bottom: Character };
+    let { basis } = resolved;
+    let act = pat.act;
+    let cat = pat.cat;
+    let weight = pat.weight * (basis === "named" ? 1 : basis === "pronoun" ? 0.75 : 0.5);
+    const matchText = m[0];
+    const after = sent.slice(m.index! + matchText.length, m.index! + matchText.length + 70);
+
+    // Refinements.
+    if (pat.id === "fuck") {
+      if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:his|her|their|my|your)\s+tongue\b/.test(after)) { cat = "oral"; act = "rimming"; }
+      else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:his|her|their|my|your|a|one|two|three|four)\s+(?:\w+\s+)?(?:fingers?|digits?|knuckles?)\b/.test(after)) act = "fingering";
+      else if (/^\s+(?:[\w']+\s+){0,3}?(?:between|with)\s+(?:his|her|their|my|your)\s+(?:thighs|breasts|tits|hand|fist)\b/.test(after)) return;
+      else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:a|the|her|his|their|my|your)\s+(?:strap|dildo|toy|vibrator|plug)/.test(after)) act = "anal sex (strap-on/toy)";
+    }
+    if (cat === "anal" && act.startsWith("anal sex") && FINGER_CTX.test(matchText) && !PENIS_CTX.test(matchText)) act = "fingering";
+    if (pat.id === "prostate" && FINGER_CTX.test(sent) && !PENIS_CTX.test(sent)) act = "fingering";
+
+    // Vaginal sex isn't counted: a woman on the receiving end with no anal vocabulary nearby.
+    const near = para;
+    if (cat === "anal" && bottom.gender === "f" && !ANAL_CTX.test(near)) return;
+    if (cat === "anal" && top.gender === "f" && act !== "fingering" && !/\b(?:strap|dildo|toy|peg\w*|harness)\b/i.test(near)) return;
+    if (act === "rimming" && bottom.gender === "f" && !ANAL_CTX.test(near)) act = "cunnilingus";
+    if (pat.femaleTarget && top.gender === "f" && !PENIS_CTX.test(matchText)) {
+      if (pat.femaleTarget === "drop") return;
+      // "went down on her": she's being licked, so the licker is the top.
+      [top, bottom] = [bottom, top];
+      act = "cunnilingus";
+    }
+    if (pat.id === "enter" && /\b(?:took|take|takes|taking)\b/.test(matchText)) weight *= 0.5;
+
+    // Act, or desire/fantasy/hypothetical?
+    const prefix = sent.slice(0, m.index);
+    const clause = prefix.split(/[;:]|,\s+(?:and|but|then|so)\s+|\b(?:and then|but then)\b|—/).pop() ?? "";
+    const window = clause.slice(-90);
+    const aux = m.groups?.aux ?? "";
+    const negated = NEG.test(aux) || NEG.test(window.slice(-40));
+    let kind: Desire["kind"] | "act" = "act";
+    if (fantasyPara || FANTASY.test(window)) kind = "fantasy";
+    else if (DESIRE.test(window) || DESIRE.test(aux)) kind = "wanted";
+    else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
+    else if (HYPO_AUX.test(aux) || HYPO_WINDOW.test(window)) kind = "hypothetical";
+
+    if (kind === "act") {
+      if (negated) return;
+      acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original });
+      ctx.lastSubject = pat.subj === "t" ? top : bottom;
+      return;
+    }
+
+    // Whose desire is it? The first person mentioned before the desire word, else the subject.
+    const exp = firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
+    const role: Role | undefined = exp === top ? "top" : exp === bottom ? "bottom" : undefined;
+    if (!role) return;
+    desires.push({
+      cat,
+      act,
+      who: exp,
+      partner: role === "top" ? bottom : top,
+      role,
+      wants: !negated,
+      kind,
+      para: pi,
+      sentence: original,
+    });
+  }
+
+  // ───────────── aggregate ─────────────
+
+  const where = (pi: number) => chapters[pi] || `~${Math.round((pi / Math.max(1, paras.length)) * 100)}% through`;
+  const pairKey = (a: Character, b: Character) => [a.name, b.name].sort().join("\u0000");
+  const pairOrder = new Map<string, [Character, Character]>();
+  for (const p of cast.pairings) if (!pairOrder.has(pairKey(p[0], p[1]))) pairOrder.set(pairKey(p[0], p[1]), p);
+
+  const keys = new Set<string>();
+  for (const a of acts) keys.add(pairKey(a.top, a.bottom));
+  for (const d of desires) if (d.partner) keys.add(pairKey(d.who, d.partner));
+  const mainPair = cast.pairings[0];
+  if (mainPair) keys.add(pairKey(mainPair[0], mainPair[1]));
+
+  const results: (PairingResult & { weight: number; key: string })[] = [];
+  for (const key of keys) {
+    const pActs = acts.filter((a) => pairKey(a.top, a.bottom) === key);
+    const pDes = desires.filter((d) => d.partner && pairKey(d.who, d.partner) === key);
+    const tagged = pairOrder.get(key);
+    const members = tagged ?? (pActs[0] ? [pActs[0].top, pActs[0].bottom] : pDes[0] ? [pDes[0].who, pDes[0].partner!] : undefined);
+    if (!members) continue;
+    const isMain = !!mainPair && key === pairKey(mainPair[0], mainPair[1]);
+    const pairTags = tagsFor(tags, members as [Character, Character], isMain);
+    const pair = members as [Character, Character];
+    const anal = buildAct("anal", pActs.filter((a) => a.cat === "anal"), pDes.filter((d) => d.cat === "anal"), pairTags, pair, meta, where);
+    const oral = buildAct("oral", pActs.filter((a) => a.cat === "oral"), pDes.filter((d) => d.cat === "oral"), pairTags, pair, meta, where);
+    const weight = pActs.reduce((n, a) => n + a.weight, 0) + pDes.length * 0.2 + (isMain ? 0.01 : 0);
+    // Skip incidental pairs with almost nothing (likely misresolved pronouns).
+    if (!isMain && weight < 1.2) continue;
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, weight, key });
+  }
+  results.sort((a, b) => b.weight - a.weight);
+
+  const notes: string[] = [];
+  if (!meta.relationships.length && cast.chars.length) {
+    notes.push(`No AO3 tags in this file, so characters were guessed from the text: ${cast.chars.map((c) => c.name).join(", ")}.`);
+  }
+  if (cast.narrator) notes.push(`First-person narration: “I” is read as ${cast.narrator.name}.`);
+  if (cast.secondPerson) notes.push(`Second-person narration: “you” is read as ${cast.secondPerson.name}.`);
+  if (!opts.quiet) {
+    notes.push(
+      "Pattern matching reads sentences like “X sucked Y off” or “his tongue in X’s hole”. It can miss unusual phrasing and sometimes guesses wrong when both people are “he” or “she”, so check the quoted lines. Ask Claude for a second opinion on anything marked Low.",
+    );
+  }
+
+  const romantic = romanticPairings(meta);
+  return {
+    source: "patterns",
+    fandom: meta.fandoms.join(", "),
+    main_pairing: romantic[0] ?? results[0]?.pairing ?? "",
+    pairings: results.map(({ pairing, anal, oral }) => ({ pairing, anal, oral })),
+    notes: notes.join(" "),
+  };
+}
+
+// ───────────── per-act verdicts ─────────────
+
+interface PairTags {
+  roles: { char: Character; role: "top" | "bottom" | "switch"; tag: string }[];
+  switching: string[];
+  actTags: { anal: string[]; oral: string[] };
+}
+
+function tagsFor(info: TagInfo, pair: [Character, Character], isMain: boolean): PairTags {
+  return {
+    roles: info.roles.filter((r) => pair.includes(r.char)),
+    switching: isMain ? info.switching : [],
+    actTags: isMain ? { anal: info.anal, oral: info.oral } : { anal: [], oral: [] },
+  };
+}
+
+interface Scene {
+  first: number;
+  hits: ActHit[];
+}
+
+function groupScenes(hits: ActHit[], chapterOf: (pi: number) => string): Scene[] {
+  const scenes: Scene[] = [];
+  for (const h of [...hits].sort((a, b) => a.para - b.para)) {
+    const last = scenes[scenes.length - 1];
+    const lastPara = last?.hits[last.hits.length - 1].para ?? -1e9;
+    if (last && h.para - lastPara <= 20 && chapterOf(h.para) === chapterOf(last.first)) last.hits.push(h);
+    else scenes.push({ first: h.para, hits: [h] });
+  }
+  return scenes;
+}
+
+function truncate(s: string, n = 240) {
+  return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+}
+
+function plural(n: number, word: string) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+function buildAct(
+  cat: Cat,
+  hits: ActHit[],
+  des: DesireHit[],
+  tags: PairTags,
+  pair: [Character, Character],
+  meta: Ao3Meta,
+  where: (pi: number) => string,
+): ActResult {
+  const otherOf = (name: string) => pair.find((c) => c.name !== name)?.name;
+  const label = cat === "anal" ? "anal sex" : "oral sex";
+  const reasons: string[] = [];
+  const instances: Instance[] = [];
+
+  // Scenes, each with a direction (or two, if they switch mid-scene).
+  const decisive = hits.filter((h) => !(cat === "anal" && h.act === "fingering"));
+  const fingering = hits.filter((h) => cat === "anal" && h.act === "fingering");
+  const sceneTops = new Map<string, { char: Character; partner: Character; scenes: number; weight: number; strong: boolean }>();
+  for (const scene of groupScenes(decisive, where)) {
+    const dirs = new Map<string, ActHit[]>();
+    for (const h of scene.hits) {
+      const k = h.top.name;
+      dirs.set(k, [...(dirs.get(k) ?? []), h]);
+    }
+    const total = scene.hits.reduce((n, h) => n + h.weight, 0);
+    for (const [, hs] of dirs) {
+      const w = hs.reduce((n, h) => n + h.weight, 0);
+      if (w < Math.max(0.5, total * 0.3)) continue; // a stray hit against the scene's majority
+      const best = [...hs].sort((a, b) => b.weight - a.weight || (a.basis === "named" ? -1 : 1))[0];
+      const acts = [...new Set(hs.map((h) => h.act))];
+      instances.push({
+        top: best.top.name,
+        bottom: best.bottom.name,
+        act: acts.join(", "),
+        where: where(scene.first),
+        evidence: truncate(best.sentence),
+        basis: best.basis,
+      });
+      const entry = sceneTops.get(best.top.name) ?? { char: best.top, partner: best.bottom, scenes: 0, weight: 0, strong: false };
+      entry.scenes++;
+      entry.weight += Math.min(w, 3);
+      entry.strong ||= hs.some((h) => h.basis === "named") || w >= 1.5;
+      sceneTops.set(best.top.name, entry);
+    }
+  }
+  for (const scene of groupScenes(fingering, where)) {
+    const best = [...scene.hits].sort((a, b) => b.weight - a.weight)[0];
+    instances.push({
+      top: best.top.name,
+      bottom: best.bottom.name,
+      act: "fingering",
+      where: where(scene.first),
+      evidence: truncate(best.sentence),
+      basis: best.basis,
+    });
+  }
+
+  const ranked = [...sceneTops.values()].sort((a, b) => b.weight - a.weight);
+  const major = ranked[0];
+  const minor = ranked[1];
+
+  let verdict: ActResult["verdict"] = "none";
+  let top = "";
+  let bottom = "";
+  let summary = "";
+  let base = 0;
+
+  const totalW = ranked.reduce((n, r) => n + r.weight, 0);
+  const evidence = 1 - Math.exp(-totalW / 1.8);
+
+  if (major) {
+    top = major.char.name;
+    bottom = major.partner.name;
+    const isSwitch = !!minor && (minor.scenes >= 2 || minor.strong);
+    if (isSwitch) {
+      verdict = "switch";
+      summary = `They switch: ${major.char.name} tops in ${plural(major.scenes, "scene")}, ${minor.char.name} in ${plural(minor.scenes, "scene")}.`;
+      base = evidence * (0.55 + 0.45 * Math.min(1, minor.weight / 2));
+      reasons.push(`${plural(major.scenes + minor.scenes, "scene")} found, with each person on top at least once`);
+    } else {
+      verdict = "one_way";
+      const consistency = major.weight / totalW;
+      summary = `${major.char.name} tops (${plural(major.scenes, "scene")}).`;
+      if (minor) summary += ` One possible exception where ${minor.char.name} tops — check the quoted line.`;
+      base = evidence * (0.45 + 0.55 * consistency);
+      reasons.push(`${plural(major.scenes, "scene")} with ${major.char.name} on top${minor ? `, 1 weak contrary hit` : ""}`);
+    }
+    const named = decisive.filter((h) => h.basis === "named").length;
+    const viaPronoun = decisive.length - named;
+    reasons.push(`${plural(decisive.length, "matching sentence")} (${named} with names, ${viaPronoun} worked out from pronouns/context)`);
+    if (decisive.length && named / decisive.length < 0.25) {
+      base *= 0.85;
+      reasons.push("mostly pronoun-based, which is less reliable");
+    }
+  }
+
+  if (cat === "anal" && fingering.length) {
+    const ft = new Map<string, number>();
+    for (const f of fingering) ft.set(`${f.top.name} fingers ${f.bottom.name}`, (ft.get(`${f.top.name} fingers ${f.bottom.name}`) ?? 0) + 1);
+    const fs = [...ft.keys()].join("; ");
+    summary += summary ? ` Fingering: ${fs}.` : `No anal sex recognized; fingering only (${fs}).`;
+  }
+
+  // ── tags ──
+  const tagTops = tags.roles.filter((r) => r.role === "top");
+  const tagBottoms = tags.roles.filter((r) => r.role === "bottom");
+  const tagSwitch = tags.roles.filter((r) => r.role === "switch").length > 0 || tags.switching.length > 0;
+  const roleTagsApply = cat === "anal"; // AO3 Top/Bottom tags describe anal roles
+  let tagAdj = 0;
+  if (roleTagsApply) {
+    if (verdict === "one_way") {
+      const agree = tagTops.some((r) => r.char.name === top) || tagBottoms.some((r) => r.char.name === bottom);
+      const conflict = tagTops.some((r) => r.char.name === bottom) || tagBottoms.some((r) => r.char.name === top);
+      if (agree && !conflict) { tagAdj += 0.25; reasons.push(`agrees with tag “${[...tagTops, ...tagBottoms][0].tag}”`); }
+      if (conflict && !agree) { tagAdj -= 0.3; reasons.push(`conflicts with tag “${[...tagTops, ...tagBottoms].find((r) => r.char.name === top || r.char.name === bottom)!.tag}”`); }
+      if (conflict && agree) reasons.push("tags list both people as top/bottom (possible switching)");
+      if (tagSwitch) { tagAdj -= 0.1; reasons.push(`tagged “${tags.switching[0] ?? "switch"}” but only one direction found in the text`); }
+    } else if (verdict === "switch") {
+      if (tagSwitch || (tagTops.length && tagBottoms.length)) { tagAdj += 0.2; reasons.push(`agrees with tag “${tags.switching[0] ?? tags.roles[0].tag}”`); }
+      else if (tagTops.length || tagBottoms.length) reasons.push(`tagged “${(tagTops[0] ?? tagBottoms[0]).tag}”, but the text shows switching`);
+    }
+  }
+  const actTags = cat === "anal" ? tags.actTags.anal : tags.actTags.oral;
+  if (actTags.length && verdict !== "none") {
+    tagAdj += 0.05;
+    reasons.push(`tagged “${actTags[0]}”`);
+  }
+
+  // ── desire / fantasy ──
+  const desireOut: Desire[] = des.map((d) => ({
+    who: d.who.name,
+    role: d.role,
+    wants: d.wants,
+    kind: d.kind,
+    act: d.act,
+    where: where(d.para),
+    evidence: truncate(d.sentence),
+  }));
+  // A desire "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
+  let desAgree = 0;
+  let desConflict = 0;
+  const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
+  for (const d of des) {
+    const pointsTo = desireTop(d);
+    if (!pointsTo) continue;
+    if (verdict === "one_way") pointsTo === top ? desAgree++ : desConflict++;
+    else if (verdict === "switch") desAgree++;
+  }
+  let desAdj = Math.min(0.15, desAgree * 0.05) - Math.min(0.15, desConflict * 0.05);
+  if (des.length && verdict !== "none") {
+    if (desAgree) reasons.push(`${plural(desAgree, "desire/fantasy line")} ${desAgree === 1 ? "points" : "point"} the same way`);
+    if (desConflict) reasons.push(`${plural(desConflict, "desire/fantasy line")} ${desConflict === 1 ? "points" : "point"} the other way`);
+  }
+
+  // ── nothing found on-page ──
+  if (verdict === "none") {
+    const hasTagRoles = roleTagsApply && (tagTops.length || tagBottoms.length || tagSwitch);
+    const pointing = new Map<string, number>();
+    for (const d of des) {
+      const p = desireTop(d);
+      if (p) pointing.set(p, (pointing.get(p) ?? 0) + 1);
+    }
+    const desireRank = [...pointing.entries()].sort((a, b) => b[1] - a[1]);
+
+    if (hasTagRoles) {
+      verdict = tagSwitch ? "switch" : "one_way";
+      const t = tagTops[0]?.char.name ?? (tagBottoms[0] ? otherOf(tagBottoms[0].char.name) : "");
+      const b = tagBottoms[0]?.char.name ?? (tagTops[0] ? otherOf(tagTops[0].char.name) : "");
+      top = t ?? "";
+      bottom = b ?? "";
+      summary = `Not found in the text; going by AO3 tags: ${[...tags.roles.map((r) => r.tag), ...tags.switching].join(", ")}.` + (summary ? ` ${summary}` : "");
+      base = 0.45;
+      reasons.push("based on AO3 tags only — no matching sentences found");
+      if (desireRank.length) {
+        const agrees = desireRank[0][0] === top;
+        desAdj = agrees ? 0.1 : -0.1;
+        reasons.push(agrees ? "desire/fantasy lines agree with the tags" : "desire/fantasy lines disagree with the tags");
+      }
+    } else if (desireRank.length) {
+      verdict = "unclear";
+      const [who, n] = desireRank[0];
+      summary = `No on-page ${label} recognized, but desire/fantasy lines point to ${who} as the top (${plural(n, "line")}).` + (summary ? ` ${summary}` : "");
+      base = Math.min(0.4, 0.15 + n * 0.06);
+      reasons.push("based only on what characters want or imagine");
+      desAdj = 0;
+    } else if (actTags.length) {
+      verdict = "unclear";
+      summary = `Tagged “${actTags[0]}”, but no matching sentences were recognized.` + (summary ? ` ${summary}` : "");
+      base = 0.2;
+      reasons.push("the act is tagged but the phrasing wasn't recognized");
+    } else {
+      summary = summary || `No on-page ${label} recognized.`;
+      const explicit = /explicit|mature/i.test(meta.rating ?? "");
+      base = explicit ? 0.45 : meta.rating ? 0.75 : 0.5;
+      reasons.push(explicit ? `rated ${meta.rating}, so something may have been missed` : meta.rating ? `rated ${meta.rating}` : "no matching sentences");
+    }
+  }
+
+  const score = Math.max(0.05, Math.min(0.97, base + (verdict === "none" ? 0 : tagAdj + desAdj)));
+  const confidence: Confidence = { score, label: confidenceLabel(score), reasons };
+  return { verdict, top, bottom, summary, instances, desires: desireOut, confidence };
+}

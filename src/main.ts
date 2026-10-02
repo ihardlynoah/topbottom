@@ -1,17 +1,10 @@
 import "./style.css";
 import Anthropic from "@anthropic-ai/sdk";
 import { hasAo3Meta, romanticPairings } from "./ao3";
-import {
-  type ActResult,
-  type Analysis,
-  MODELS,
-  type ModelId,
-  RefusalError,
-  analyzeWork,
-  estimateTokens,
-  excerptExplicit,
-} from "./analyze";
+import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerptExplicit } from "./analyze";
 import { type ExtractedWork, extractFile } from "./extract";
+import { analyzeWithPatterns } from "./heuristic";
+import type { ActResult, Analysis, Desire } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -39,6 +32,8 @@ const els = {
   progress: $("progress"),
   roleResults: $("role-results"),
   notes: $("notes"),
+  claudeResults: $("claude-results"),
+  claudeNotes: $("claude-notes"),
 };
 
 // ---- settings (localStorage can throw in private windows, so guard every access) ----
@@ -69,8 +64,6 @@ const savedKey = store.get("tb.apiKey");
 if (savedKey) {
   els.apiKey.value = savedKey;
   els.remember.checked = true;
-} else {
-  els.settings.open = true;
 }
 
 function updateKeyStatus() {
@@ -161,6 +154,18 @@ async function handleFile(file: File) {
     return;
   }
   renderMeta(current, file.name);
+  // Let the page paint the metadata before the (synchronous) pattern pass.
+  const work = current;
+  setTimeout(() => {
+    if (current !== work) return;
+    try {
+      const result = analyzeWithPatterns(work.text, work.meta);
+      renderAnalysis(result, els.roleResults, els.notes);
+      fillMetaFromAnalysis(result);
+    } catch (err) {
+      showError(`Pattern analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, 0);
   if (els.autoRun.checked && els.apiKey.value.trim()) void runAnalysis();
 }
 
@@ -198,15 +203,15 @@ function renderMeta(work: ExtractedWork, filename: string) {
     els.wordsSub.textContent = "Estimated (no AO3 stats in file)";
   }
 
-  if (!hasAo3Meta(meta)) {
-    els.otherPairings.textContent = "No AO3 tags found — run the role analysis to have Claude identify these.";
-  }
+  if (!hasAo3Meta(meta)) els.otherPairings.textContent = "No AO3 tags in this file.";
 
-  els.roleResults.replaceChildren();
+  els.roleResults.replaceChildren(el("p", "hint", "Reading…"));
   els.notes.hidden = true;
+  els.claudeResults.replaceChildren();
+  els.claudeNotes.hidden = true;
   els.progress.hidden = true;
   els.analyze.disabled = false;
-  els.analyze.textContent = "Analyze roles";
+  els.analyze.textContent = "Ask Claude";
   updateEstimate();
 }
 
@@ -232,7 +237,7 @@ function updateEstimate() {
   const what = p.excerpted ? `sex scenes + opening (${p.words.toLocaleString()} words)` : "the full text";
   els.estimate.textContent = els.apiKey.value.trim()
     ? `Sends ${what} to Claude — about ${tokens.toLocaleString()} tokens, roughly $${dollars.toFixed(2)}.`
-    : "Add an API key in Claude API settings above to analyze roles.";
+    : "Add your API key under Settings to ask Claude.";
   if (tokens > 900_000) {
     els.estimate.textContent += " That's over the model's limit; switch to “Sex scenes only”.";
   }
@@ -252,19 +257,74 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
+const ROLE_VERB: Record<Desire["role"], [string, string]> = { top: ["top", "topping"], bottom: ["bottom", "bottoming"] };
+
+/** "Harry wants to bottom", "Draco imagines topping", "Harry doesn't want to top". */
+function desirePhrase(d: Pick<Desire, "who" | "role" | "wants" | "kind">): string {
+  const [verb, ing] = ROLE_VERB[d.role];
+  if (!d.wants) return `${d.who} doesn't want to ${verb}`;
+  switch (d.kind) {
+    case "said": return `${d.who} asks to ${verb}`;
+    case "fantasy": return `${d.who} imagines ${ing}`;
+    case "hypothetical": return `${d.who} considers ${ing}`;
+    case "identity": return `${d.who} prefers to ${verb}`;
+    default: return `${d.who} wants to ${verb}`;
+  }
+}
+
+function renderDesires(desires: Desire[]): HTMLElement {
+  const box = el("div", "desires");
+  const counts = new Map<string, number>();
+  for (const d of desires) counts.set(desirePhrase(d), (counts.get(desirePhrase(d)) ?? 0) + 1);
+  const head = el("div", "desire-head");
+  head.append(el("span", "mini-label", "Desire / fantasy"));
+  const chips = el("div", "chips");
+  for (const [phrase, n] of counts) chips.append(el("span", "chip", n > 1 ? `${phrase} ×${n}` : phrase));
+  head.append(chips);
+  box.append(head);
+  const det = el("details", "instances");
+  det.append(el("summary", undefined, `${desires.length} line${desires.length === 1 ? "" : "s"}`));
+  const ul = el("ul");
+  for (const d of desires) {
+    const li = el("li");
+    li.append(el("strong", undefined, desirePhrase(d)), el("span", "where", ` · ${d.act} · ${d.where}`));
+    li.append(el("div", "evidence", d.evidence));
+    ul.append(li);
+  }
+  det.append(ul);
+  box.append(det);
+  return box;
+}
+
+function renderConfidence(c: ActResult["confidence"]): HTMLElement {
+  const box = el("div", `confidence conf-${c.label.toLowerCase()}`);
+  const row = el("div", "conf-row");
+  row.append(el("span", "mini-label", "Confidence"));
+  const bar = el("div", "conf-bar");
+  const fill = el("div", "conf-fill");
+  fill.style.width = `${Math.round(c.score * 100)}%`;
+  bar.append(fill);
+  row.append(bar, el("span", "conf-text", `${c.label} · ${Math.round(c.score * 100)}%`));
+  box.append(row);
+  if (c.reasons.length) box.append(el("p", "conf-reasons", c.reasons.join(" · ")));
+  return box;
+}
+
 function renderAct(name: string, act: ActResult): HTMLElement {
   const card = el("article", `card act verdict-${act.verdict}`);
   const head = el("div", "act-head");
   head.append(el("h4", undefined, name), el("span", `badge ${act.verdict}`, VERDICT_LABEL[act.verdict]));
   card.append(head);
 
-  if (act.verdict === "one_way" || act.verdict === "switch") {
+  if ((act.verdict === "one_way" || act.verdict === "switch") && (act.top || act.bottom)) {
     const roles = el("dl", "roles-dl");
     roles.append(el("dt", undefined, act.verdict === "switch" ? "Tops more" : "Top"), el("dd", undefined, act.top || "?"));
     roles.append(el("dt", undefined, act.verdict === "switch" ? "Bottoms more" : "Bottom"), el("dd", undefined, act.bottom || "?"));
     card.append(roles);
   }
   card.append(el("p", "summary", act.summary));
+  card.append(renderConfidence(act.confidence));
+  if (act.desires.length) card.append(renderDesires(act.desires));
 
   if (act.instances.length) {
     const det = el("details", "instances");
@@ -274,6 +334,7 @@ function renderAct(name: string, act: ActResult): HTMLElement {
       const li = el("li");
       li.append(el("strong", undefined, `${i.top} → ${i.bottom}`), ` · ${i.act}`);
       if (i.where) li.append(el("span", "where", ` · ${i.where}`));
+      if (i.basis && i.basis !== "named") li.append(el("span", "basis", i.basis === "pronoun" ? "via pronouns" : "inferred"));
       if (i.evidence) li.append(el("div", "evidence", i.evidence));
       ul.append(li);
     }
@@ -283,7 +344,23 @@ function renderAct(name: string, act: ActResult): HTMLElement {
   return card;
 }
 
-function renderAnalysis(a: Analysis) {
+function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) {
+  target.replaceChildren();
+  if (!a.pairings.length) target.append(el("p", "hint", "Couldn't identify the characters in this work."));
+  for (const p of a.pairings) {
+    const block = el("div", "pairing-block");
+    if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
+    const grid = el("div", "grid two");
+    grid.append(renderAct("Anal", p.anal), renderAct("Oral", p.oral));
+    block.append(grid);
+    target.append(block);
+  }
+  notesEl.hidden = !a.notes;
+  notesEl.textContent = a.notes;
+}
+
+/** Fill in fandom/pairing from an analysis when the file had no AO3 tags. */
+function fillMetaFromAnalysis(a: Analysis) {
   if (!current) return;
   if (!current.meta.fandoms.length && a.fandom) {
     els.fandom.textContent = a.fandom;
@@ -292,20 +369,8 @@ function renderAnalysis(a: Analysis) {
   if (!romanticPairings(current.meta).length && a.main_pairing) {
     els.pairing.textContent = a.main_pairing;
     els.pairing.classList.remove("pending");
-    els.otherPairings.textContent = "Identified by Claude (no AO3 tags in file)";
+    els.otherPairings.textContent = a.source === "claude" ? "Identified by Claude (no AO3 tags in file)" : "Guessed from the text (no AO3 tags in file)";
   }
-
-  els.roleResults.replaceChildren();
-  for (const p of a.pairings) {
-    const block = el("div", "pairing-block");
-    if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
-    const grid = el("div", "grid two");
-    grid.append(renderAct("Anal", p.anal), renderAct("Oral", p.oral));
-    block.append(grid);
-    els.roleResults.append(block);
-  }
-  els.notes.hidden = !a.notes;
-  els.notes.textContent = a.notes;
 }
 
 // ---- analysis ----
@@ -331,8 +396,8 @@ async function runAnalysis() {
   els.analyze.disabled = true;
   els.analyze.textContent = "Analyzing…";
   els.progress.hidden = false;
-  els.roleResults.replaceChildren();
-  els.notes.hidden = true;
+  els.claudeResults.replaceChildren();
+  els.claudeNotes.hidden = true;
   try {
     const result = await analyzeWork({
       apiKey,
@@ -342,7 +407,10 @@ async function runAnalysis() {
       excerpted: p.excerpted,
       signal: ctrl.signal,
     });
-    if (current === work) renderAnalysis(result);
+    if (current === work) {
+      renderAnalysis(result, els.claudeResults, els.claudeNotes);
+      fillMetaFromAnalysis(result);
+    }
   } catch (err) {
     if (ctrl.signal.aborted) return;
     showError(describeError(err));
@@ -351,7 +419,7 @@ async function runAnalysis() {
       inflight = null;
       els.progress.hidden = true;
       els.analyze.disabled = false;
-      els.analyze.textContent = "Analyze again";
+      els.analyze.textContent = "Ask again";
     }
   }
 }

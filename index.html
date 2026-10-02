@@ -13,39 +13,9 @@
         <h1>Top/Bottom Finder</h1>
         <p class="lede">
           Drop in an AO3 download (PDF, EPUB, HTML, or TXT) to see the fandom, pairing, word count, and who tops
-          and bottoms — anal and oral, including any switching.
+          and bottoms — anal and oral, including any switching. Free and private: it all runs in your browser.
         </p>
       </header>
-
-      <details id="settings" class="panel">
-        <summary>Claude API settings <span id="key-status" class="pill"></span></summary>
-        <p class="hint">
-          Fandom, pairing, and word count are read straight from the file. Working out top/bottom means reading
-          the sex scenes, which uses Claude. Paste an
-          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic API key</a>;
-          it goes only from your browser to Anthropic and is never sent anywhere else.
-        </p>
-        <label class="field">
-          <span>API key</span>
-          <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" />
-        </label>
-        <label class="check"><input id="remember-key" type="checkbox" /> Remember key on this device</label>
-        <div class="row">
-          <label class="field">
-            <span>Model</span>
-            <select id="model"></select>
-          </label>
-          <label class="field">
-            <span>What to send</span>
-            <select id="mode">
-              <option value="auto">Auto (full text unless very long)</option>
-              <option value="full">Full text (most accurate)</option>
-              <option value="excerpt">Sex scenes only (cheaper)</option>
-            </select>
-          </label>
-        </div>
-        <label class="check"><input id="auto-run" type="checkbox" /> Analyze roles automatically after upload</label>
-      </details>
 
       <label id="drop" class="drop" tabindex="0">
         <input id="file" type="file" accept=".pdf,.epub,.html,.htm,.xhtml,.txt,application/pdf,application/epub+zip,text/html,text/plain" hidden />
@@ -79,17 +49,55 @@
         <section id="roles" class="panel">
           <div class="roles-head">
             <h3>Top / bottom</h3>
-            <button id="analyze" type="button">Analyze roles</button>
+            <span class="source-badge">Pattern matching · free</span>
           </div>
-          <p id="estimate" class="hint"></p>
-          <p id="progress" class="hint" hidden><span class="spinner"></span> Reading the fic… long works can take a minute or two.</p>
           <div id="role-results"></div>
           <p id="notes" class="notes" hidden></p>
+        </section>
+
+        <section id="claude" class="panel">
+          <div class="roles-head">
+            <h3>Second opinion from Claude <span class="optional">(optional)</span></h3>
+            <button id="analyze" type="button">Ask Claude</button>
+          </div>
+          <p class="hint">
+            Pattern matching can miss unusual phrasing or mix up who's who when both people are “he”. Claude reads the
+            whole fic like a person would. This uses your own
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic API key</a>
+            (paid per use) and sends the text to Anthropic.
+          </p>
+          <details id="settings">
+            <summary>Settings <span id="key-status" class="pill"></span></summary>
+            <label class="field">
+              <span>API key</span>
+              <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" />
+            </label>
+            <label class="check"><input id="remember-key" type="checkbox" /> Remember key on this device</label>
+            <div class="row">
+              <label class="field">
+                <span>Model</span>
+                <select id="model"></select>
+              </label>
+              <label class="field">
+                <span>What to send</span>
+                <select id="mode">
+                  <option value="auto">Auto (full text unless very long)</option>
+                  <option value="full">Full text (most accurate)</option>
+                  <option value="excerpt">Sex scenes only (cheaper)</option>
+                </select>
+              </label>
+            </div>
+            <label class="check"><input id="auto-run" type="checkbox" /> Ask Claude automatically after upload</label>
+          </details>
+          <p id="estimate" class="hint"></p>
+          <p id="progress" class="hint" hidden><span class="spinner"></span> Claude is reading the fic… long works can take a minute or two.</p>
+          <div id="claude-results"></div>
+          <p id="claude-notes" class="notes" hidden></p>
         </section>
       </section>
 
       <footer>
-        Files are read in your browser. Only the text sent to Claude for role analysis leaves your device.
+        Files are read in your browser and never uploaded. Only if you ask Claude is the text sent to Anthropic.
       </footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
