@@ -570,12 +570,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
 
     // Dialogue: attribute each quote to a speaker and look for requests/desires.
+    // Is sex happening around here? Narration only, so a "fuck me" in the dialogue doesn't count.
+    const near = [pi - 3, pi - 2, pi - 1, pi, pi + 1, pi + 2, pi + 3].map((i) => masked[i]?.masked ?? "").join(" ");
+    const narrationSexy = SEX_CTX.test(near) || /\b(?:nipples?|pleasure|arous\w*|undress\w*|thighs?|lube|fingers? (?:in|inside)|crotch|bulge)\b/i.test(near);
     let paraSpeaker: Character | undefined;
     for (const q of quotes) {
       const speaker = attributeSpeaker(para, mp, q) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
       if (!speaker) continue;
       paraSpeaker = speaker;
-      scanDialogue(q.text, speaker, pi);
+      scanDialogue(q.text, speaker, pi, { sexy: narrationSexy, after: para.slice(q.end, q.end + 60), before: para.slice(Math.max(0, q.start - 60), q.start) });
     }
     if (paraSpeaker) prevSpeaker = paraSpeaker;
   }
@@ -583,9 +586,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   /** The subject of an earlier verb in "X smiled and sucked him off": nearest name/he/she that isn't an object. */
   function elidedSubject(prefix: string, suffix = ""): Character | undefined {
+    // A blanked-out quote is a clause boundary: "…," Alex says, choking…
+    prefix = prefix.replace(/\s{3,}/g, (x) => `,${" ".repeat(x.length - 1)}`);
     // "—pressing him down, and Riddle with him—" is an aside, not the clause's subject.
     prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
-    const re = new RegExp(`(?:^|([\\w'’]+)([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
+    const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
     for (let i = hits.length - 1; i >= 0; i--) {
       const h = hits[i];
@@ -594,7 +599,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // A name right after a verb or preposition is an object ("spread Draco open"), not a subject.
       const isObject =
         !!prev &&
-        !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh)$/.test(prev);
+        !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh)$/.test(prev) &&
+        // "…," whispers Alex: a name after a speech verb is its subject.
+        !/^(?:says|said|whispers|whispered|murmurs|murmured|asks|asked|groans|groaned|moans|moaned|breathes|breathed|growls|growled|gasps|gasped|mutters|muttered|replies|replied|begs|begged|pants|panted|laughs|laughed|sighs|sighed|whimpers|whimpered|hisses|hissed|purrs|purred|teases|teased|grunts|grunted|answers|answered|adds|added|continues|continued|corrects|corrected|leers|leered|demands|demanded|insists|insisted|admits|admitted|pleads|pleaded|chokes|choked|calls|called|cries|cried)$/.test(prev);
       // "…at Sam, who's leaning over Steve…": a relative clause makes Sam the subject of what follows.
       const relative = /^,?\s*who\b/.test(prefix.slice(h.index! + h[0].length));
       if (isObject && !relative && !/^(?:He|She|They|I)$/.test(h[3])) continue;
@@ -641,12 +648,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return addressed ? ctx.partnerOf(addressed) : undefined;
   }
 
-  function scanDialogue(line: string, speaker: Character, pi: number) {
+  function scanDialogue(line: string, speaker: Character, pi: number, around: { sexy: boolean; after: string; before: string }) {
     const lower = line.toLowerCase().replace(/’/g, "'");
     const seen = new Set<string>();
     for (const d of DIALOGUE) {
       const m = d.re.exec(lower);
       if (!m) continue;
+      // "Fuck me, it's cold" / "Well, fuck me" / "fuck me sideways": an exclamation, not a request.
+      if (/^fuck me$/.test(m[0]) && exasperated(lower, m.index!, around)) continue;
       // One line can match several phrasings of the same request ("I want you to fuck me").
       const key = `${d.cat}:${d.role}:${d.kind}`;
       if (seen.has(key)) continue;
@@ -670,6 +679,29 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         sentence: `“${line.trim()}”`,
       });
     }
+  }
+
+  /** Is this "fuck me" an exclamation rather than a request? */
+  function exasperated(line: string, at: number, around: { sexy: boolean; after: string; before: string }): boolean {
+    const before = line.slice(0, at);
+    const after = line.slice(at + "fuck me".length);
+    // A request says so: "please fuck me", "fuck me harder", "just fuck me already", "I need you to fuck me".
+    const request =
+      /\b(?:please|just|now|need|want|wanna|gonna|going to|will you|would you|can you|could you|come on|c'mon|you should|to)\s+(?:\w+\s+)?$/.test(before) ||
+      /^[,!]?\s*(?:please|harder|faster|deeper|now|already|properly|slow(?:ly)?|hard|raw|open|good|right there|until|so|like|with (?:your|that|those) (?:cock|dick|fingers?|tongue|strap)|into|through|against|on|over (?:the|this|that|my)|from behind|again)\b/.test(after);
+    if (request) return false;
+    // "Sure you won't fuck me?" is asking for it.
+    if (/^\s*\?/.test(after)) return false;
+    // "Oh, fuck me", "well fuck me", "holy shit, fuck me"
+    if (/\b(?:oh|well|ah|god|jesus|christ|holy|bloody|shit|man|dude|ugh|wow|damn|hell|lord|mate|boy|seriously|honestly)\b[\s,!.]*$/.test(before)) return true;
+    // An idiom: "fuck me sideways / running / dead / twice / gently with a chainsaw", "fuck me if I know"
+    if (/^[,!]?\s*(?:sideways|running|dead|twice|blind|pink|silly|gently with|with a (?:spoon|chainsaw|cactus|rake|brick)|if\b|in the|up\b|over\b(?!\s+(?:the|this|that|my))|three ways|backwards)/.test(after)) return true;
+    // A new clause after it: "Fuck me, it's cold", "fuck me, you're right", "fuck me, what a day"
+    if (/^\s*[,!.—-]+\s*(?:i\b|i'm|i've|i'd|you're|you've|you were|it|it's|that|that's|this|there|we|he|she|they|what|how|why|who|where|when|look at|these|those|the|a\b|an\b|my|our|his|her)/.test(after)) return true;
+    // Said like a curse: "Fuck me," he muttered / swore / sighed.
+    if (/^\s*[,!.]?\W*\s*(?:\w+\s+){0,2}(?:mutter|swor|swear|curs|sigh|grumbl|groan(?:ed)? in (?:frustration|disbelief)|laugh|snort|scoff|exclaim|whistl)\w*/i.test(around.after)) return true;
+    // Nothing sexual happening around it, and nothing marking it as a request.
+    return !around.sexy;
   }
 
   function handleMatch(
@@ -711,7 +743,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
     const subjTok = pat.subj === "t" ? tTok : bTok;
-    const nearSubj = !pat.elided && subjTok && pronoun(subjTok) && m.index! > 0 ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!)) : undefined;
+    // "When Alex manages…, one of his digits slips lower": a possessive pronoun works the same way.
+    const nearSubj =
+      !pat.elided && subjTok && (pronoun(subjTok) || /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(subjTok)) && m.index! > 0
+        ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!))
+        : undefined;
     const co = /([\p{L}'’]+)\s+and\s+$/u.exec(sent.slice(0, m.index));
     const coChar = co ? resolveToken(co[1]) : undefined;
     ctx.coSubjects = new Set(coChar ? [coChar] : []);
@@ -733,6 +769,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:his|her|their|my|your|a|one|two|three|four)\s+(?:\w+\s+)?(?:fingers?|digits?|knuckles?)\b/.test(after)) act = "fingering";
       else if (/^\s+(?:[\w']+\s+){0,3}?(?:between|with)\s+(?:his|her|their|my|your)\s+(?:thighs|breasts|tits|hand|fist)\b/.test(after)) return;
       else if (/^\s+(?:[\w']+\s+){0,4}?with\s+(?:a|the|her|his|their|my|your)\s+(?:strap|dildo|toy|vibrator|plug)/.test(after)) act = "anal sex (strap-on/toy)";
+    }
+    // "…slipping inch by inch, until Alex finally bottoms": he bottomed out, so he's the top.
+    if (pat.id.startsWith("bottomed-for") && !/\bfor\b/.test(matchText) && /\b(?:finally|fully|all the way)\s+bottom/.test(matchText + " " + sent) && /\b(?:inch|slid|slip|push|sank|sink|thrust|sheath|buri|bury|eas)/i.test(sent)) {
+      [top, bottom] = [bottom, top];
     }
     // "Harry wraps a hand around Louis's cock and guides the tip into his mouth": the cock named earlier is
     // the one in the mouth, so its owner tops and the one guiding it bottoms.

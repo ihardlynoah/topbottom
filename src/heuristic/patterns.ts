@@ -249,9 +249,13 @@ export function compilePatterns(defs: PatternDef[], aliasPattern: string): Compi
             throw new Error(`Unknown placeholder ${kind}`);
         }
       });
+    // "tease Henry's balls and graze his hole": a cock right after such a verb is its object, not the actor.
+    const finalSrc = def.src.startsWith("\\b{T:penisReq}")
+      ? `(?<!\\b(?:tease|teases|teasing|teased|stroke|strokes|stroking|stroked|cup|cups|cupping|cupped|grab|grabs|grabbing|grabbed|squeeze|squeezes|squeezing|squeezed|touch|touches|touching|touched|lick|licks|licking|licked|suck|sucks|sucking|sucked|fondle|fondles|fondling|fondled|palm|palms|palming|palmed|grip|grips|gripping|gripped|hold|holds|holding|held|kiss|kisses|kissing|kissed|tug|tugs|tugging|tugged|pump|pumps|pumping|pumped|jerk|jerks|jerking|jerked|rub|rubs|rubbing|rubbed|wrap|around|over|on|at|to)\\s+)${src}`
+      : src;
     const gateWords = def.kw ?? MANUAL_GATES[def.id] ?? deriveGate(def.src);
     const gate = gateWords ? new RegExp(`(?:${gateWords})`, "i") : undefined;
-    out.push({ ...def, re: new RegExp(src, "g"), gate });
+    out.push({ ...def, re: new RegExp(finalSrc, "g"), gate });
 
     // Same pattern with the subject left out: "Draco climbed on top and rode him".
     const lead = def.subj === "t" ? "\\b{T}\\s+{aux}" : "\\b{B}\\s+{aux}";
@@ -276,7 +280,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|screw(?:s|ed|ing)?|pound(?:s|ed|ing)?|rail(?:s|ed|ing)?|plough(?:s|ed|ing)?|plow(?:s|ed|ing)?|bang(?:s|ed|ing)?|breed(?:s|ing)?|bred|knot(?:s|ted|ting)?|peg(?:s|ged|ging)?|mount(?:s|ed|ing)?|sodomi[sz](?:e|es|ed|ing)|bugger(?:s|ed|ing)?)\\s+{B:ass}(?!\\s+(?:up|over)\\b)`,
+    src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|screw(?:s|ed|ing)?|pound(?:s|ed|ing)?|rail(?:s|ed|ing)?|plough(?:s|ed|ing)?|plow(?:s|ed|ing)?|bang(?:s|ed|ing)?|breed(?:s|ing)?|bred|knot(?:s|ted|ting)?|peg(?:s|ged|ging)?|mount(?:s|ed|ing)?|sodomi[sz](?:e|es|ed|ing)|bugger(?:s|ed|ing)?)\\s+{B:ass}(?!\\s+(?:up|over|off|for (?:being|doing|making|having|that|this|everything|ever)|and (?:his|her|their|the) (?!cock|dick|ass|hole)))`,
   },
   {
     id: "push-into",
@@ -345,7 +349,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:(?:was|were|is|'s|’s|finally|fully|still|all the way|deep|buried|seated|sheathed|balls-deep|balls deep|completely|halfway|already|right|so|now)\\s+)+(?:inside|in)\\s+{B:ass}`,
+    src: `\\b{T}\\s+{aux}(?:(?:was|were|is|'s|’s|being|be|finally|fully|still|all the way|deep|buried|seated|sheathed|balls-deep|balls deep|completely|halfway|already|right|so|now)\\s+)+(?:inside|in)\\s+{B:ass}`,
   },
   {
     id: "penis-inside",
@@ -451,7 +455,7 @@ export const PATTERNS: PatternDef[] = [
     act: "fingering",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|eas|press|work|crook|curl|sink|sank|thrust|add|scissor|twist|insert|wiggl|drove|guid|teas|circl|rub)\\w*\\s+(?:(?:a|one|two|three|four|another|the|{x's}|first|second|third|slick|lubed|wet|long|thick|blunt)\\s+){0,3}${FINGERS}\\s+(?:(?:back|deep(?:er)?|slowly|all the way|further|carefully|gently|in|up)\\s+)*(?:in(?:to|side)?|past|through|around|against|over|at)\\s+{B:ass}`,
+    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|eas|press|work|crook|curl|sink|sank|thrust|add|scissor|twist|insert|wiggl|drove|guid|teas|circl|rub)\\w*\\s+(?:(?:a|one|two|three|four|another|the|{x's}|first|second|third|slick|lubed|wet|long|thick|blunt)\\s+){0,3}${FINGERS}\\s+(?:(?:back|deep(?:er)?|slowly|all the way|further|carefully|gently|in|up|down)\\s+)*(?:in(?:to|side)?|past|through|around|against|over|at)\\s+{B:ass}`,
   },
   {
     id: "fingers-inside",
@@ -575,6 +579,26 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{B}\\s+{aux}(?:pull|pop|slid|slide|draw|drew|lift|eas|ease|come|came|tear|tore|wrench)\\w*\\s+(?:(?:his|her|their|my|your)\\s+(?:mouth|lips)\\s+off\\s+(?:of\\s+)?{T:penis}|off\\s+(?:of\\s+)?{T:penisReq})`,
   },
   {
+    // "Alex takes the head between his lips", "took him into his mouth"
+    id: "takes-between-lips",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsPenis: true,
+    src: `\\b{B}\\s+{aux}(?:take|took|taking|draw|drew|pull|suck|guid|eas|let|sucked)\\w*\\s+(?:the\\s+(?:\\w+\\s+)?(?:head|tip)(?:\\s+of\\s+{T:penisReq})?|{T:penisReq}|it|him|her|them)\\s+(?:\\w+\\s+){0,2}?(?:between|into|past|in)\\s+(?:his|her|their|my|your)\\s+(?:(?:${MOUTH_ADJ})\\s+)?(?:lips|mouth)\\b`,
+  },
+  {
+    // "Alex parts his lips, and wraps them around his girth"
+    id: "wraps-them-around",
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needs: /\b(?:lips|mouth)\b/i,
+    src: `\\b{B}\\s+{aux}(?:part|open)\\w*\\s+(?:his|her|their|my|your)\\s+(?:\\w+\\s+)?(?:lips|mouth)\\s*,?\\s+(?:and\\s+)?(?:\\w+\\s+)?(?:wrap|close|seal|slid|slide|slip|sink|sank|stretch|fit)\\w*\\s+(?:them|it)\\s+(?:around|over|down on|onto)\\s+{T:penisReq}`,
+  },
+  {
     id: "lips-around",
     cat: "oral",
     act: "blowjob",
@@ -672,7 +696,7 @@ export const PATTERNS: PatternDef[] = [
     act: "rimming",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|flick|swirl)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?|(?:drag|ran|run|trac|slid|slide|slip|press|push|work|dip|delv|point|thrust|stab|flatten)\\w*\\s+(?:(?:his|her|their|my|your)\\s+)?(?:\\w+\\s+)?tongue\\s+)(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of|the length of|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:with\\s+(?:his|her|their|my|your)\\s+tongue\\s+)?(?:up|along|down|over|across))\\s+)*{B:rimReq}`,
+    src: `\\b{T}\\s+{aux}(?:(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|flick|swirl)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?(?:\\w+ly\\s+)?|(?:drag|ran|run|trac|slid|slide|slip|press|push|work|dip|delv|point|thrust|stab|flatten)\\w*\\s+(?:(?:his|her|their|my|your)\\s+)?(?:\\w+\\s+)?tongue\\s+)(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of|the length of|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:with\\s+(?:his|her|their|my|your)\\s+tongue\\s+)?(?:up|along|down|over|across))\\s+)*{B:rimReq}`,
   },
   {
     id: "licked-into",
@@ -775,7 +799,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b(?<lead>having|feeling|felt|feel|feels|with|of|want(?:ed|s)?|need(?:ed|s)?|crav(?:ed|es)?)\\s+{T}\\s+(?:(?:deep|so deep|buried|all the way|finally|still|right)\\s+)*(?:inside|in)\\s+{B:ass}`,
+    src: `\\b(?<lead>having|feeling|felt|feel|feels|with|of|want(?:ed|s)?|need(?:ed|s)?|crav(?:ed|es)?)\\s+{T}\\s+(?:(?:(?:deep|so deep|buried|all the way|finally|still|right)\\s+)*inside|(?:(?:deep|so deep|buried|all the way|balls-deep)\\s+)+in)\\s+{B:ass}`,
   },
   {
     id: "pushed-in",
