@@ -147,6 +147,23 @@ function makeChars(names: string[]): Character[] {
  * Guess the main characters when the file has no AO3 tags: words that are capitalized wherever they
  * appear (including at sentence starts) and almost never show up in lowercase.
  */
+/** Do two names begin alike enough to be forms of one name (Damen/Damianos, Steve/Steven)? */
+export function similarNames(a: string, b: string): boolean {
+  if (a.length < 4 || b.length < 4 || a[0].toLowerCase() !== b[0].toLowerCase()) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i].toLowerCase() === b[i].toLowerCase()) i++;
+  // At least half of the shorter name must match: Damen/Damianos (3 of 5) yes, Harrington/Hargrove (3 of 8) no.
+  return i >= 3 && i >= Math.min(a.length, b.length) / 2;
+}
+
+/** How often two names are listed together ("Dean and Deanna", "Dean, Deanna"), which means they're two people. */
+export function coordinated(text: string, a: string, b: string): number {
+  const ea = escapeRe(a);
+  const eb = escapeRe(b);
+  const sep = "(?:\\s+and\\s+|\\s*,\\s+(?:and\\s+)?|\\s*&\\s*|\\s+or\\s+|\\s*/\\s*)";
+  return (text.match(new RegExp(`\\b(?:${ea}${sep}${eb}|${eb}${sep}${ea})\\b`, "g")) ?? []).length;
+}
+
 export function guessNames(text: string): string[] {
   const caps = new Map<string, number>();
   const lower = new Map<string, number>();
@@ -196,6 +213,16 @@ export function guessNames(text: string): string[] {
   for (const a of candidates) {
     const full = candidates.find((b) => b !== a && b.length > a.length && b.startsWith(a) && a.length >= 3);
     if (full) nicknameOf.set(a, full);
+  }
+  // "Damen" and "Damianos": two names that begin alike (three or more letters), that nobody ever lists together
+  // ("Dean and Deanna"), are one person; the commoner one is the name and the other its nickname.
+  for (const a of candidates) {
+    for (const b of candidates) {
+      if (a === b || nicknameOf.has(a) || nicknameOf.has(b) || surnameOf.has(a) || surnameOf.has(b)) continue;
+      if ((caps.get(a) ?? 0) < (caps.get(b) ?? 0) || !similarNames(a, b)) continue;
+      if (coordinated(text, a, b) >= 2) continue;
+      nicknameOf.set(b, a);
+    }
   }
   const out: string[] = [];
   for (const w of candidates) {
@@ -357,6 +384,18 @@ export function buildCast(meta: Ao3Meta, narration: string, fullText = narration
   // Nicknames the tags don't mention: "Cas" for Castiel, "Ste" no (too short), "Tom" for Tomlinson-style.
   const capCounts = new Map<string, number>();
   for (const m of narration.matchAll(/\b(\p{Lu}\p{Ll}{2,})\b/gu)) capCounts.set(m[1], (capCounts.get(m[1]) ?? 0) + 1);
+  // "Damianos" for the tagged "Damen": a frequent unknown name that begins like one tagged character's name (and no
+  // one else's), is at least as common as that name, and is never listed alongside it, is the same person.
+  const countOf = (w: string) => (fullText.match(new RegExp(`\\b${escapeRe(w)}\\b`, "g")) ?? []).length;
+  for (const [w, n] of capCounts) {
+    if (n < 20 || NOT_NAMES.has(w) || chars.some((c) => c.aliases.includes(w) || c.name === "Reader")) continue;
+    const owners = chars.filter((c) => c.name !== "Reader" && c.aliases.some((a) => similarNames(a, w)));
+    if (owners.length !== 1) continue;
+    const owner = owners[0];
+    const near = owner.aliases.filter((a) => similarNames(a, w));
+    if (n < Math.max(...near.map(countOf)) || near.some((a) => coordinated(fullText, a, w) >= 2)) continue;
+    owner.aliases.push(w);
+  }
   for (const [w, n] of capCounts) {
     if (n < 3 || NOT_NAMES.has(w) || chars.some((c) => c.aliases.includes(w))) continue;
     const owners = chars.filter((c) => c.aliases.some((a) => a.length > w.length && a.startsWith(w)));

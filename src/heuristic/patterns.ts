@@ -61,7 +61,7 @@ export const PENIS = `(?:(?:${PENIS_ADJ})\\s+){0,2}(?:cock(?:head)?|dick|prick|l
 /** Words for the anus itself, beyond "hole" and "ass": "butthole", "pucker", "ring of muscle", "back door"... */
 const ANUS = `butt-?hole|anus|sphincter|rosebud|starfish|back ?door|back entrance|(?:(?:tight|outer|inner|first)\\s+)?rings? of muscles?|pucker|passage`;
 export const ASS = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|${ANUS}|front ?hole|hole|entrance|rim|opening|bum|butt|insides?|prostate|body|backside|channel|pussy|cunt|vagina|folds|cervix|sex)`;
-const RIM = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|${ANUS}|hole|entrance|rim|(?:ass |arse |butt )?crack|cleft|crease|taint|perineum)`;
+const RIM = `(?:(?:${ASS_ADJ})\\s+){0,2}(?:ass(?:hole)?|arse(?:hole)?|${ANUS}|hole|entrance|rim|(?:ass |arse |butt )?crack|cleft|crease|taint|perineum)(?!\\s+(?:cheeks?|muscles?))`;
 const MOUTH = `(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:mouth|lips|throat|tongue)`;
 const FACE = `(?:(?:${MOUTH_ADJ})\\s+){0,2}(?:mouth|throat|face)\\b`;
 
@@ -537,7 +537,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 1,
     femaleTarget: "drop",
-    src: `\\b{B}\\s+{aux}(?:suck(?:s|ed|ing)?|slurp(?:s|ed|ing)?(?=\\s+(?:on|at)\\b)|nurs(?:e|es|ed|ing)(?=\\s+(?:on|at)\\b)|suckl(?:e|es|ed|ing)(?=\\s+(?:on|at)\\b)|blow|blows|blew|blowing|deep-?throat(?:s|ed|ing)?|swallow(?:s|ed|ing)?\\s+(?:down|around)|gag(?:s|ged|ging)?\\s+on|chok(?:e|es|ed|ing)\\s+on|bob(?:s|bed|bing)?\\s+(?:\\w+\\s+){0,2}?on|worship(?:s|ped|ping)?)\\s+(?:on\\s+|at\\s+)?(?:the\\s+(?:[\\w-]+\\s+)?(?:head|tip|crown)\\s+of\\s+)?{T:penis}(?!\\s+(?:a kiss|kisses|away|out of the water|off (?:to|for|as)|in(?:to)? (?:his|her|their) arms)\\b)`,
+    src: `\\b{B}\\s+{aux}(?:suck(?:s|ed|ing)?|slurp(?:s|ed|ing)?(?=\\s+(?:on|at)\\b)|nurs(?:e|es|ed|ing)(?=\\s+(?:on|at)\\b)|suckl(?:e|es|ed|ing)(?=\\s+(?:on|at)\\b)|blow|blows|blew|blowing|deep-?throat(?:s|ed|ing)?|swallow(?:s|ed|ing)?\\s+(?:down|around)|gag(?:s|ged|ging)?\\s+on|chok(?:e|es|ed|ing)\\s+on|bob(?:s|bed|bing)?\\s+(?:\\w+\\s+){0,2}?on|worship(?:s|ped|ping)?)\\s+(?:\\w+ly\\s+)?(?:on\\s+|at\\s+)?(?:the\\s+(?:[\\w-]+\\s+)?(?:head|tip|crown|base|shaft|length|underside)\\s+of\\s+)?{T:penis}(?!\\s+(?:a kiss|kisses|away|out of the water|off (?:to|for|as)|in(?:to)? (?:his|her|their) arms)\\b)`,
   },
   {
     id: "licked-cock",
@@ -902,7 +902,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b{B}\\s+{aux}(?:(?:began|begin|begins|started|starts|start|proceeded|proceeds)\\s+(?:to\\s+)?)(?:suck|lick|lap|mouth|nurs|kiss)\\w*\\s+(?:\\w+ly\\s+)?(?:(?:on|at)\\s+)?(?:the\\s+(?:\\w+\\s+)?(?:head|tip|crown|shaft|length)(?:\\s+of\\s+{T:penis})?|{T:penisReq})`,
+    src: `\\b{B}\\s+{aux}(?:(?:began|begin|begins|started|starts|start|proceeded|proceeds)\\s+(?:to\\s+)?)(?:suck|lick|lap|mouth|nurs|kiss)\\w*(?:\\s+(?:\\w+ly\\s+)?(?:(?:on|at)\\s+)?(?:the\\s+(?:\\w+\\s+)?(?:head|tip|crown|shaft|length)(?:\\s+of\\s+{T:penis})?|{T:penisReq})|(?=\\s*(?:[,.;!]|$|\\s+and\\b)))`,
   },
   {
     // "Damen groaned around Laurent", "hummed around his length", "moaned around him"
@@ -948,6 +948,48 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.9,
     needsCtx: true,
     src: `\\b{B}\\s+{aux}(?:\\w+ly\\s+)?(?:lean|lower|bend|dip|duck|dropp?)\\w*\\s+(?:his|her|their|my|your)\\s+head\\s+(?:forward\\s+|down\\s+)?(?:and\\s+)?(?:took|take|swallow|suck|sank|sink)\\w*\\s+(?:{T}|{T:penis}|him)\\b(?!['’]s\\s+(?:hand|face|arm|shoulder|lap|neck|hair|mouth|lips))`,
+  },
+  {
+    // "Damianos still let Laurent bounce on it", "had Laurent ride him", "let Cas sink down on his cock"
+    id: "let-bounce-on-it",
+    cat: "anal",
+    act: "anal sex (riding)",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}(?:let|lets|letting|had|has|having|made|makes|making|watched|watching)\\s+{B}\\s+(?:bounc|ride|rid|rock|grind|sink|sit|sat|lower|impal|work)\\w*\\s+(?:\\w+\\s+)?(?:on|onto|down on|upon)\\s+(?:it|him|his\\s+(?:cock|dick|lap|length)|{T:penisReq})\\b`,
+  },
+  {
+    // "Peter held his legs open and bobbed slowly", "bobbing up and down"
+    id: "bobs-slowly",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}bob(?:s|bed|bing)\\s+(?:slowly|lazily|faster|harder|steadily|eagerly|up and down|back and forth)\\b(?!\\s+(?:in|on|along|across|over|with|to)\\s+(?:the|a)\\b)`,
+  },
+  {
+    // "Stiles tried to suck harder", "sucking harder", "swallowed eagerly"
+    id: "sucked-harder",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    needs: /\b(?:mouth|lips|tongue|throat|cock|dick|length|hips|thrust\w*|knees|pre-?come|precum|gag\w*|swallow\w*)\b/i,
+    src: `\\b{B}\\s+{aux}(?:suck|swallow|hollow)\\w*\\s+(?:(?:his|her|their)\\s+cheeks\\s+)?(?:harder|deeper|faster|lazily|slowly|greedily|eagerly|hungrily|obediently|desperately)\\b`,
+  },
+  {
+    // "The first time Peter worked him open and pushed inside", "worked Stiles open with two fingers, then slid inside him"
+    id: "worked-open-pushed-in",
+    cat: "anal",
+    act: "anal sex",
+    subj: "t",
+    weight: 0.9,
+    src: `\\b{T}\\s+{aux}(?:work|open|stretch|prep|loosen)\\w*\\s+{B}\\s+(?:open\\s+|up\\s+)?(?:with\\s+[^,.;]{0,30}?)?(?:,\\s*)?(?:and\\s+)?(?:then\\s+)?(?:push|slid|slip|sink|eas|press|sheath|slide)\\w*\\s+(?:in|inside|into)\\b`,
   },
   {
     // "Eddie's mouth closed around the head", "his lips slid down Steve's cock"
