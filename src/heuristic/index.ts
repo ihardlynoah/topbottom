@@ -32,7 +32,7 @@ import {
 } from "./patterns";
 import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
-import { ORAL_KINDS, type OralKind, ROLE_WORDS, oralKindOf, roleSummary } from "../roles";
+import { ORAL_KINDS, type OralKind, ROLE_WORDS, type RoleEvidence, oralKindOf, roleOdds, roleSummary } from "../roles";
 import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 
 type Basis = NonNullable<Instance["basis"]>;
@@ -1447,5 +1447,41 @@ function buildAct(
 
   const score = Math.max(0.05, Math.min(0.97, base + (verdict === "none" ? 0 : tagAdj + desAdj)));
   const confidence: Confidence = { score, label: confidenceLabel(score), reasons };
-  return { verdict, top, bottom, summary, instances, desires: desireOut, confidence };
+
+  // ── per-person odds ──
+  const ev: RoleEvidence[] = [];
+  const doubt: RoleEvidence[] = [];
+  for (const e of sceneTops.values()) {
+    // Scenes worked out only from pronouns count for less.
+    const w = e.weight * (e.strong ? 1 : 0.75);
+    ev.push({ who: e.char.name, role: "top", weight: w, kind: "scene" }, { who: e.partner.name, role: "bottom", weight: w, kind: "scene" });
+  }
+  for (const d of sig) {
+    const t = desireTop(d);
+    const b = t && otherOf(t);
+    if (!t || !b) continue;
+    ev.push({ who: t, role: "top", weight: 0.15 * d.weight, kind: "hint" }, { who: b, role: "bottom", weight: 0.15 * d.weight, kind: "hint" });
+  }
+  if (roleTagsApply) {
+    // Tags alone reach about 60%; "Top X" also says a little about the partner.
+    const tagged = (who: string, role: Role) =>
+      tags.roles.some((r) => r.char.name === who && (r.role === role || r.role === "switch")) ||
+      tags.roles.some((r) => r.char.name !== who && r.role === (role === "top" ? "bottom" : "top"));
+    for (const r of tags.roles) {
+      const other = otherOf(r.char.name);
+      if (r.role === "switch") {
+        for (const role of ["top", "bottom"] as const) ev.push({ who: r.char.name, role, weight: 0.35, kind: "tag" });
+        continue;
+      }
+      const opp = r.role === "top" ? "bottom" : "top";
+      ev.push({ who: r.char.name, role: r.role, weight: 0.35, kind: "tag" });
+      if (other) ev.push({ who: other, role: opp, weight: 0.25, kind: "tag" });
+      // Unless the tags also give them the other role ("Top Castiel", "Top Dean" → they switch).
+      if (!tagSwitch && !tagged(r.char.name, opp)) doubt.push({ who: r.char.name, role: opp, weight: 0.3, kind: "tag" });
+      if (!tagSwitch && other && !tagged(other, r.role)) doubt.push({ who: other, role: r.role, weight: 0.3, kind: "tag" });
+    }
+    if (tags.switching.length) for (const c of pair) for (const role of ["top", "bottom"] as const) ev.push({ who: c.name, role, weight: 0.25, kind: "tag" });
+  }
+  const people = roleOdds(pair.map((c) => c.name), ev, doubt);
+  return { verdict, top, bottom, summary, instances, desires: desireOut, confidence, people };
 }

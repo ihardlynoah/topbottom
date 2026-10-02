@@ -4,7 +4,7 @@
 // getting sucked, for rimming and cunnilingus the top is the one doing the licking. What people want to read is
 // what each person does, so oral results are reported per act with plain verbs.
 
-import { type ActResult, confidenceLabel, type Desire, type Instance } from "./types";
+import { type ActResult, confidenceLabel, type Desire, type Instance, type Role, type RoleOdds } from "./types";
 
 export type ActKind = "anal" | "blowjob" | "rimming" | "cunnilingus";
 export type OralKind = Exclude<ActKind, "anal">;
@@ -165,7 +165,55 @@ export function splitOral(oral: ActResult, pair: string): Record<OralKind, ActRe
         confidence: { score, label: confidenceLabel(score), reasons: oral.verdict === "none" ? oral.confidence.reasons : [`no ${w.label} among the oral scenes for ${pair}`] },
       };
     }
-    out[kind] = res;
+    out[kind] = { ...res, people: oddsFromResult(res, pair.split("/").map((n) => n.trim())) };
   }
   return out;
+}
+
+/** One piece of evidence that someone takes a role: a scene (weight ~1), a hint (small), or a role tag. */
+export interface RoleEvidence {
+  who: string;
+  role: Role;
+  weight: number;
+  /** Scenes are seen on the page; hints and tags only point (hints alone are capped at about 45%). */
+  kind: "scene" | "hint" | "tag";
+}
+
+/**
+ * Per-person role confidence. Each person/role pair gets 1 − e^(−evidence/0.6): one clear scene is about 80%,
+ * two are about 96%. Scenes in a role are discounted by how much more the same person is seen in the other
+ * role, so one pronoun-only exception against five clear scenes stays low. Hints and tags alone stay modest because their weights are small. `doubt` lowers a role
+ * that a tag says the person doesn't take ("Top Dunk" with no switching tag lowers Dunk bottoming), fading as
+ * on-page scenes show them in that role anyway.
+ */
+export function roleOdds(names: string[], evidence: RoleEvidence[], doubt: RoleEvidence[] = []): RoleOdds[] {
+  const sum = (who: string, role: Role, kind: RoleEvidence["kind"]) =>
+    evidence.filter((x) => x.who === who && x.role === role && x.kind === kind).reduce((n, x) => n + x.weight, 0);
+  const score = (who: string, role: Role) => {
+    const seen = sum(who, role, "scene");
+    const opposite = sum(who, role === "top" ? "bottom" : "top", "scene");
+    // One shaky scene against many the other way is more likely a misread than a switch.
+    const e = (seen ? (seen * seen) / (seen + 0.5 * opposite) : 0) + Math.min(0.35, sum(who, role, "hint")) + sum(who, role, "tag");
+    let p = 1 - Math.exp(-e / 0.6);
+    for (const d of doubt) if (d.who === who && d.role === role) p *= 1 - d.weight * Math.exp(-seen);
+    return Math.round(Math.max(0.02, Math.min(0.97, p)) * 100) / 100;
+  };
+  return names.map((name) => ({ name, top: score(name, "top"), bottom: score(name, "bottom") }));
+}
+
+/** Evidence from a finished result (for Claude's answers): each scene counts fully, each hint a little. */
+export function oddsFromResult(act: Pick<ActResult, "instances" | "desires">, names: string[]): RoleOdds[] {
+  const ev: RoleEvidence[] = [];
+  for (const i of act.instances) {
+    // Fingering only hints at anal roles.
+    const w = /fingering/i.test(i.act) ? 0.3 : 1;
+    ev.push({ who: i.top, role: "top", weight: w, kind: "scene" }, { who: i.bottom, role: "bottom", weight: w, kind: "scene" });
+  }
+  for (const d of act.desires) {
+    const role: Role = d.wants ? d.role : d.role === "top" ? "bottom" : "top";
+    ev.push({ who: d.who, role, weight: 0.15, kind: "hint" });
+    const other = names.find((n) => n !== d.who);
+    if (other) ev.push({ who: other, role: role === "top" ? "bottom" : "top", weight: 0.1, kind: "hint" });
+  }
+  return roleOdds(names, ev);
 }

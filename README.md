@@ -14,6 +14,12 @@ A small web app: drop in an AO3 download (PDF, EPUB, HTML, or TXT) and it tells 
 
      Each act gets its own verdict, so someone who both sucks and rims their partner isn't mistaken for a switch.
 
+   Every act also shows a **by-person** confidence for each partner in each role (e.g. Dunk tops 97% /
+   bottoms 9%; Aerion sucks cock 97% / gets sucked 97%). The roles are scored independently, so someone who
+   switches scores high on both. Each score is built from that person's scenes in the role (scenes worked
+   out only from pronouns count less, and one shaky scene against many the other way counts little), plus
+   hints (which alone stay under about 45%) and AO3 role tags (which alone stay around 60%).
+
 ## How it works
 
 Analysis runs in the browser by default (the pattern engine in a background worker). If Claude analysis is

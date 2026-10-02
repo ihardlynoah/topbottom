@@ -16,7 +16,10 @@ const dir = process.env.AO3_DIR;
 const fmtAct = (a: ActResult, kind: ActKind = "anal") => {
   const w = ROLE_WORDS[kind];
   const roles = kind === "blowjob" ? `${a.bottom} ${w.bottomVerb} / ${a.top} ${w.topVerb}` : kind === "anal" ? `top ${a.top} / bottom ${a.bottom}` : `${a.top} ${w.topVerb} / ${a.bottom} ${w.bottomVerb}`;
-  return `${a.verdict}${a.top ? ` (${roles})` : ""} · ${a.confidence.label} ${Math.round(a.confidence.score * 100)}% · ${a.instances.length} scenes, ${a.desires.length} hints`;
+  const odds = (a.people ?? [])
+    .map((p) => `${p.name.split(" ")[0]} ${w.topVerb} ${Math.round(p.top * 100)}%/${w.bottomVerb} ${Math.round(p.bottom * 100)}%`)
+    .join(", ");
+  return `${a.verdict}${a.top ? ` (${roles})` : ""} · ${a.confidence.label} ${Math.round(a.confidence.score * 100)}% · ${a.instances.length} scenes, ${a.desires.length} hints${odds ? ` [${odds}]` : ""}`;
 };
 const fmtOral = (p: PairingResult) =>
   `blowjobs: ${fmtAct(p.blowjob, "blowjob")} · rimming: ${fmtAct(p.rimming, "rimming")}${p.cunnilingus.verdict !== "none" ? ` · cunnilingus: ${fmtAct(p.cunnilingus, "cunnilingus")}` : ""}`;

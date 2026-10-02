@@ -2,7 +2,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { type Ao3Meta, countWords } from "./ao3";
-import { splitOral } from "./roles";
+import { oddsFromResult, splitOral } from "./roles";
 import type { ActResult, Analysis } from "./types";
 import { splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "./text";
 
@@ -275,7 +275,7 @@ function toAnalysis(a: ClaudeAnswer): Analysis {
     main_pairing: a.main_pairing,
     pairings: a.pairings.map((p) => ({
       pairing: p.pairing,
-      anal: act(p.anal),
+      anal: { ...act(p.anal), people: oddsFromResult(p.anal, p.pairing.split("/").map((n) => n.trim())) },
       oral: act(p.oral),
       ...splitOral(act(p.oral), p.pairing),
       vaginal: {

@@ -37,6 +37,13 @@ export interface Confidence {
   reasons: string[];
 }
 
+/** How likely one person is to take each role in an act (0–1 each, independent: a switch scores high on both). */
+export interface RoleOdds {
+  name: string;
+  top: number;
+  bottom: number;
+}
+
 export interface ActResult {
   verdict: Verdict;
   top: string;
@@ -45,6 +52,8 @@ export interface ActResult {
   instances: Instance[];
   desires: Desire[];
   confidence: Confidence;
+  /** Per-person confidence for each role, one entry per member of the pairing. */
+  people?: RoleOdds[];
 }
 
 /** Vaginal sex is only detected (whether it happens and between whom), not ranked top/bottom. */
