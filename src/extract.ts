@@ -81,10 +81,11 @@ export function extractFromText(text: string): ExtractedWork {
 
 async function extractFromPdf(data: ArrayBuffer): Promise<ExtractedWork> {
   // The legacy build includes polyfills; the modern one needs very new browsers (Math.sumPrecise etc.).
+  await import("./pdf/polyfill");
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // Bundled by Vite as a plain .js worker, so hosts that serve .mjs with the wrong MIME type still work.
   if (!pdfjs.GlobalWorkerOptions.workerPort) {
-    const { default: PdfWorker } = await import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker");
+    const { default: PdfWorker } = await import("./pdf/worker?worker");
     pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
   }
   let pdf;
@@ -98,9 +99,16 @@ async function extractFromPdf(data: ArrayBuffer): Promise<ExtractedWork> {
   const pages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
+    // Read the text stream directly rather than via getTextContent(), which needs stream async iteration.
+    const reader = page.streamTextContent().getReader();
+    const items: unknown[] = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      items.push(...(value as { items: unknown[] }).items);
+    }
     let s = "";
-    for (const item of content.items) {
+    for (const item of items as Awaited<ReturnType<typeof page.getTextContent>>["items"]) {
       if (!("str" in item)) continue;
       s += item.str;
       s += item.hasEOL ? "\n" : item.str.endsWith(" ") ? "" : " ";
