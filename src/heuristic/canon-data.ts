@@ -160,6 +160,16 @@ export const CANON_RAW = `
   Athena Grant | f | Athena
   Tommy Kinard | m | Tommy
   Karen Wilson | f | Karen
+  Shannon Diaz | f | Shannon
+  Isabel Diaz | f | Isabel
+  Natalia Dollenmeyer | f | Natalia
+  Marisol Suarez | f | Marisol
+  Josephina Diaz | f | Pepa; Josephina
+  Ravi Panikkar | m | Ravi
+  Josh Russo | m | Josh
+  Harry Grant | m | Harry
+  Michael Grant | m | Michael
+  May Grant | f | May
 
 @ rwrb | red,? white (&|and) royal blue
   Alex Claremont-Diaz | m | Alex; Alejandro; Claremont-Diaz

@@ -122,10 +122,12 @@ const CHAPTER_RE = /^(?:chapter|ch\.?|part)\s*(\d+|[ivxlc]+|one|two|three|four|f
 
 const NEG = /\b(?:not|never|no longer|no way|refused to|instead of|rather than|without|stopped (?:himself|herself|themself|myself) from|nobody|no one)\b|n['’]t\b/i;
 const FANTASY =
-  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|pictur(?:ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
+  /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|pictur(?:e|ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
   /\b(?:want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|(?<!\b(?:take|takes|took|taking|taken|so|too|as|how|that|very|any|a|not|no|for|in|on|at|of)\s)long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|['’]d (?:like|rather|prefer)|would (?:like|prefer|rather)|desires? (?:of|to|for)|offer(?:ed|s|ing)? to|plan(?:s|ned|ning)? to|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you|[a-z][\w'’-]*) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
 /** "…see himself asking [Damen to fuck him]": the request word sits just before the match, which starts at the name. */
+/** A sentence with its subject left out that opens on the wanting: "Wants to take Eddie to the back of his throat while Steve chokes on his cock." */
+const DESIRE_LEAD = /^\W*(?:wants?|needs?|longs?|aches?|craves?|wishes?|yearns?)\s+(?:to|for)\b/i;
 const DESIRE_TAIL = /\b(?:(?:ask|beg|plead|urg|offer)(?:ed|s|ing)?(?:\s+[\w'’-]+)?|desires?(?:\s+of)?(?:\s+\w+ly)?)\s*$/i;
 const HYPO_WINDOW = /\b(?:if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like|would be (?:one|a|an|the|so|too|more|less|better|worse|easier|harder)|would have been|would (?:feel|look|sound|taste)|imagine\w*|supposing|so (?:he|she|they|I|we) (?:can|could|might|may|will|would))\b/i;
 /** "Yeah, maybe Dunk would stop his snide comments and stuff his mouth…": the whole sentence is a what-if. */
@@ -693,7 +695,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         // "with Cas clenched tight and rolling his hips": "with X" + participle is a subject.
         (prev === "with" && /^\s+(?:\w+ly\s+)?\w+(?:ed|ing)\b/.test(prefix.slice(h.index! + h[0].length))) ||
         // "it didn't take long for Dean to cum, spilling into his mouth": X in "for X to <verb>" is the verb's subject.
-        (prev === "for" && /^\s+to\s+\w+/.test(prefix.slice(h.index! + h[0].length)));
+        (prev === "for" && /^\s+to\s+\w+/.test(prefix.slice(h.index! + h[0].length))) ||
+        // "after a few minutes of Buck fucking his finger into him", "pictured Buck straddling him": X is the gerund's subject.
+        (/^(?:of|after|before|from|despite|at|by|picture[sd]?|pictur\w+|imagin\w+|watch\w*|see|sees|saw|seen|hear\w*|heard)$/.test(prev) && /^\s+(?:\w+ly\s+)?(?:\w+ing|on top)\b/.test(prefix.slice(h.index! + h[0].length) + suffix));
       // "he wasn't the man who pushed Laurent to the door to fuck him": the epithet describes the copula's subject, who
       // is the one doing what follows.
       if (relative && /^Epithet\d+$/.test(h[3]) && i > 0 && /\b(?:was|were|is|am|are|be|been)(?:n['’]t| not)?\s+$/i.test(prefix.slice(0, h.index! + h[0].length - h[3].length))) continue;
@@ -906,6 +910,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     ctx.coSubjects.clear();
     if (!resolved) return;
     let { top, bottom } = resolved as { top: Character; bottom: Character };
+    // "…and then he's sliding in, swallowed by the tight heat of Eddie": a pronoun can't be someone the same sentence
+    // names plainly after it, so it is the other one.
+    if (!pat.elided && !subjChar && !nearSubj && /^(?:he|she)$/i.test(subjTok ?? "")) {
+      const S = pat.subj === "t" ? top : bottom;
+      const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (S.aliases.length) {
+        const alt = S.aliases.map(esc).join("|");
+        const rest = sent.slice(m.index! + m[0].length).split(/\s{3,}/)[0];
+        if (new RegExp(`\\b(?:${alt})\\b(?!['’]s?(?!\\w))`).test(rest) && !new RegExp(`\\b(?:${alt})\\b`).test(m[0])) [top, bottom] = [bottom, top];
+      }
+    }
     // '"Laurent." He hisses and swats his ass': a line that is just a name is spoken to that person, so the "He" after it
     // is the other one.
     {
@@ -940,6 +955,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "cupping his cheeks" while kissing: a face, not an ass.
     // "scoots forwards, pushing his knees apart" before a blowjob: getting between someone's knees to kneel and suck.
+    // "gently works his mouth open … as he licks into Buck": a kiss.
+    if (pat.id.startsWith("licked-into") && !/\b(?:ass|arse|hole|rim|crack|cheeks|entrance|pucker)\b/i.test(matchText) && /\b(?:mouth|lips|kiss\w*)\b/i.test(para)) return;
     // "spreads his legs to wipe them": he is cleaning someone, not offering himself.
     if (/^spread-(?:their-)?legs/.test(pat.id) && /^\s*(?:and\s+)?to\s+(?:wipe|clean|dry|wash|towel|inspect|examine|check|look|see)\b/i.test(after)) return;
     if (pat.id.startsWith("spread-their-legs") && [pi - 1, pi, pi + 1].some((i) => !!paras[i] && /\b(?:kneel\w*|drops? to his knees|mouth|lick\w*|nuzzl\w*|suck\w*|tongue)\b/i.test(paras[i]) && !/\b(?:hole|lube[ds]?|ass\b|arse|fingers?|prostate)\b/i.test(paras[i]))) return;
@@ -1014,6 +1031,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.id.startsWith("sucked-harder") && /\b(?:neck|skin|collarbone|jaw|lips?|nipples?|earlobe|ears?|shoulders?|bruise|hickey|mark|thumb|fingers?|chest|throat's|pulse)\b/i.test(sent)) return;
     // "they worshipped him": worship needs a penis in the match to be oral.
     if (cat === "oral" && /\bworship/i.test(matchText) && !PENIS_CTX.test(matchText)) return;
+    // "the shadows are going to swallow him whole": only a cock (or a penis word nearby) makes it oral.
+    if (pat.id.startsWith("swallowed-down") && /\bwhole\b/i.test(matchText) && !PENIS_CTX.test(sent)) return;
+    // "the skin he had slipped in": a relative clause about a thing, not penetration.
+    if (pat.id.startsWith("pushed-in") && /\b(?:the|a|that|this|those|these)\s+[\w-]+\s+(?:that\s+)?(?:he|she|they|I)\s+(?:had\s+|'d\s+)?$/i.test(sent.slice(0, m.index! + (matchText.search(/\b(?:slip|slid|sank|push|sunk)/i) > 0 ? matchText.search(/\b(?:slip|slid|sank|push|sunk)/i) : 0))) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent)) return;
     // "his chained wrists … until they were stretched taut": things being stretched or filled, not a person.
     if (pat.id.startsWith("passive-fucked") && /\b(?:stretched|filled)\s*$/i.test(matchText) &&
         (/^(?:they|it|them)$/i.test(bTok ?? "") || /^\s*(?:taut|tight|thin|out|across|between|over|above|along|with (?:water|blood|light|dread|pride|joy))\b/i.test(sent.slice(m.index! + m[0].length)))) return;
@@ -1053,6 +1074,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const prefix = sent.slice(0, m.index);
       if (NEG.test(m.groups?.aux ?? "") || NEG.test(prefix.slice(-40))) return;
       if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
+      if (pat.signal.kind === "fingers" && /\bwhistl\w*/i.test(sent)) return;
       const actor = (pat.signal.actor ?? pat.subj) === "t" ? top : bottom;
       if (desires.some((d) => d.sentence === original && d.cat === cat && d.kind === pat.signal!.kind && d.who === actor)) return;
       const other = actor === top ? bottom : top;
@@ -1073,6 +1095,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
     // Anal or vaginal? Decided by the words used (male omegas and trans men can have vaginas),
     // falling back to anatomy when the text doesn't say.
+    // "Shannon rides him … Buck could fuck him like this": a woman riding is vaginal unless an ass or hole is named.
+    if (cat === "anal" && /riding/.test(act) && bottom.vulva === true && bottom.penis !== true && top.penis !== false && !/\b(?:ass|arse|hole|anal|butt)\b/i.test(sent)) {
+      cat = "vaginal";
+      act = "vaginal sex (riding)";
+    }
     let holeGuess: ActHit["holeGuess"];
     if (cat === "anal" || cat === "vaginal") {
       const hole = holeType(matchText, sent, para, top, bottom);
@@ -1135,7 +1162,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const negated = NEG.test(aux) || NEG.test(negWindow);
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
-    else if (DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
+    else if (DESIRE_LEAD.test(sent) || DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
     else if (
       !/\bas (?:if|though)\s+(?:he|she|they)\s+(?:wasn['’]t|weren['’]t|was not|were not|hadn['’]t been|had not been)\s+(?:the\s+(?:man|guy|one|person|boy|woman|girl)|Epithet\d+)\s+(?:who|that)\b/i.test(prefix) &&

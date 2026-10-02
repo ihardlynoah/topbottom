@@ -633,7 +633,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 1,
     femaleTarget: "flip",
-    src: `\\b{B}\\s+{aux}(?:went|go|goes|going|gone|get|got|getting|slid|slide|slides|sliding|kneel|knelt|dropped|drop|drops|dropping|sank|sink|sinks|sinking|moved|move|moves|moving|kiss(?:ed|es|ing)? (?:his|her|their|my|your) way)\\s+down\\s+(?:on|to)\\s+{T}\\b(?!\\s+(?:one|both|the|a|his|her)\\b)`,
+    src: `\\b{B}\\s+{aux}(?:went|go|goes|going|gone|get|got|getting|slid|slide|slides|sliding|kneel|knelt|dropped|drop|drops|dropping|moved|move|moves|moving|kiss(?:ed|es|ing)? (?:his|her|their|my|your) way)\\s+down\\s+(?:on|to)\\s+{T}\\b(?!\\s+(?:one|both|the|a|his|her)\\b)`,
   },
   {
     id: "gave-head",
@@ -1407,7 +1407,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}present(?:ed|s|ing)?\\s+(?:${SELF}|{x's}\\s+(?:ass|arse|hole))`,
+    src: `\\b{B}\\s+{aux}present(?:ed|s|ing)?\\s+(?:${SELF}(?!\\s+(?:well|nicely|properly|professionally|as\\b|in\\b|at\\b|better|best|so\\b|to the\\b))|{x's}\\s+(?:ass|arse|hole))`,
   },
   {
     id: "pushed-head-down",
@@ -1526,7 +1526,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.6,
     signal: { kind: "touch", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:grab|squeez|grop|palm|slap|smack|knead|cup|fondl|pinch|spank|clutch|swat)\\w*\\s+(?:a\\s+handful\\s+of\\s+)?{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:ass|arse|butt|bum|backside|behind|cheeks)\\b`,
+    src: `\\b{T}\\s+{aux}(?:grab|squeez|grop|palm|slap|smack|knead|cup|fondl|pinch|spank|clutch|swat)\\w*\\s+(?:a\\s+handful\\s+of\\s+)?{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:ass|arse|butt|bum|backside|behind(?!\\s+(?:his|her|their|my|your|the|a|an|him|them|me|us|[A-Z]\\w*)\\b)|cheeks)\\b`,
   },
   {
     id: "hands-on-ass",
