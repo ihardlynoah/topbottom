@@ -927,6 +927,17 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{B}\\s+{aux}(?:dropp?|lower|sank|sink|push|press|bob|duck)\\w*\\s+(?:his|her|their|my|your)\\s+head\\s+(?:down\\s+)?(?:almost\\s+|nearly\\s+)?(?:fully|all the way|deeper)\\b(?!\\s+(?:back|up|to|against|onto|into|on|and (?:laughed|sighed|groaned|closed)|then (?:laughed|sighed|looked))\\b)`,
   },
   {
+    // "Korra suddenly looked up from her spot between her legs", "lifted his head from between Laurent's thighs"
+    id: "looked-up-from-between",
+    dedupe: true,
+    cat: "oral",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.7,
+    femaleTarget: "flip",
+        src: `\\b{B}\\s+{aux}(?:\\w+ly\\s+)?(?:look|glanc|peek|pull|lift|rais|came|come|surfac|emerg)\\w*\\s+(?:up\\s+)?(?:her|his|their)?\\s*(?:head\\s+)?(?:up\\s+)?from\\s+(?:(?:her|his|their)\\s+(?:spot\\s+)?)?between\\s+{T:poss}\\s+(?:legs|thighs)\\b`,
+  },
+  {
     // "settled between Robin's thighs and licked her slowly", "knelt between his legs, mouthing at him"
     id: "between-thighs-licked",
     dedupe: true,

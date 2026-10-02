@@ -1356,6 +1356,30 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   results.sort((a, b) => b.weight - a.weight);
 
   const notes: string[] = [];
+  // Rated Explicit / Not Rated and tagged only M/M (or only F/F), yet no act was recognised: the sex is probably there but
+  // written non-graphically or in phrasing the patterns miss, so point at the passages that read like sex scenes.
+  {
+    const cats = meta.categories.map((c) => c.trim().toUpperCase());
+    const kind = cats.includes("M/M") && cats.every((x) => x === "M/M" || x === "GEN") ? "M/M" : cats.includes("F/F") && cats.every((x) => x === "F/F" || x === "GEN") ? "F/F" : "";
+    const rated = /explicit|not rated/i.test(meta.rating ?? "");
+    const actCount = results.reduce((n, r) => n + [r.anal, r.blowjob, r.rimming, r.cunnilingus].reduce((m, a) => m + a.instances.length, 0) + (r.vaginal?.instances?.length ?? 0), 0);
+    if (kind && rated && actCount <= 1) {
+      const AROUSAL = /\b(?:moan\w*|gasp\w*|orgasm\w*|climax\w*|came|cum|thrust\w*|grind\w*|arch\w*|naked|nipples?|pleasure|unbutton\w*|undress\w*|writh\w*|shudder\w*|sheets|hips|between (?:her|his|their) (?:legs|thighs)|panting|breathless|sweat\w*|trembl\w*|clothes)\b/gi;
+      const scored = paras
+        .map((para, i) => ({ para, i, n: new Set((para.match(AROUSAL) ?? []).map((w) => w.toLowerCase())).size }))
+        .filter((x) => x.n >= 2 && x.para.length < 2500)
+        .sort((a, b) => b.n - a.n || a.i - b.i)
+        .slice(0, 3)
+        .sort((a, b) => a.i - b.i);
+      if (scored.length) {
+        const quote = (t: string) => `“${t.replace(/\s+/g, " ").trim().slice(0, 170)}${t.length > 170 ? "…" : ""}”`;
+        notes.push(
+          `This work is rated ${meta.rating} and tagged only ${kind}, but ${actCount ? "only one" : "no"} ${kind} sex act was recognized. The sex may be written without explicit detail, or in phrasing these patterns don't cover. Passages that read like sex scenes: ${scored.map((x) => quote(x.para)).join(" · ")}`,
+        );
+      }
+    }
+  }
+
   if (hasUncertainNotes) notes.push("Some AO3 chapter-note text had an unclear boundary and was excluded from pattern analysis.");
   if (!meta.relationships.length && !meta.characters.length && cast.chars.length) {
     notes.push(`No AO3 tags in this file, so characters were guessed from the text: ${cast.chars.map((c) => c.name).join(", ")}.`);

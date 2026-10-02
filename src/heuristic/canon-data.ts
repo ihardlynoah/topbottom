@@ -663,4 +663,230 @@ export const CANON_RAW = `
   Isaac Henderson | m | Isaac
   Ben Hope | m | Ben
 
+@ bnha-extra | my hero academia|boku no hero
+  Shouto Todoroki | m | Todoroki; Shouto
+  Katsuki Bakugou | m | Bakugou; Bakugo; Katsuki; Kacchan
+  Izuku Midoriya | m | Deku; Midoriya; Izuku
+  Eijirou Kirishima | m | Kirishima; Eijirou
+  Tenya Iida | m | Iida; Tenya
+  Ochaco Uraraka | f | Uraraka; Ochaco
+  Momo Yaoyorozu | f | Yaoyorozu; Momo
+  Kyouka Jirou | f | Jirou; Kyouka
+  Tomura Shigaraki | m | Shigaraki; Tomura
+  Keigo Takami | m | Hawks; Keigo
+  Enji Todoroki | m | Endeavor; Enji
+  Toshinori Yagi | m | All Might; Toshinori
+
+@ hq-extra | haikyuu
+  Tobio Kageyama | m | Kageyama; Tobio
+  Shouyou Hinata | m | Hinata; Shouyou
+  Tooru Oikawa | m | Oikawa; Tooru; Shittykawa
+  Hajime Iwaizumi | m | Iwaizumi; Iwa-chan; Hajime
+  Kei Tsukishima | m | Tsukishima; Tsukki
+  Tetsurou Kuroo | m | Kuroo; Tetsurou
+  Kenma Kozume | m | Kenma
+  Koushi Sugawara | m | Suga; Sugawara
+  Daichi Sawamura | m | Daichi
+  Kouji Bokuto | m | Bokuto; Koutarou
+  Keiji Akaashi | m | Akaashi; Keiji
+
+@ yoi | yuri!!! on ice|yuri on ice
+  Yuri Katsuki | m | Yuuri; Katsuki
+  Victor Nikiforov | m | Victor
+  Yuri Plisetsky | m | Yurio; Plisetsky
+  Otabek Altin | m | Otabek
+
+@ genshin | genshin impact
+  Zhongli | m | Zhongli
+  Childe | m | Childe; Tartaglia; Ajax
+  Kaeya Alberich | m | Kaeya
+  Diluc Ragnvindr | m | Diluc
+  Venti | m | Venti
+  Xiao | m | Xiao
+  Albedo | m | Albedo
+  Kazuha | m | Kazuha
+  Scaramouche | m | Scaramouche; Wanderer; Kunikuzushi
+  Lumine | f | Lumine
+  Aether | m | Aether
+  Ganyu | f | Ganyu
+  Raiden Shogun | f | Ei; Raiden
+
+@ arcane | arcane|league of legends
+  Vi | f | Vi
+  Jinx | f | Jinx; Powder
+  Caitlyn Kiramman | f | Caitlyn; Cait
+  Jayce Talis | m | Jayce
+  Viktor | m | Viktor
+  Mel Medarda | f | Mel
+  Ekko | m | Ekko
+  Silco | m | Silco
+
+@ owl-house | owl house
+  Luz Noceda | f | Luz
+  Amity Blight | f | Amity
+  Eda Clawthorne | f | Eda
+  King | m | King
+  Hunter | m | Hunter
+  Willow Park | f | Willow
+  Gus Porter | m | Gus
+  Lilith Clawthorne | f | Lilith
+  Hooty | m | Hooty
+
+@ steven-universe | steven universe
+  Steven Universe | m | Steven
+  Garnet | f | Garnet
+  Amethyst | f | Amethyst
+  Pearl | f | Pearl
+  Connie Maheswaran | f | Connie
+  Peridot | f | Peridot
+  Lapis Lazuli | f | Lapis
+  Rose Quartz | f | Rose
+  Bismuth | f | Bismuth
+  Jasper | f | Jasper
+
+@ she-ra | she-ra|princesses of power
+  Adora | f | Adora; She-Ra
+  Catra | f | Catra
+  Glimmer | f | Glimmer
+  Bow | m | Bow
+  Scorpia | f | Scorpia
+  Entrapta | f | Entrapta
+  Perfuma | f | Perfuma
+  Mermista | f | Mermista
+  Netossa | f | Netossa
+  Spinnerella | f | Spinnerella
+
+@ critical-role | critical role|vox machina|mighty nein
+  Caleb Widogast | m | Caleb
+  Nott | f | Nott; Veth
+  Jester Lavorre | f | Jester
+  Fjord | m | Fjord
+  Beauregard Lionett | f | Beau
+  Molly | m | Molly; Mollymauk
+  Yasha Nydoorin | f | Yasha
+  Caduceus Clay | m | Caduceus
+  Vex'ahlia | f | Vex
+  Vax'ildan | m | Vax
+  Percy de Rolo | m | Percy; Percival
+  Keyleth | f | Keyleth
+  Scanlan Shorthalt | m | Scanlan
+  Grog | m | Grog
+  Pike Trickfoot | f | Pike
+
+@ arthurian | merlin|camelot
+  Arthur Pendragon | m | Arthur
+  Merlin | m | Merlin
+  Gwen | f | Guinevere
+  Morgana | f | Morgana
+  Lancelot | m | Lancelot
+  Gaius | m | Gaius
+
+@ ao-supernatural-extra | supernatural
+  Dean Winchester | m | Dean
+  Castiel | m | Cas; Castiel
+  Charlie Bradbury | f | Charlie
+  Jody Mills | f | Jody
+  Rowena MacLeod | f | Rowena
+  Garth Fitzgerald IV | m | Garth
+  Meg Masters | f | Meg
+  Bela Talbot | f | Bela
+  Ellen Harvelle | f | Ellen
+  Jo Harvelle | f | Jo
+  Ruby | f | Ruby
+  Lucifer | m | Lucifer
+  Gabriel | m | Gabriel
+  Crowley | m | Crowley
+  Benny Lafitte | m | Benny
+  Jack Kline | m | Jack
+
+@ twilight | twilight
+  Bella Swan | f | Bella
+  Edward Cullen | m | Edward
+  Jacob Black | m | Jacob
+  Alice Cullen | f | Alice
+  Rosalie Hale | f | Rosalie
+  Jasper Hale | m | Jasper
+  Emmett Cullen | m | Emmett
+  Carlisle Cullen | m | Carlisle
+  Esme Cullen | f | Esme
+
+@ riverdale | riverdale
+  Archie Andrews | m | Archie
+  Betty Cooper | f | Betty
+  Veronica Lodge | f | Veronica
+  Jughead Jones | m | Jughead
+  Cheryl Blossom | f | Cheryl
+  Toni Topaz | f | Toni
+  Reggie Mantle | m | Reggie
+  Kevin Keller | m | Kevin
+
+@ glee | glee
+  Kurt Hummel | m | Kurt
+  Blaine Anderson | m | Blaine
+  Rachel Berry | f | Rachel
+  Finn Hudson | m | Finn
+  Santana Lopez | f | Santana
+  Brittany Pierce | f | Brittany
+  Quinn Fabray | f | Quinn
+  Puck | m | Puck; Noah Puckerman
+  Sebastian Smythe | m | Sebastian
+
+@ queen-slim | taylor swift|folklore|reputation
+  Taylor Swift | f | Taylor
+
+@ the-umbrella-academy | umbrella academy
+  Diego Hargreeves | m | Diego
+  Klaus Hargreeves | m | Klaus
+  Five Hargreeves | m | Five
+  Luther Hargreeves | m | Luther
+  Allison Hargreeves | f | Allison
+  Vanya Hargreeves | f | Vanya
+  Ben Hargreeves | m | Ben
+  Hazel | m | Hazel
+  Cha-Cha | f | Cha-Cha
+
+@ hazbin-hotel | hazbin hotel|helluva boss
+  Charlie Morningstar | f | Charlie
+  Alastor | m | Alastor
+  Angel Dust | m | Angel
+  Husk | m | Husk
+  Vaggie | f | Vaggie
+  Lucifer Morningstar | m | Lucifer
+  Blitzo | m | Blitzo
+  Stolas | m | Stolas
+  Millie | f | Millie
+  Moxxie | m | Moxxie
+
+@ cobra-kai | cobra kai|karate kid
+  Johnny Lawrence | m | Johnny
+  Daniel LaRusso | m | Daniel
+  Miguel Diaz | m | Miguel
+  Robby Keene | m | Robby
+  Samantha LaRusso | f | Sam
+  Tory Nichols | f | Tory
+  Hawk | m | Hawk; Eli Moskowitz
+
+@ queer-eye-etc | good place|brooklyn nine-nine|brooklyn 99
+  Jake Peralta | m | Jake
+  Amy Santiago | f | Amy
+  Rosa Diaz | f | Rosa
+  Charles Boyle | m | Charles
+  Raymond Holt | m | Holt; Captain Holt
+  Terry Jeffords | m | Terry
+  Gina Linetti | f | Gina
+  Eleanor Shellstrop | f | Eleanor
+  Chidi Anagonye | m | Chidi
+  Tahani Al-Jamil | f | Tahani
+  Jason Mendoza | m | Jason
+  Michael | m | Michael
+  Janet | f | Janet
+
+@ schitts-creek | schitt's creek|schitts creek
+  David Rose | m | David
+  Patrick Brewer | m | Patrick
+  Moira Rose | f | Moira
+  Johnny Rose | m | Johnny
+  Alexis Rose | f | Alexis
+  Stevie Budd | f | Stevie
+
 `;
