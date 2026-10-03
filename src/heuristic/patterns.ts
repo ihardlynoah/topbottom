@@ -324,6 +324,15 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{T}\\s+{aux}(?:fuck(?:s|ed|ing)?|screw(?:s|ed|ing)?|pound(?:s|ed|ing)?|rail(?:s|ed|ing)?|plough(?:s|ed|ing)?|plow(?:s|ed|ing)?|bang(?:s|ed|ing)?|breed(?:s|ing)?|bred|knot(?:s|ted|ting)?|peg(?:s|ged|ging)?|mount(?:s|ed|ing)?|sodomi[sz](?:e|es|ed|ing)|bugger(?:s|ed|ing)?|nail(?:s|ed|ing)?|ravish(?:es|ed|ing)?|ravag(?:e|es|ed|ing))\\s+{B:ass}(?!\\s+(?:up|over|off|down|to|for (?:being|doing|making|having|that|this|everything|ever)|and (?:his|her|their|the) (?!cock|dick|ass|hole)))`,
   },
   {
+    id: "lined-up-pressed-in",
+    cat: "anal",
+    act: "anal sex",
+    subj: "t",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}(?:lin(?:e|es|ed|ing)|position(?:s|ed|ing)?)\\s+(?:${SELF}\\s+)?up,?\\s+(?:and\\s+)?(?:then\\s+)?(?:press|push|slid|slide|sink|sank|eas)\\w*\\s+(?:slowly\\s+|carefully\\s+|gently\\s+)?(?:in|into|inside)\\s+{B}\\b`,
+  },
+  {
     id: "push-into",
     cat: "anal",
     act: "anal sex",
