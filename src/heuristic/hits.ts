@@ -19,6 +19,8 @@ export interface ActHit {
   shaky?: string;
   /** The text around the sentence, so a reader (or Claude) can check the reading. */
   context?: string;
+  /** The pattern that produced it (for the audit report). */
+  via?: string;
 }
 
 export interface DesireHit {
@@ -39,6 +41,8 @@ export interface DesireHit {
   reflexive?: boolean;
   /** How the people in the sentence were found (names, pronouns, inference). */
   basis?: Basis;
+  /** The pattern that produced it (for the audit report). */
+  via?: string;
 }
 
 // ───────────── text helpers ─────────────

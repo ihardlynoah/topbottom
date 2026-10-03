@@ -24,9 +24,24 @@ import { PairTags, buildAct, buildDynamic, buildManual, buildSolo, buildVaginal,
 
 // ───────────── main analysis ─────────────
 
+export interface AuditHit {
+  via: string;
+  kind: string;
+  cat: string;
+  act: string;
+  para: number;
+  sentence: string;
+  a: string;
+  b?: string;
+}
+
 export interface PatternOptions {
   /** Leave out the "how this works" caveats in notes (for tests). */
   quiet?: boolean;
+  /** Called once for every act and desire hit with the pattern behind it (for the pattern audit report). */
+  audit?: (hit: AuditHit) => void;
+  /** Called once with what the engine worked from: its paragraphs, the point of view at each, and the texts it found (for the gold-label eval). */
+  debug?: (d: { paras: string[]; pov: (string | undefined)[]; texts: { para: number; from?: string; to?: string }[] }) => void;
 }
 
 export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOptions = {}): Analysis {
@@ -541,6 +556,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         (!question && /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:(?!hesitate|forget|stop|let)\w+\s+){0,3}$/.test(before)) ||
         /\bas if\b[^.!?]*$/.test(before);
       desires.push({
+        via: `dialogue:${d.act}`,
         cat: d.cat,
         act: d.act,
         who: speaker,
@@ -599,7 +615,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   /** "…without being fucked open by older men": past experience with other people, a hint about this person's role. */
   function addHistory(cat: Cat, act: string, who: Character, role: Role, partner: Character, sentence: string, pi: number) {
     if (cat === "vaginal") return;
-    desires.push({ cat, act: "past experience with others", who, partner, role, wants: true, kind: "history", weight: 0.8, para: pi, sentence });
+    desires.push({ via: "history", cat, act: "past experience with others", who, partner, role, wants: true, kind: "history", weight: 0.8, para: pi, sentence });
   }
 
   function handleMatch(
@@ -734,6 +750,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const own = new RegExp(`\\b(${NAMES})['’]s\\s+(?:[\\w-]+\\s+){0,2}?(?:cock|dick|prick|length|shaft)\\b`).exec(m[0]);
       const owner = own ? cast.byAlias.get(own[1]) : undefined;
       if (owner && owner !== top && owner === bottom && pat.subj === "t") [top, bottom] = [bottom, top];
+      // "Derek fucked my cock into Stiles" (or "Derek's cock … into Stiles" said of a third person's): whoever the cock belongs to
+      // tops; the one moving it is only helping.
+      if (pat.subj === "t" && /\b(?:in|into|inside)\s+\S/.test(m[0])) {
+        const mine = /\b(?:fuck|push|guid|shov|eas|drove|drive|slid|slip|work|press)\w*\s+my\s+(?:[\w-]+\s+){0,2}?(?:cock|dick|prick|length|shaft)\b/i.test(m[0]);
+        const who = mine ? (ctx.narratorNow ?? cast.narrator) : owner;
+        if (who && who !== top && who !== bottom && cast.pairings.some((pr) => pr.includes(who) && pr.includes(bottom))) top = who;
+      }
       // "Cas jackhammers Dean's own fingers inside him": his own fingers, so it's Dean fingering himself, not a scene with Cas.
       const fing = new RegExp(`\\b(${NAMES})['’]s\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,1}?(?:fingers?|digits?)\\b`).exec(m[0]);
       const fowner = fing ? cast.byAlias.get(fing[1]) : undefined;
@@ -778,7 +801,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const self = ctx.lastSubject ?? top;
       const other = ctx.partnerOf(self);
       if (other && !NEG.test(sent.slice(0, m.index).slice(-40))) {
-        desires.push({ cat: "anal", act: "fingering himself", who: self, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
+        desires.push({ via: pat.id, cat: "anal", act: "fingering himself", who: self, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
       }
       return;
     }
@@ -807,7 +830,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (/\b(?:his|her|their)\s+own\s+(?:[\w-]+\s+){0,2}?(?:ass|arse|asshole|hole|entrance|rim|cunt|pussy)\b/i.test(matchText) && (cat === "anal" || pat.id.startsWith("self-")) && !/\b(?:cock|dick|prick|length)\b/i.test(matchText.slice(0, matchText.search(/\b(?:his|her|their)\s+own\b/i)))) {
       const other = ctx.partnerOf(top);
       if (other && !NEG.test(sent.slice(0, m.index).slice(-40))) {
-        desires.push({ cat: "anal", act: /\b(?:dildo|vibrator|vibe|plug|beads|toy)\b/i.test(matchText) ? "using a toy on himself" : "fingering himself", who: top, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original, reflexive: true });
+        desires.push({ via: pat.id, cat: "anal", act: /\b(?:dildo|vibrator|vibe|plug|beads|toy)\b/i.test(matchText) ? "using a toy on himself" : "fingering himself", who: top, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original, reflexive: true });
       }
       return;
     }
@@ -848,7 +871,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (act === "rimming" && pat.id !== "tongue-probing" && !/\b(?:ass|arse|hole|rim|crack|cheeks|entrance|pucker)\b/i.test(sent) && /\b(?:sucking|gagg\w*|throat|cock|dick|prick|blowjob)\b/i.test(para)) return;
     // "Dean pushed the dildo into his ass" with no one else in the sentence: his own ass, so he is bottoming, not topping.
     if (cat === "anal" && !pat.signal && /\b(?:dildo|vibrator|vibe|butt\s*plug|plug|beads|toy)\b/i.test(matchText) && /^(?:his|her|their)$/i.test(bTok ?? "") && !new RegExp(`\\b(?:${cast.chars.filter((c) => c !== top).flatMap((c) => c.aliases).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") || "$^"})\\b`).test(sent)) {
-      desires.push({ cat: "anal", act: "using a toy on himself", who: top, partner: bottom, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
+      desires.push({ via: pat.id, cat: "anal", act: "using a toy on himself", who: top, partner: bottom, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
       return;
     }
     // "spreads his legs to wipe them": he is cleaning someone, not offering himself.
@@ -927,6 +950,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (cat === "oral" && /\bworship/i.test(matchText) && !PENIS_CTX.test(matchText)) return;
     // "the shadows are going to swallow him whole": only a cock (or a penis word nearby) makes it oral.
     if (pat.id.startsWith("swallowed-down") && /\bwhole\b/i.test(matchText) && !PENIS_CTX.test(sent)) return;
+    // "he topped a lot like how he bottomed": a comparison, not an act.
+    if ((pat.id.startsWith("topped") || pat.id.startsWith("bottomed-for")) && /\b(?:how|like|than|as)\s+$/i.test(sent.slice(0, m.index))) return;
     // "Shane slipped inside and sat on the edge of the bed": entering a room, not penetration.
     if (pat.id.startsWith("pushed-in") && /^\s*,?\s*(?:and\s+)?(?:then\s+)?(?:sat|stood|closed|shut|locked|walked|went|looked|waited|crossed|leaned|turned|stepped|paused|dropped|collapsed|hung|stopped|froze|glanced|checked|set|put|placed|kicked|tossed|threw|flicked)\b/i.test(sent.slice(m.index! + m[0].length))) return;
     // "…tried to find his prostate" right after he fingered himself: the same solo act, not the partner's.
@@ -1020,6 +1045,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (desires.some((d) => d.sentence === original && d.cat === cat && d.kind === pat.signal!.kind && d.who === actor)) return;
       const other = actor === top ? bottom : top;
       desires.push({
+        via: pat.id,
         cat,
         act,
         who: actor,
@@ -1141,6 +1167,23 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (negated) return;
       // The newer oral patterns overlap each other and the older ones ("wraps his lips around Alex, a tap of his tongue
       // around the head"): they add to a sentence's evidence only once.
+      // Scene role locking: in a scene with a third person, a pronoun-only line that has someone penetrating the very person who
+      // is penetrating them (a few paragraphs back, named outright) is the third person's line: "Once I was back from the brink,
+      // Derek held his hips … His dick barely moved in me" is Derek, not the one Scott was inside.
+      if (basis !== "named" && cat === "anal") {
+        const recent = acts.filter((a) => a.cat === cat && a.para >= pi - 6 && a.para <= pi);
+        const reversed = recent.some((a) => a.top === bottom && a.bottom === top && a.basis === "named" && a.weight >= 0.7);
+        const same = recent.some((a) => a.top === top && a.bottom === bottom);
+        if (reversed && !same) {
+          const earlier = paras.slice(Math.max(0, pi - 2), pi).join(" ") + " " + para.slice(0, Math.max(0, para.indexOf(original)));
+          const third = cast.chars
+            .filter((c) => c !== top && c !== bottom && c !== cast.secondPerson)
+            .map((c) => ({ c, at: Math.max(...c.aliases.map((a) => earlier.lastIndexOf(a))) }))
+            .filter((x) => x.at >= 0)
+            .sort((x, y) => y.at - x.at)[0]?.c;
+          if (third && cast.pairings.some((pr) => pr.includes(third) && pr.includes(bottom))) top = third;
+        }
+      }
       const dup = pat.dedupe ? acts.find((a) => a.para === pi && a.sentence === original && a.cat === cat && a.top === top && a.bottom === bottom) : undefined;
       if (dup) {
         if (weight > dup.weight) { dup.weight = weight; dup.basis = basis; }
@@ -1153,7 +1196,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         ? "“rode him” can describe either partner" : holeGuess === "ambiguous" ? "the sentence doesn't say which hole" : undefined;
       // "Now he knew what it was like to fuck Ilya Rozanov": a look back that, after being the bottom, means "have sex with".
       const retro = /\bwhat it (?:was|is|felt|had been|'d been)\s+like\s+to\b/i.test(sent);
-      acts.push({ cat, act, top, bottom, weight: retro ? weight * 0.4 : weight, basis, para: pi, sentence: original, holeGuess, shaky: retro ? "“what it was like to…” looks back on an earlier time and can describe either partner" : shaky, context: contextAround(paras[pi] ?? "", original) });
+      acts.push({ via: pat.id, cat, act, top, bottom, weight: retro ? weight * 0.4 : weight, basis, para: pi, sentence: original, holeGuess, shaky: retro ? "“what it was like to…” looks back on an earlier time and can describe either partner" : shaky, context: contextAround(paras[pi] ?? "", original) });
       ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;
       return;
@@ -1167,6 +1210,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "There was no way Steve was asking him to fuck him": disbelief about a claim, not a dislike of the act.
     if (negated && /\bno\s+(?:fucking\s+|damn\s+)?(?:way|chance)\b|\bnot\s+a\s+chance\b|\bas\s+if\b|\bthere\s+(?:was|is)\s+no\s+(?:possible\s+)?(?:way|chance)\b/i.test(prefix.slice(-90))) return;
     desires.push({
+      via: pat.id,
       cat,
       act,
       who: exp,
@@ -1385,6 +1429,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   const romantic = romanticPairings(meta);
   const pairings: PairingResult[] = results.map(({ weight: _w, key: _k, ...p }) => p);
+  opts.debug?.({
+    paras,
+    pov: pov.at.map((c) => c?.name),
+    texts: [...texting.messages, ...narratedTexts].map((m) => ({ para: m.para, from: m.sender?.name, to: m.receiver?.name })),
+  });
+  if (opts.audit) {
+    for (const h of acts) opts.audit({ via: h.via ?? "?", kind: "act", cat: h.cat, act: h.act, para: h.para, sentence: h.sentence, a: h.top.name, b: h.bottom.name });
+    for (const h of desires) opts.audit({ via: h.via ?? "?", kind: h.kind, cat: h.cat, act: h.act, para: h.para, sentence: h.sentence, a: h.who.name, b: h.partner?.name });
+  }
   const textingResult = summarizeTexts([...texting.messages, ...narratedTexts], where);
   return {
     source: "patterns",

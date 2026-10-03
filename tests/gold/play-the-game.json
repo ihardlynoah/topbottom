@@ -1,0 +1,196 @@
+{
+ "fic": "play-the-game",
+ "note": "Adult rugby AU, limited third person with POV by scene, plus arrow-style text threads (> comes in from the other person, < is the viewpoint character's own).",
+ "pov": [
+  {
+   "from": 38,
+   "to": 69,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 70,
+   "to": 98,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 99,
+   "to": 148,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "7af0eeb7"
+  },
+  {
+   "from": 149,
+   "to": 199,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 200,
+   "to": 206,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 207,
+   "to": 224,
+   "pov": "Aerion Targaryen",
+   "h": "488b478a"
+  },
+  {
+   "from": 272,
+   "to": 323,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 324,
+   "to": 394,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 395,
+   "to": 511,
+   "pov": "Aerion Targaryen",
+   "h": "456eaecb"
+  },
+  {
+   "from": 512,
+   "to": 528,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "c722c163"
+  },
+  {
+   "from": 560,
+   "to": 583,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 799,
+   "to": 826,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 827,
+   "to": 858,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 859,
+   "to": 862,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 863,
+   "to": 869,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 870,
+   "to": 943,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "bb6f4c6e"
+  },
+  {
+   "from": 944,
+   "to": 983,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 984,
+   "to": 1129,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "7d9ae08a"
+  },
+  {
+   "from": 1130,
+   "to": 1204,
+   "pov": "Aerion Targaryen",
+   "h": "41f9ab9"
+  },
+  {
+   "from": 1205,
+   "to": 1227,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 1228,
+   "to": 1365,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 1366,
+   "to": 1383,
+   "pov": "Dunk | Duncan the Tall",
+   "h": "cbb484a5"
+  },
+  {
+   "from": 1384,
+   "to": 1449,
+   "pov": "Aerion Targaryen",
+   "h": "cbb484a5"
+  }
+ ],
+ "texts": [
+  {
+   "para": 570,
+   "from": "Aerion Targaryen",
+   "h": "837b9004"
+  },
+  {
+   "para": 578,
+   "from": "Dunk | Duncan the Tall",
+   "h": "d02b7113"
+  },
+  {
+   "para": 906,
+   "from": "Aerion Targaryen",
+   "h": "55b41e80"
+  },
+  {
+   "para": 910,
+   "from": "Aerion Targaryen",
+   "h": "dcf110ef"
+  },
+  {
+   "para": 912,
+   "from": "Dunk | Duncan the Tall",
+   "h": "72fefa60"
+  },
+  {
+   "para": 974,
+   "from": "Dunk | Duncan the Tall",
+   "h": "6fde092a"
+  },
+  {
+   "para": 978,
+   "from": "Aerion Targaryen",
+   "h": "72a29102"
+  },
+  {
+   "para": 981,
+   "from": "Dunk | Duncan the Tall",
+   "h": "118bb1ad"
+  },
+  {
+   "para": 1191,
+   "from": "Aerion Targaryen",
+   "h": "e8ce0c4"
+  },
+  {
+   "para": 1192,
+   "from": "Dunk | Duncan the Tall",
+   "h": "301aecf0"
+  }
+ ]
+}

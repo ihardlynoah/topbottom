@@ -16,6 +16,8 @@ export interface Instance {
   reasons?: string[];
   /** The passage around the evidence sentence. */
   context?: string;
+  /** Paragraph number of the evidence sentence (for the gold-label eval). */
+  para?: number;
 }
 
 /**

@@ -319,6 +319,25 @@ npm test         # parser, EPUB, pattern-engine, canon, anatomy and vibe tests (
 npm run build    # static site in dist/
 ```
 
+## Checking the engine against real fics
+
+Three developer tools take a folder of AO3 `.html` downloads (`AO3_DIR`; the folder is never committed):
+
+```sh
+AO3_DIR=ao3-samples npx vitest run tests/ao3-eval.test.ts     --testTimeout=1500000   # writes REPORT.md: verdicts per fic; diff it between runs
+AO3_DIR=ao3-samples npx vitest run tests/pattern-audit.test.ts --testTimeout=1500000   # writes PATTERN_AUDIT.md
+AO3_DIR=ao3-samples npx vitest run tests/gold-eval.test.ts                             # writes GOLD_REPORT.md
+```
+
+- **Pattern audit.** For every pattern, how many acts and hints it produced, in how many fics, and a fixed-hash sample of the
+  sentences it matched. A pattern that is matching the wrong thing (a room "slipped inside", a wave of nausea "swallowed
+  down") shows up here without waiting for a bug report. Patterns with no hits at all are listed too.
+- **Gold labels.** `tests/gold/*.json` hold hand-checked readings of real fics: verdicts per pairing and act, which scenes are
+  real and who tops (as paragraph ranges), acts whose scene list is complete (any extra scene is a false positive), known
+  false positives, who the point of view is by section, and who sent which text. They store paragraph numbers and a hash of
+  each paragraph, never the fic's own text; if the engine's paragraph splitting changes, the hash lets a file shift itself.
+  The report gives verdict accuracy, scene recall and precision, POV and text-sender accuracy. `GOLD_STRICT=1` fails on any miss.
+
 ## Deploying
 
 `.github/workflows/deploy.yml` builds and publishes to GitHub Pages on every push to `main`. Turn it on once in
