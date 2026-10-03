@@ -173,3 +173,18 @@ describe("two axes or one combined vibe", () => {
     expect(p.dynamic!.find((d) => d.name.startsWith("Eddie"))!.label).toMatch(/Lead/);
   });
 });
+
+describe("POV from a line that opens on a main character’s name", () => {
+  const ST: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Stranger Things (TV 2016)"], relationships: ["Steve Harrington/Eddie Munson"], characters: ["Steve Harrington", "Eddie Munson"], freeforms: ["Two POVs"] };
+  const intro = (`Steve and Eddie were on the couch, kissing. Steve kissed Eddie. Eddie kissed Steve back, moaning. `).repeat(2);
+  const who = (text: string) => analyzeWithPatterns(text, ST, { quiet: true }).pairings[0].anal.desires.filter((d) => d.kind === "wanted" && d.wants && d.role === "bottom").map((d) => d.who);
+  it("“Eddie, later that night” on its own line sets the point of view", () => {
+    expect(who(`${intro}\n\nEddie, later that night\n\nSteve smiled at him across the room. He wanted to be fucked.`).join()).toMatch(/Eddie/);
+  });
+  it("a full sentence that starts with the name does not", () => {
+    expect(who(`${intro}\n\nEddie laughed.\n\nSteve smiled at him across the room. He wanted to be fucked.`).join()).not.toMatch(/Eddie/);
+  });
+  it("a line in quotation marks does not", () => {
+    expect(who(`${intro}\n\n“Eddie, later tonight,” Steve said.\n\nSteve smiled at him across the room. He wanted to be fucked.`).join()).not.toMatch(/Eddie/);
+  });
+});

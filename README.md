@@ -141,7 +141,7 @@ word count is estimated and the main characters are guessed from frequently capi
    belongs to) are bottom wishes; “I love getting fucked”, “I love taking dick”, “I love cock”, “I’m a cockslut” are stated
    tastes. “Get fucked up”, “fucked over”, “go get fucked” and “use me as a shield” are not.
    **Point of view.** Whose “he” or “I” a stretch of text is told from comes from the chapter heading (“Chapter 3: Steve”,
-   “Eddie's POV”), from a short line that is just a name inside a chapter, or, with neither, from whose feelings the chapter keeps
+   “Eddie's POV”), from a short line that is just a name, or a name followed by a break such as “Eddie, later that night” (never inside quotation marks, never a full sentence), inside a chapter, or, with neither, from whose feelings the chapter keeps
    reporting (“Steve felt…”, “Steve wondered…”: six or more, at least two and a half times the other man's). In that person's
    stretch, a sentence that opens with “He felt / wanted / thought…” or “His heart raced…” is them, whoever was named in the
    line before; and in alternating first person a chapter headed with the narrator's name says whose “I” follows. Also new:

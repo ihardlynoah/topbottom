@@ -29,6 +29,19 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
     }
     return found.size === 1 ? [...found][0] : undefined;
   };
+  // A line that opens on a main character's name and then breaks off before any sentence: "Steve, Tuesday night",
+  // "Eddie – later". Not when it opens with a quotation mark, and not when it is a full sentence ("Steve laughed.").
+  const leadsWithName = (p: string): Character | undefined => {
+    if (/^["“”‘'«]/.test(p) || /["“”]/.test(p)) return undefined;
+    const m = p.match(new RegExp(`^(${cast.aliasPattern})\\b(.*)$`));
+    if (!m) return undefined;
+    const c = cast.byAlias.get(m[1]);
+    if (!c || c === cast.secondPerson) return undefined;
+    const rest = m[2].trim();
+    if (!/^[,:;–—(|~-]/.test(rest)) return undefined;
+    if (/[.!?]\s+\S/.test(rest)) return undefined; // another sentence follows on the same line
+    return c;
+  };
   const povWord = /\bpov\b|point of view|\bperspective\b/i;
 
   // Segments: from one chapter heading to the next.
@@ -56,6 +69,7 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
       if (i > from && p.length > 0 && p.length <= 40) {
         const c = only(p);
         if (c && p.replace(nameRe, "").replace(/['’]s|pov|point of view|[\s:\-–—()\[\]|~*#]/gi, "") === "") { current = c; sawMarker = true; }
+        else if (leadsWithName(p)) { current = leadsWithName(p); sawMarker = true; }
       }
       at[i] = current;
     }
