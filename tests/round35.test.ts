@@ -99,3 +99,23 @@ describe("AO3 role and dynamic tags (tier 2)", () => {
     expect(tagged).toMatch(/top/);
   });
 });
+
+describe("cuddling positions (tier 6)", () => {
+  const b2 = ("Dean and Cas were in bed. Cas kissed Dean. Dean kissed Cas back. ").repeat(3);
+  const t6 = (l: string, who: string) => analyzeWithPatterns(b2 + l, meta(), { quiet: true }).pairings[0].vibe!.find((v) => v.name.startsWith(who))!.basis.find((x) => x.startsWith("Dominant or submissive")) ?? "";
+  for (const [l, who, role] of [
+    ["Afterwards Dean rested his head on Cas’s chest and listened to his heartbeat.", "Dean", "bottom"],
+    ["Dean’s head was on Cas’s chest, and he was nearly asleep.", "Dean", "bottom"],
+    ["Dean fell asleep on Cas’s chest, still naked.", "Dean", "bottom"],
+    ["Cas slept with his cheek pressed against Dean’s chest.", "Cas", "bottom"],
+    ["Cas spooned Dean from behind, and they dozed in the warm bed.", "Cas", "top"],
+    ["Cas was the big spoon, as always, his arm heavy around Dean’s waist.", "Cas", "top"],
+    ["Dean was the little spoon, tucked against Cas in the dark.", "Dean", "bottom"],
+    ["Cas curled around Dean from behind and they drifted off to sleep.", "Cas", "top"],
+    ["Dean curled up in bed with his back against Cas’s chest.", "Dean", "bottom"],
+  ] as const) it(l, () => expect(t6(l, who)).toMatch(new RegExp(`${role} ×1`)));
+  it("the one whose chest it is reads the other way", () => {
+    expect(t6("Dean rested his head on Cas’s chest and slept.", "Cas")).toMatch(/top ×1/);
+  });
+  it("a cat on a chest is nothing", () => expect(t6("The cat rested its head on Cas’s chest.", "Dean")).toBe(""));
+});

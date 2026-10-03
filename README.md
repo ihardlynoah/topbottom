@@ -169,7 +169,10 @@ important first:
    up against someone afterwards → bottom; “let me clean you up”, “I've got you” → top; “hold me” → bottom), and
    *pet names* (“good boy” said to someone → top; “please, daddy/sir” → bottom), which only count when the
    scene around them is sexual. When the work is tagged with a dynamic (“Dom/sub”, “Praise Kink”…), these also count
-   a little at tier 2. These only feed the vibe, never the anal/oral cards.
+   a little at tier 2. *Cuddling positions* count too: resting or sleeping with your head on someone's chest and
+   being the little spoon (“his back against Cas's chest”) read bottom; being the one whose chest it is and being the
+   big spoon (“spooned him from behind”, “was the big spoon”) read top. Position and aftercare are two-sided, so the
+   other person gets the opposite reading at a lower weight. These only feed the vibe, never the anal/oral cards.
 7. **AO3 tag counts**: a very faint prior from how often AO3 tags the character as a top or bottom, for ~230
    popular characters (`src/heuristic/ao3-prior-data.ts`, from the community Top Tops / Top Bottoms / Most
    Versatile sheets). It is only used for characters in a fandom the work is tagged with, nudges per-person

@@ -1662,6 +1662,8 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     if (d.cat === "oral") continue;
     const [tier, w] = hit;
     add(d.who, tier, d.wants ? d.role : flip(d.role), (d.wants ? w : w * 0.5) * (d.kind === "stated" || d.kind === "body" ? Math.min(1, d.weight + 0.2) : 1));
+    // Position and aftercare are two-sided: the one resting on a chest or held close means the other is the chest or the arms.
+    if (d.wants && (d.kind === "position" || d.kind === "aftercare")) add(other(d.who), tier, flip(d.role), w * 0.7);
     // A tag that names the pair's dynamic ("Dom/sub", "Praise Kink") backs up who gives the orders, the praise or the care.
     if (tags.dynamicTags.length && d.wants && (d.kind === "petname" || d.kind === "aftercare" || d.kind === "position" || d.kind === "behavior")) add(d.who, 2, d.role, w * 0.5);
   }
