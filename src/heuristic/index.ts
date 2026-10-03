@@ -1466,6 +1466,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const exp = (wantAnd ? firstEntity(sent) : undefined) ?? firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
     const role: Role | undefined = exp === top ? "top" : exp === bottom ? "bottom" : undefined;
     if (!role) return;
+    // "There was no way Steve was asking him to fuck him": disbelief about a claim, not a dislike of the act.
+    if (negated && /\bno\s+(?:fucking\s+|damn\s+)?(?:way|chance)\b|\bnot\s+a\s+chance\b|\bas\s+if\b|\bthere\s+(?:was|is)\s+no\s+(?:possible\s+)?(?:way|chance)\b/i.test(prefix.slice(-90))) return;
     desires.push({
       cat,
       act,

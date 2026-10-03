@@ -1489,7 +1489,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.6,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:got|get|gets|getting|went|go|goes|dropped|climbed|crawled|settled|was|were|is|rolled|turned|flipped)\\s+(?:over\\s+)?(?:down\\s+)?on(?:to)?\\s+(?:his|her|their|my|your)\\s+(?:hands and knees|stomach|belly|front)`,
+    src: `\\b{B}\\s+{aux}(?:got|get|gets|getting|went|go|goes|dropped|climbed|crawled|settled|was|were|is|rolled|turned|flipped)\\s+(?:over\\s+)?(?:down\\s+)?on(?:to)?\\s+(?:his|her|their|my|your)\\s+(?:hands and knees|(?:stomach|belly|front)(?=[^.!?]{0,40}\\b(?:ass|arse|hips|butt|presenting)\\b))`,
   },
   {
     id: "bent-over-furniture",
@@ -2148,7 +2148,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     signal: { kind: "body", actorRole: "bottom" },
-    src: `\\b{B:assReq}\\s+{aux}(?:leak|dripp?|dribbl|ooz)\\w*`,
+    src: `\\b{B:poss}\\s+(?:\\w+\\s+)?(?:ass|arse|hole|entrance|rim|opening|pussy|cunt)\\s+{aux}(?:leak|dripp?|dribbl|ooz)\\w*`,
   },
   {
     id: "body-clench-empty",
@@ -2379,7 +2379,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.6,
     needsCtx: true,
     signal: { kind: "touch", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:thrust|push|press|rock|roll|arch|shov)\\w*\\s+(?:\\w+ly\\s+)?back(?![\\w-])(?!\\s+(?:the|a|an|and|to|his|her|their|against\\s+the|on\\s+the|in\\s+the))`,
+    src: `\\b{B}\\s+{aux}(?:thrust|push|press|rock|roll|arch|shov)\\w*\\s+(?:\\w+ly\\s+)?back(?![\\w-])(?=\\s*(?:[,.;!?]|$|\\s+(?:against|into|onto|toward|towards|until|with|harder|further|eagerly|desperately|hungrily|greedily)\\b))`,
   },
   {
     // "Anakin can feel him twitch inside him"
@@ -2492,7 +2492,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.4,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:sink|sank|sinks|drop|dropped|drops|fall|fell|falls)\\w*\\s+(?:down\\s+)?(?:to|onto)\\s+(?:the\\s+)?(?:cold\\s+|hard\\s+)?(?:floor|knees|ground)`,
+    src: `\\b{B}\\s+{aux}(?:sink|sank|sinks|drop|dropped|drops|fall|fell|falls)\\w*\\s+(?:down\\s+)?(?:to|onto)\\s+(?:(?:his|her|their|my|your)\\s+knees|(?:the\\s+)?(?:cold\\s+|hard\\s+)?(?:floor|ground)(?=\\s+(?:in front of|before|between|at)\\b))`,
   },
   {
     // "nuzzles against the line of Obi-Wan's cock"
@@ -2617,7 +2617,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.5,
     needsCtx: true,
     signal: { kind: "body", actorRole: "bottom" },
-    src: `\\b{B:assReq}\\s+{aux}(?:beg|ache|throb|pulse|flutter|twitch|clench|spasm|clutch)\\w*(?![\\w-])(?!\\s+(?:around|on|down|onto))`,
+    src: `\\b{B:poss}\\s+(?:\\w+\\s+)?(?:ass|arse|hole|entrance|rim|opening|pussy|cunt)\\s+{aux}(?:beg(?:s|ged|ging)?|ache\\w*|throb\\w*|puls\\w*|flutter\\w*|twitch\\w*|clench\\w*|spasm\\w*|clutch\\w*)(?![\\w-])(?!\\s+(?:around|on|down|onto))`,
   },
 ];
 

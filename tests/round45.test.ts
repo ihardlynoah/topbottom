@@ -80,3 +80,29 @@ describe("subject-less sentence with his … him is one person", () => {
     expect(i!.bottom).toMatch(/Anakin/);
   });
 });
+
+describe("Steve/Eddie report: everyday sentences are not sex cues", () => {
+  const ST = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const none = (line: string) => {
+    const r = hits(ST, sb, line);
+    expect(r.f.length + r.inst.length, line).toBe(0);
+  };
+  for (const l of [
+    "Eddie had flipped onto his stomach but was still pushed to the far end of the bed like Steve had the plague.",
+    "Steve groaned and rolled over onto his stomach, away from his phone, and said he did not want to deal with her.",
+    "He wanted it more now that he’d had a taste, only for it to be shoved back in his face.",
+    "Eddie’s body was leaking all over the place, and he could not make it stop.",
+    "Every new scar on Eddie’s body began to weep with pain, like he had stretched them out too quickly.",
+    "Steve felt like he was about to sweat just standing there, which gave Jason time to drop to the floor around the open window.",
+  ]) it(`no cue: ${l.slice(0, 50)}`, () => none(l));
+  it("still reads a stomach-down, ass-up presentation", () => {
+    const r = hits(ST, sb, "Eddie rolled onto his stomach and lifted his ass for Steve.");
+    expect(r.f.length + r.inst.length).toBeGreaterThan(0);
+  });
+  it("disbelief about being asked is not a preference", () => {
+    const p = analyzeWithPatterns(sb + "There was no way Steve was subtly asking him to fuck him or something.", ST, { quiet: true }).pairings[0];
+    const f = p.vibe!.flatMap((v) => v.factors!).filter((x) => (x.source ?? "").includes("no way Steve"));
+    expect(f.length).toBe(0);
+  });
+});
