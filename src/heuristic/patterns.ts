@@ -28,6 +28,8 @@ export interface PatternDef {
   src: string;
   /** Sentence must also contain sex vocabulary (for verbs that have innocent meanings). */
   needsCtx?: boolean;
+  /** Only read in an omegaverse work (alpha/beta/omega), where these gestures mean dominance or submission. */
+  abo?: boolean;
   /** Sentence must mention a penis/strap word. */
   /** Counts at most once per sentence, alongside whatever else matched it (for patterns that overlap others). */
   dedupe?: boolean;
@@ -2874,6 +2876,185 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
     src: `\\b{B}\\s+{aux}(?:\\w+ly\\s+)?(?:open|part)\\w*\\s+(?:his|her|their)\\s+(?:mouth|lips)(?:\\s*,\\s*|\\s+and\\s+)(?:letting|sticking|stick|let)\\w*\\s+(?:his|her|their)\\s+tongue\\s+(?:slip\\s+)?out`,
+  },
+  {
+    // "Cas’s hand snaked down to wrap around Dean’s length"
+    id: "hj-hand-subject",
+    cat: "vibe",
+    kw: "hand",
+    act: "handjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T:poss}\\s+hand\\s+(?:\\w+\\s+){0,3}?(?:wrap|clos|curl|wound|slid|snak|reach|moved|went|settled|found)\\w*\\s+(?:\\w+\\s+){0,3}?(?:around|on|over|to)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection)`,
+  },
+  {
+    // "loosely jerking him", "stroked him slowly", "jerked Dean off"
+    id: "hj-jerk-him",
+    cat: "vibe",
+    kw: "jerk|stroke|strok|pump|tug",
+    act: "handjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:jerk|strok|pump|tugg?)\\w*\\s+{B}\\s+(?:off|slowly|loosely|lazily|tightly|firmly|faster|hard|gently|steadily)\\b`,
+  },
+  {
+    // "Eddie blushed", "Steve stammered": flustered, a yielding cue on the everyday-dynamic axis (needs the partner nearby)
+    id: "flustered-verb",
+    cat: "vibe",
+    kw: "blush|flush|stammer|stutter|squeak|sputter|fumbl",
+    act: "flustered or blushing",
+    subj: "b",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:blush|flush|stammer|stutter|squeak|sputter|fumbl)\\w*`,
+  },
+  {
+    // "his face went red", "her cheeks turned pink"
+    id: "flustered-face",
+    cat: "vibe",
+    kw: "red|pink|scarlet|hot|bright",
+    act: "flustered or blushing",
+    subj: "b",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B:poss}\\s+(?:face|cheeks|ears|neck)\\s+(?:went|turned|grew|burned|heated|flamed|got)\\s+(?:\\w+\\s+)?(?:red|pink|scarlet|hot|bright)`,
+  },
+  {
+    // "He wanted to be fucked", "needed to get fucked", "got properly fucked": the receiver with no one named doing it
+    id: "be-fucked",
+    cat: "anal",
+    kw: "fucked|plowed|ploughed|pounded|railed|bred|knotted|wrecked|ruined|stretched|filled|stuffed",
+    act: "anal sex",
+    subj: "b",
+    weight: 0.8,
+    dedupe: true,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:be|get|got|gets|getting|being|been)\\s+(?:so\\s+|properly\\s+|thoroughly\\s+|really\\s+|finally\\s+|well\\s+)*(?:fucked|plowed|ploughed|pounded|railed|bred|knotted|wrecked|ruined|stretched|filled|stuffed)(?!\\s+(?:up|over|off|around|with|out\\s+of)\\b)(?!(?:\\s+[\\w-]+){0,2}\\s+by\\b)\\b`,
+  },
+  // ───────────── omegaverse: dominant and submissive gestures outside sex (feed the everyday-dynamic axis) ─────────────
+  {
+    // "tilted his head, baring his throat", "bared his neck to the alpha", "offered his scent gland"
+    id: "abo-bare-neck",
+    cat: "vibe",
+    abo: true,
+    kw: "neck|throat|nape|gland",
+    act: "baring their neck",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:bar|expos|offer|present|tilt|tipp|crane|arch|lift)\\w*\\s+(?:his|her|their)\\s+(?:neck|throat|nape|scent\\s+gland|gland)\\b`,
+  },
+  {
+    // "submitted to his alpha", "bowed to his mate"
+    id: "abo-submit",
+    cat: "vibe",
+    abo: true,
+    kw: "alpha|mate",
+    act: "submitting to an alpha",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:submitt|yield|bow|kneel|knelt|defer|surrender)\\w*\\s+(?:to\\s+)?(?:the\\s+|his\\s+|her\\s+|their\\s+)?(?:alpha|mate)\\b`,
+  },
+  {
+    // "obeyed the alpha's command"
+    id: "abo-obey",
+    cat: "vibe",
+    abo: true,
+    kw: "command|order",
+    act: "obeying an order",
+    subj: "b",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:obey|complied|comply|followed|follow)\\w*\\s+(?:with\\s+)?(?:the\\s+|his\\s+|her\\s+|their\\s+)?(?:alpha(?:['’]s)?\\s+)?(?:command|order|orders)\\b`,
+  },
+  {
+    // "lowered his eyes", "dropped his gaze": the omega's deference
+    id: "abo-lower-gaze",
+    cat: "vibe",
+    abo: true,
+    kw: "eyes|gaze|head",
+    act: "lowering their gaze",
+    subj: "b",
+    weight: 0.3,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:lower|drop|avert|cast\\s+down|keep|kept|bow)\\w*\\s+(?:his|her|their)\\s+(?:eyes|gaze|head)\\b`,
+  },
+  {
+    // "built a nest": an omega's nesting
+    id: "abo-nest",
+    cat: "vibe",
+    abo: true,
+    kw: "nest",
+    act: "nesting",
+    subj: "b",
+    weight: 0.3,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:built|build|builds|making|made|makes|arranged|arrang\\w+|gathered|gather)\\s+(?:a\\s+|his\\s+|her\\s+|their\\s+)?(?:\\w+\\s+)?nest\\b`,
+  },
+  {
+    // "scented Dean", "scent-marked him"
+    id: "abo-scent-him",
+    cat: "vibe",
+    abo: true,
+    kw: "scent",
+    act: "scent-marking someone",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:scent|scent-?mark)\\w*\\s+{B}\\b`,
+  },
+  {
+    // "growled at Cas", "snarled at him"
+    id: "abo-growl-at",
+    cat: "vibe",
+    abo: true,
+    kw: "growl|snarl|rumbl|hiss",
+    act: "growling at someone",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:growl|snarl|rumbl|hiss)\\w*\\s+(?:at\\s+)?{B}\\b`,
+  },
+  {
+    // "used his alpha voice", "spoke in his commanding tone"
+    id: "abo-alpha-voice",
+    cat: "vibe",
+    abo: true,
+    kw: "voice|tone",
+    act: "using an alpha voice",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:use|used|using|spoke|said|ordered|commanded|growled)\\w*\\s+(?:in\\s+)?(?:his|her|their)\\s+(?:alpha|commanding|command)\\s+(?:voice|tone)\\b`,
+  },
+  {
+    // "grabbed him by the scruff"
+    id: "abo-scruff",
+    cat: "vibe",
+    abo: true,
+    kw: "scruff|nape",
+    act: "holding someone by the scruff",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:grabb?|gripp?|seiz|clamp|held|hold|pinn|caught)\\w*\\s+{B:poss}\\s+(?:scruff|nape)\\b`,
+  },
+  {
+    // "bit his scent gland", "sank his teeth into Dean's neck": a claiming bite
+    id: "abo-claiming-bite",
+    cat: "vibe",
+    abo: true,
+    kw: "bit|bite|claim|teeth",
+    act: "a claiming bite",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:bit|bite|biting|claim\\w*|sank\\s+(?:his|her|their)\\s+teeth\\s+into)\\s+{B:poss}\\s+(?:neck|throat|scent\\s+gland|gland|nape|shoulder)\\b`,
   },
 ];
 

@@ -43,10 +43,10 @@ describe("vibe in an analysis", () => {
     expect(d.label).toBe("Total top");
     expect(s.label === "Total bottom" || s.label === "Vers bottom").toBe(true);
   });
-  it("uses dominant and submissive behaviour only as a faint cue", () => {
+  it("scores dominant and submissive behaviour on the dynamic axis, and only faintly in the vibe", () => {
     const t = `${filler}\n\nDerek pinned Stiles against the wall. Derek took control of the kiss. Stiles melted into the kiss.`;
-    const v = analyzeWithPatterns(t, meta, { quiet: true }).pairings[0].vibe!;
-    expect(v[0].basis.join(" ")).toMatch(/behaviour/);
-    expect(v[0].confidence.score).toBeLessThan(0.45);
+    const p = analyzeWithPatterns(t, meta, { quiet: true }).pairings[0];
+    expect(p.dynamic![0].basis.join(" ")).toMatch(/Taking charge/);
+    expect(p.vibe![0].confidence.score).toBeLessThan(0.45);
   });
 });

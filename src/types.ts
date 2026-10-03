@@ -112,6 +112,20 @@ export interface SoloAct {
   where: string;
 }
 
+/** Text messages between characters (chat-log lines or narrated texting). */
+export interface TextingResult {
+  occurs: boolean;
+  summary: string;
+  total: number;
+  /** Messages shown as chat lines vs. told in narration ("he texted", "his phone buzzed"). */
+  chat: number;
+  narrated: number;
+  /** Chat messages that are sexual (sexting). */
+  sexual: number;
+  pairs: { from: string; to: string; count: number }[];
+  examples: { from: string; to: string; text: string; where: string; how: "chat" | "narrated"; sexual: boolean }[];
+}
+
 export interface SoloResult {
   /** Whether anything solo was found. */
   occurs: boolean;
@@ -140,6 +154,11 @@ export interface ManualResult {
   instances: ManualAct[];
 }
 
+/** Who leads and who follows in everyday life, scored apart from who tops and who bottoms. */
+export interface DynamicRating extends Omit<VibeRating, "label"> {
+  label: "Leads" | "Leans leading" | "Balanced" | "Leans following" | "Follows" | "Unclear";
+}
+
 export interface PairingResult {
   pairing: string;
   anal: ActResult;
@@ -156,6 +175,19 @@ export interface PairingResult {
   manual?: ManualResult;
   /** Overall vibe for each partner, from every kind of evidence. */
   vibe?: VibeRating[];
+  /** The same vibe with everyday-dynamic cues folded in at tier 6, as before the two-axis display (the "single vibe" view). */
+  vibeCombined?: VibeRating[];
+  /** Everyday power dynamic for each partner: caretaking, leading, protecting and yielding, apart from the sexual vibe. */
+  dynamic?: DynamicRating[];
+}
+
+/** One AO3 tag checked against the text. */
+export interface TagCheck {
+  tag: string;
+  kind: "act" | "role" | "kink" | "dynamic";
+  status: "supported" | "not_found" | "contradicted" | "cant_tell";
+  note: string;
+  evidence: { text: string; where: string }[];
 }
 
 export interface Analysis {
@@ -163,6 +195,9 @@ export interface Analysis {
   fandom: string;
   main_pairing: string;
   pairings: PairingResult[];
+  /** AO3 tags that name an act, role or kink, checked against what the text shows. */
+  tagCheck?: TagCheck[];
+  texting?: TextingResult;
   notes: string;
 }
 

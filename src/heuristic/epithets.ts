@@ -181,7 +181,7 @@ export const EPITHET =
   `(?:(?:${ADJ_ALONE})(?:\\s+(?:${NOUNS}))?|(?:${ADJ_NEEDS_NOUN})\\s+(?:${NOUNS})|(?:${DESC_NOUNS})|(?:(?:${PRE_TITLE})\\s+)?(?:${NOUNS}))` +
   `(?:\\s+of\\s+the\\s+(?:two|pair|three)(?:\\s+(?:men|boys|guys|women|girls|of\\s+them))?)?` +
   `|(?:\\d+|[a-z]+(?:-[a-z]+)?)-year-old(?:\\s+(?:${NOUNS}))?` +
-  `)(?![\\w-])`;
+  `)(?![\\w-])(?!\\s+(?:wave|waves|time|times|day|days|night|nights|week|weeks|month|months|year|years|hour|hours|minute|minutes|round|half|floor|row|place|period|season|game|goal|chapter|world|side|way|end|room|door|hand|attempt|try|thing|part|step|stage|phase|date|meeting|kiss|orgasm)\\b)`;
 
 const WORD_TO_KEY = new Map<string, string>();
 for (const d of ALL) for (const w of [...d.alone, ...(d.needsNoun ?? []), ...(d.nouns ?? [])]) WORD_TO_KEY.set(w.toLowerCase(), d.key);

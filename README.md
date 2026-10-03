@@ -140,6 +140,25 @@ word count is estimated and the main characters are guessed from frequently capi
    inside me”, “put it in me”, “come inside me”, “plow me”, “take me hard”, “I want to ride that dick” (whoever the cock
    belongs to) are bottom wishes; “I love getting fucked”, “I love taking dick”, “I love cock”, “I’m a cockslut” are stated
    tastes. “Get fucked up”, “fucked over”, “go get fucked” and “use me as a shield” are not.
+   **Point of view.** Whose “he” or “I” a stretch of text is told from comes from the chapter heading (“Chapter 3: Steve”,
+   “Eddie's POV”), from a short line that is just a name, or a name followed by a break such as “Eddie, later that night” (never inside quotation marks, never a full sentence), inside a chapter, or, with neither, from whose feelings the chapter keeps
+   reporting (“Steve felt…”, “Steve wondered…”: six or more, at least two and a half times the other man's). In that person's
+   stretch, a sentence that opens with “He felt / wanted / thought…” or “His heart raced…” is them, whoever was named in the
+   line before; and in alternating first person a chapter headed with the narrator's name says whose “I” follows. Also new:
+   “He wanted to be fucked” / “needed to get fucked” (no one named) is a bottom desire.
+   **Checking the confidence numbers.** Each scene and each desire/hint line has a “✓ Looks right” button next to “Report a
+   mistake”. Pressing it marks the item right; reporting a mistake that says it was misread (wrong top/bottom, wrong speaker,
+   wrong pronoun, not a sex act, a wish…) marks it wrong. Marks are kept in your browser only (never sent anywhere), and the
+   “Is the confidence calibrated?” panel at the bottom shows stated confidence against how often those items were right, in
+   bins, with the average gap. Export them as JSON, import them back or clear them; a summary also goes into the copied
+   mistake report, so the numbers can be tuned against real checks.
+   **Tags vs text.** Below the results, each AO3 tag that names an act, a role or a kink is checked against what the patterns
+   found: **supported** (with the lines), **not found** (the sex may fade to black or be phrased in a way the patterns miss),
+   **contradicted** (a “Top X” tag when the scenes show X bottoming) or **can’t tell**. Act tags (Anal Sex, Blow Jobs, Hand Jobs,
+   Rimming, Masturbation…) use the act results; Top/Bottom/Switch tags are counted from the scenes alone, not from the person’s
+   odds, which already lean on the tag; kinks (edging, orgasm denial, praise, bondage, spanking, cock cage, panties,
+   exhibitionism, aftercare, safeword, negotiation, degradation, daddy, knotting, choking, collars) need enough sentences near
+   sexual narration. Tags that name nothing checkable (Slow Burn, Angst…) are left out, and tags that mean the same thing share a row.
    **Per-line confidence.** Every line under “Desire, fantasy & hints” has its own “N% sure” (hover for why). It starts from what
    kind of line it is (said outright or a stated preference are firm, a fantasy less, a ‘what if’ least) and the strength of
    the wording, goes up when the person is named or other lines point the same way, and down when the speaker was only guessed,
@@ -179,6 +198,9 @@ word count is estimated and the main characters are guessed from frequently capi
    bottom, or the wrong confidence) and say why. Select part of a sentence first and it’s noted as the part you mean.
    Missed scenes (or any text you select on the page) and other comments can be added too, and each item has a
    checkbox to leave it out of the report.
+   **Copy test skeletons** turns the same items into a vitest file with one test each (swapped roles expect the
+   reverse, a wish expects no scene, and so on). The fic’s sentence appears only in a comment to delete; you replace
+   each `PARAPHRASE_ME` with a made-up sentence, fill in the TODOs, and check the test fails before the fix.
    Each individual factor under a vibe rating has its own “What's wrong with this?” form with options for a wrong
    speaker, a pronoun pointing at the wrong person, credited to the wrong character, roles reversed, not a sexual cue,
    an everyday action, a figure of speech, a wish rather than an event, negated, counted twice, wrong tier, and counts
@@ -210,19 +232,12 @@ important first:
    nothing, feeling full or empty. A leaking pipe, a sore throat and a long drive are not.
 4. **Desires, plans and fantasies** (“he wanted Draco to fuck him”, “fuck me,” he begged)
 5. **Other hints**, like ogling a bulge or an ass
-6. **Dominant or submissive behaviour**, in or out of bed: pinning someone, taking control of a kiss, gripping a
-   chin or wrists, giving orders, lifting or carrying, protecting someone, leading them by the hand (dominant);
-   going pliant, yielding, letting someone lead, being pinned, squirming under a touch, looking up through the
-   lashes (submissive). Also here, each a little weaker: *position and initiative* (pulling someone onto their lap,
-   pinning wrists → top; climbing into a lap, having your wrists held → bottom; asking “ready?”, “tell me if it
-   hurts” → top), *aftercare* (cleaning someone up or wrapping them in a blanket → top; being held close or curling
-   up against someone afterwards → bottom; “let me clean you up”, “I've got you” → top; “hold me” → bottom), and
-   *pet names* (“good boy” said to someone → top; “please, daddy/sir” → bottom), which only count when the
-   scene around them is sexual. When the work is tagged with a dynamic (“Dom/sub”, “Praise Kink”…), these also count
-   a little at tier 2 (pet names and aftercare only; ordinary pinning or protecting doesn't get the boost). *Cuddling positions* count too: resting or sleeping with your head on someone's chest and
-   being the little spoon (“his back against Cas's chest”) read bottom; being the one whose chest it is and being the
-   big spoon (“spooned him from behind”, “was the big spoon”) read top. Position and aftercare are two-sided, so the
-   other person gets the opposite reading at a lower weight. These only feed the vibe, never the anal/oral cards.
+6. **Positions and cuddling**: *position and initiative* (pulling someone onto their lap, pinning wrists → top; climbing
+   into a lap, having your wrists held → bottom; asking “ready?”, “tell me if it hurts” → top) and *cuddling positions*
+   (resting or sleeping with your head on someone's chest, being the little spoon → bottom; being the one whose chest it
+   is, being the big spoon → top). Position is two-sided, so the other person gets the opposite reading at a lower
+   weight. These only feed the vibe, never the anal/oral cards. Dominant or submissive behaviour is no longer part of
+   the vibe: it has its own axis, below.
 7. **AO3 tag counts**: a very faint prior from how often AO3 tags the character as a top or bottom, for ~230
    popular characters (`src/heuristic/ao3-prior-data.ts`, from the community Top Tops / Top Bottoms / Most
    Versatile sheets). It is only used for characters in a fandom the work is tagged with, nudges per-person
@@ -251,6 +266,40 @@ the story text and returns the same result shape, including desire/fantasy lines
 paragraph and chapter context.
 
 Your API key stays in your browser and is sent only to `api.anthropic.com`.
+
+## Vibe display: two ratings or one
+
+**Text messages.** Chat-style lines ("Shane: Why?", often under a timestamp, with a phone cue or a long exchange nearby) and
+narrated texting ("Cas texted him", "his phone buzzed", "a message from Dean") are found and shown on a Text messages card:
+who texted whom, how many, and how many were sexual. A contact name ("Lily", "Unknown Number") is matched to the character on the
+other end. Chat lines are rewritten as dialogue from the sender before analysis, so a texted "I want to fuck you" counts like a
+spoken one. "Texting" and "Sexting" tags are checked against the text.
+
+**Omegaverse.** In a work tagged alpha/beta/omega (or one that uses the words all through the text), nonsexual gestures count
+toward the everyday dynamic: baring the neck or scent gland, lowering the eyes, nesting and submitting to an alpha read as
+following; scenting, growling at someone, the alpha voice, gripping the scruff and a claiming bite read as leading.
+"Alpha Dean" / "Omega!Cas" character tags lean the character the same way. These feed the dynamic axis and the combined
+vibe, not the sexual top/bottom vibe.
+
+A switch above the results chooses between **Two ratings** (the sexual vibe and the everyday dynamic, kept apart) and
+**One combined vibe**, the earlier single rating with taking charge, caring, pet names, power bottoms and yielding folded
+into tier 6 (“Dominant or submissive behaviour, positions and cuddling”). The choice is remembered in your browser, and
+switching it keeps any mistakes you've already flagged.
+
+## Everyday dynamic (leads / follows)
+
+A second rating per person, shown next to the vibe, for who leads and who follows *outside* the sex. It is kept apart
+from top/bottom on purpose: in a lot of fics one man cares for and protects the other but is the one who bottoms, or
+the other way round. Evidence comes in four tiers: **stated dynamic** (tags like “Dominant Cas”, “Submissive Dean”, “Power
+Bottom X”, and pet names or aftercare backed up by a “Dom/sub” or “Praise Kink” tag); **taking charge** (pinning, gripping a
+chin or wrists, lifting or carrying, giving orders, leading someone by the hand, taking control of a kiss); **caring,
+protecting and praising** (tucking a blanket around someone, handing them ice or food, stroking their hair, stepping
+between them and a threat, “I've got you”, “let me clean you up”, “good boy”); and **yielding** (going pliant, letting
+someone lead, being pinned, blushing or stammering with the other one right there). Doing something *to* the other person
+credits them with the opposite reading at a lower weight (the one led follows; the one held is the one holding's
+counterpart), except for blushing, which is only one side. Labels run Follows, Leans following, Balanced, Leans leading,
+Leads. The same expandable factors and “What's wrong with this?” forms work here, and a Dom/Sub tag is checked against
+this axis (with the tag itself left out) in “Tags vs text”.
 
 ## Running locally
 

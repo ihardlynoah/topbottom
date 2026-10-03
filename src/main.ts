@@ -4,9 +4,11 @@ import { hasAo3Meta, romanticPairings } from "./ao3";
 import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerptExplicit } from "./analyze";
 import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
+import { addLabel, calibrationLines, clearLabels, type Label, labelKey, loadLabels, parseLabels, saveLabels, summarize } from "./calibration";
+import { testSkeletons } from "./testgen";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, Instance, ManualResult, RoleOdds, SoloResult, VaginalResult, VibeFactor, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, DynamicRating, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, TextingResult, VaginalResult, VibeFactor, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -46,6 +48,7 @@ const els = {
   missedSelection: $<HTMLButtonElement>("missed-selection"),
   reportCopy: $<HTMLButtonElement>("report-copy"),
   reportClear: $<HTMLButtonElement>("report-clear"),
+  reportTests: $<HTMLButtonElement>("report-tests"),
   reportPreview: $("report-preview"),
 };
 
@@ -205,7 +208,9 @@ function cardSummaries(a: Analysis): string[] {
     if (p.solo?.occurs) out.push(`${p.pairing} · solo: ${p.solo.summary}`);
     if (p.manual?.occurs) out.push(`${p.pairing} · handjobs & frottage: ${p.manual.summary}`);
     for (const v of p.vibe ?? []) out.push(`${p.pairing} · vibe ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
+    for (const v of p.dynamic ?? []) if (v.label !== "Unclear") out.push(`${p.pairing} · everyday dynamic ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
   }
+  if (a.texting?.occurs) out.push(`text messages: ${a.texting.summary}`);
   return out;
 }
 
@@ -223,6 +228,7 @@ function reportText(): string {
     flags: [...flagged.values()],
     missed: missedScenes,
     general: els.reportGeneral.value,
+    calibration: calibrationLines(labels),
   });
 }
 
@@ -231,6 +237,7 @@ function refreshReport() {
   els.reportCount.textContent = n ? `${n} item${n === 1 ? "" : "s"}` : "none yet";
   els.reportCopy.disabled = !n && !els.reportGeneral.value.trim();
   els.reportClear.disabled = !n;
+  els.reportTests.disabled = !n;
   els.reportList.replaceChildren();
   for (const f of flagged.values()) {
     const li = el("li");
@@ -263,14 +270,14 @@ function refreshReport() {
 /** Vibe factors the reader ticked as worth showing Claude, by vibe id and factor number, with any problems they named. */
 interface PickedFactor { line: string; reasons: FlagReason[]; note: string }
 const pickedFactors = new Map<string, Map<number, PickedFactor>>();
-const vibeSpec = new Map<string, VibeRating>();
+const vibeSpec = new Map<string, VibeRating | DynamicRating>();
 
 function factorLine(f: VibeFactor): string {
   return `${f.role} · tier ${f.tier} (${f.tierName}) · weight ${f.weight}${f.fromOther ? " · from the other person's side" : ""} · ${f.what}${f.where ? ` · ${f.where}` : ""}${f.source ? ` — “${f.source}”` : ""}`;
 }
 
 /** The extra lines a vibe item carries: what it rests on, plus any factors the reader ticked and what they said was wrong with each. */
-function vibeExtra(id: string, v: VibeRating): string[] {
+function vibeExtra(id: string, v: VibeRating | DynamicRating): string[] {
   const picked = [...(pickedFactors.get(id)?.values() ?? [])];
   return [
     `Evidence: ${v.basis.join("; ") || "none"}`,
@@ -282,6 +289,86 @@ function vibeExtra(id: string, v: VibeRating): string[] {
   ];
 }
 
+// ── Marking items right or wrong, to check the confidence numbers ──
+let labels: Label[] = loadLabels();
+/** Reasons that mean the item itself was misread (not just counted too strongly or twice). */
+const WRONG_REASONS = new Set<FlagReason>(["wrong_top", "wrong_bottom", "swapped", "wrong_person", "wrong_speaker", "wrong_pronoun", "wrong_people", "wrong_act", "not_sex", "not_sexual_context", "figurative", "solo", "hypothetical", "negated"]);
+const labelable = (spec: { kind?: FlagKind; card: string; confidence?: number }) =>
+  spec.confidence !== undefined && (spec.kind === "scene" || spec.kind === "hint" || spec.kind === undefined) && !["solo", "manual", "tagcheck", "vibe", "dynamic"].includes(spec.card);
+function recordLabel(spec: { kind?: FlagKind; card: string; confidence?: number; evidence: string }, right: boolean) {
+  if (!labelable(spec) || !spec.evidence) return;
+  const kind = spec.kind === "hint" ? "line" : "scene";
+  labels = addLabel(labels, { key: labelKey(kind, spec.card, spec.evidence), kind, confidence: spec.confidence!, right, at: Date.now() });
+  saveLabels(labels);
+  refreshCalibration();
+  refreshReport();
+}
+
+function refreshCalibration() {
+  const box = document.getElementById("calibration-box");
+  if (!box) return;
+  const s = summarize(labels);
+  box.replaceChildren();
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  if (!s.n) {
+    box.append(el("p", "hint", "Nothing marked yet. Press “Looks right” on a scene or line you checked and agree with, or report a mistake on one that is wrong. Each mark is a data point: stated confidence against whether it was right."));
+  } else {
+    box.append(el("p", "hint", `${s.n} marked (${s.right} right, ${s.n - s.right} wrong). Average gap between stated and observed: ${pct(s.ece)}. ${s.n < 20 ? "Too few for the bins to mean much yet." : ""}`));
+    const table = el("table", "calib-table");
+    const head = el("tr");
+    for (const h of ["Stated", "Marked", "Right", "Average sure"]) head.append(el("th", undefined, h));
+    table.append(head);
+    for (const r of s.rows) {
+      const tr = el("tr");
+      for (const c of [`${pct(r.lo)}–${pct(r.hi)}`, String(r.n), pct(r.observed), pct(r.expected)]) tr.append(el("td", undefined, c));
+      table.append(tr);
+    }
+    box.append(table);
+  }
+  const row = el("div", "calib-actions");
+  const exp = el("button", "linklike", "Export marks (JSON)");
+  exp.type = "button";
+  exp.addEventListener("click", () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ labels }, null, 2)], { type: "application/json" }));
+    a.download = "tbv-marks.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  const imp = el("button", "linklike", "Import marks");
+  imp.type = "button";
+  imp.addEventListener("click", () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.addEventListener("change", async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      for (const l of parseLabels(await f.text())) labels = addLabel(labels, l);
+      saveLabels(labels);
+      refreshCalibration();
+      refreshReport();
+    });
+    input.click();
+  });
+  const clr = el("button", "linklike", "Clear marks");
+  clr.type = "button";
+  clr.disabled = !s.n;
+  clr.addEventListener("click", () => { labels = []; clearLabels(); refreshCalibration(); refreshReport(); });
+  row.append(exp, " · ", imp, " · ", clr);
+  box.append(row);
+}
+
+function renderCalibration(): HTMLElement {
+  const det = el("details", "calibration");
+  det.append(el("summary", undefined, "Is the confidence calibrated?"));
+  const box = el("div");
+  box.id = "calibration-box";
+  det.append(box);
+  queueMicrotask(refreshCalibration);
+  return det;
+}
+
 /** The "Report a mistake" button on a scene, hint or vibe rating, and the little form it opens. */
 type FlagSpec = Omit<FlaggedScene, "reasons" | "note" | "included">;
 function flagControl(li: HTMLElement, spec: FlagSpec) {
@@ -290,6 +377,11 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
   li.dataset.flag = id;
   const btn = el("button", "linklike flag-btn", "Report a mistake");
   btn.type = "button";
+  const okBtn = el("button", "linklike ok-btn", "✓ Looks right");
+  okBtn.type = "button";
+  okBtn.title = "Mark this as correct, to help check how well the confidence numbers match";
+  if (labelable(spec) && labels.some((l) => l.key === labelKey(spec.kind === "hint" ? "line" : "scene", spec.card, spec.evidence) && l.right)) okBtn.textContent = "✓ Marked right";
+  okBtn.addEventListener("click", () => { recordLabel(spec, true); okBtn.textContent = "✓ Marked right"; });
   const form = el("form", "flag-form");
   form.hidden = true;
   const ticks = new Map<FlagReason, HTMLInputElement>();
@@ -327,9 +419,10 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
     li.classList.add("flagged");
     form.hidden = true;
     add.textContent = "Update report";
+    if (reasons.some((r) => WRONG_REASONS.has(r))) { recordLabel(spec, false); okBtn.textContent = "✓ Looks right"; }
     refreshReport();
   });
-  li.append(" ", btn, form);
+  li.append(" ", labelable(spec) ? okBtn : "", " ", btn, form);
 }
 
 // Remember the last passage the reader selected outside the report panel; opening the form would otherwise clear it.
@@ -373,6 +466,19 @@ els.reportCopy.addEventListener("click", async () => {
     els.reportCopy.textContent = "Select the text below";
   }
   setTimeout(() => { els.reportCopy.textContent = "Copy report for Claude"; }, 2500);
+});
+
+els.reportTests.addEventListener("click", async () => {
+  const text = testSkeletons([...flagged.values()], missedScenes);
+  try {
+    await navigator.clipboard.writeText(text);
+    els.reportTests.textContent = "Copied!";
+  } catch {
+    els.reportPreview.textContent = text;
+    (els.reportPreview.closest("details") as HTMLDetailsElement | null)?.setAttribute("open", "");
+    els.reportTests.textContent = "Select the text below";
+  }
+  setTimeout(() => { els.reportTests.textContent = "Copy test skeletons"; }, 2500);
 });
 
 // ---- rendering ----
@@ -628,6 +734,56 @@ function renderVaginal(v: VaginalResult, pairing: string, source: string): HTMLE
   return card;
 }
 
+const TAG_STATUS: Record<TagCheck["status"], { label: string; cls: string }> = {
+  supported: { label: "Supported by the text", cls: "tag-ok" },
+  not_found: { label: "Not found in the text", cls: "tag-missing" },
+  contradicted: { label: "Text points the other way", cls: "tag-contra" },
+  cant_tell: { label: "Can’t tell", cls: "tag-unknown" },
+};
+
+/** AO3 tags that name an act, role or kink, checked against the text. */
+function renderTagCheck(checks: TagCheck[], source: string): HTMLElement {
+  const box = el("section", "tagcheck");
+  box.append(el("h5", "vibe-title", "Tags vs text"));
+  box.append(el("p", "hint", "Each AO3 tag that names an act, role or kink, checked against what the patterns found. “Not found” can mean fade-to-black or phrasing the patterns miss."));
+  // Tags that say the same thing (Cock Cage, “cas puts dean in a cock cage”) share a row.
+  const groups = new Map<string, TagCheck[]>();
+  for (const c of checks) {
+    const k = `${c.kind}|${c.status}|${c.note}`;
+    groups.set(k, [...(groups.get(k) ?? []), c]);
+  }
+  const order: TagCheck["status"][] = ["contradicted", "not_found", "supported", "cant_tell"];
+  const rows = [...groups.values()].sort((a, b) => order.indexOf(a[0].status) - order.indexOf(b[0].status));
+  const ul = el("ul", "tagcheck-list");
+  rows.forEach((g, n) => {
+    const c = g[0];
+    const li = el("li", `tagcheck-row ${TAG_STATUS[c.status].cls}`);
+    const head = el("div", "tagcheck-head");
+    head.append(el("span", `badge ${TAG_STATUS[c.status].cls}`, TAG_STATUS[c.status].label));
+    const chips = el("span", "chips");
+    for (const x of g) chips.append(el("span", "chip", x.tag));
+    head.append(chips);
+    li.append(head, el("div", "hint", c.note));
+    if (c.evidence.length) {
+      const det = el("details", "instances");
+      det.append(el("summary", undefined, `${c.evidence.length} line${c.evidence.length === 1 ? "" : "s"}`));
+      const inner = el("ul");
+      for (const e of c.evidence) {
+        const item = el("li");
+        if (e.where) item.append(el("span", "where", `${e.where} · `));
+        item.append(el("span", "evidence", e.text));
+        inner.append(item);
+      }
+      det.append(inner);
+      li.append(det);
+    }
+    flagControl(li, { id: `${source}|tagcheck|${n}`, kind: "hint", pairing: "Tags vs text", card: "tagcheck", top: g.map((x) => x.tag).join(" · "), bottom: TAG_STATUS[c.status].label, act: c.note, evidence: c.evidence[0]?.text ?? "" });
+    ul.append(li);
+  });
+  box.append(ul);
+  return box;
+}
+
 /** Handjobs and frottage between the pair. */
 function renderManual(v: ManualResult, pairing: string, source: string): HTMLElement {
   const card = el("article", "card act verdict-one_way");
@@ -674,10 +830,38 @@ function renderSolo(v: SoloResult, pairing: string, source: string): HTMLElement
   return card;
 }
 
+function renderTexting(v: TextingResult, source: string): HTMLElement {
+  const card = el("article", "card act verdict-one_way");
+  const head = el("div", "act-head");
+  head.append(el("h4", undefined, "Text messages"), el("span", "badge one_way", `${v.total} found`));
+  card.append(head, el("p", "summary", v.summary));
+  card.append(el("p", "hint", "Chat-style lines (“Name: message”) and narrated texting. Chat lines are read as dialogue from the sender, so sexting feeds the same desire and hint logic as spoken lines."));
+  const det = el("details", "instances");
+  det.append(el("summary", undefined, "Examples"));
+  const ul = el("ul");
+  v.examples.forEach((e, n) => {
+    const li = el("li");
+    li.append(el("strong", undefined, `${e.from} → ${e.to}`), ` · ${e.how === "chat" ? "chat line" : "narrated"}${e.sexual ? " · sexual" : ""}`);
+    if (e.where) li.append(el("span", "where", ` · ${e.where}`));
+    li.append(el("div", "evidence", e.text));
+    flagControl(li, { id: `${source}|texting|${n}`, kind: "hint", pairing: `${e.from} → ${e.to}`, card: "texting", top: e.from, bottom: e.to, act: "text message", where: e.where, evidence: e.text });
+    ul.append(li);
+  });
+  det.append(ul);
+  card.append(det);
+  return card;
+}
+
 /** Overall vibe per partner: a five-step scale from total top to total bottom, with confidence and what it rests on. */
-function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLElement {
-  const box = el("section", "vibe");
-  box.append(el("h5", "vibe-title", "Vibe"));
+function renderVibe(
+  vibe: (VibeRating | DynamicRating)[],
+  pairing: string,
+  source: string,
+  opts: { key: string; title: string; ends: [string, string, string]; hint?: string } = { key: "vibe", title: "Vibe", ends: ["Total bottom", "Vers", "Total top"] },
+): HTMLElement {
+  const box = el("section", `vibe vibe-${opts.key}`);
+  box.append(el("h5", "vibe-title", opts.title));
+  if (opts.hint) box.append(el("p", "hint", opts.hint));
   const row = el("div", "vibe-row");
   for (const v of vibe) {
     const card = el("article", `card vibe-card vibe-${v.label.toLowerCase().replace(/\s+/g, "-")}`);
@@ -690,13 +874,13 @@ function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLEl
       marker.style.left = `${Math.round(((v.score + 1) / 2) * 100)}%`;
       scale.append(marker);
       const ends = el("div", "vibe-ends");
-      ends.append(el("span", undefined, "Total bottom"), el("span", undefined, "Vers"), el("span", undefined, "Total top"));
+      ends.append(el("span", undefined, opts.ends[0]), el("span", undefined, opts.ends[1]), el("span", undefined, opts.ends[2]));
       card.append(scale, ends);
     }
     card.append(el("p", "vibe-conf", `Confidence: ${v.confidence.label} · ${Math.round(v.confidence.score * 100)}%`));
-    const vid = `${source}|${pairing}|vibe|${v.name}`;
+    const vid = `${source}|${pairing}|${opts.key}|${v.name}`;
     vibeSpec.set(vid, v);
-    const vspec: FlagSpec = { id: vid, kind: "vibe", pairing, card: "vibe", top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: vibeExtra(vid, v), evidence: "" };
+    const vspec: FlagSpec = { id: vid, kind: "vibe", pairing, card: opts.key, top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: vibeExtra(vid, v), evidence: "" };
     // Tick a factor to send it with the report, and say what's wrong with it; either starts a report item for this rating.
     const setFactor = (idx: number, f: VibeFactor, on: boolean, reasons: FlagReason[] = [], note = "") => {
       const m = pickedFactors.get(vid) ?? new Map<number, PickedFactor>();
@@ -791,19 +975,47 @@ function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLEl
   return box;
 }
 
-function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) {
+/** How the vibe is shown: two ratings (sexual vibe + everyday dynamic) or the earlier single combined vibe. */
+type VibeMode = "two" | "single";
+const VIBE_MODE_KEY = "tbv.vibeMode";
+let vibeMode: VibeMode = (() => { try { return localStorage.getItem(VIBE_MODE_KEY) === "single" ? "single" : "two"; } catch { return "two"; } })();
+
+function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement, keepFlags = false) {
   target.replaceChildren();
-  // A new analysis replaces the reading the flags pointed at.
-  if (shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k);
+  // A new analysis replaces the reading the flags pointed at (switching the vibe display doesn't).
+  if (!keepFlags && shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k);
     for (const k of [...pickedFactors.keys()]) if (k.startsWith(`${a.source}|`)) pickedFactors.delete(k);
   }
   shown = { source: a.source, analysis: a };
   refreshReport();
   if (!a.pairings.length) target.append(el("p", "hint", "Couldn't identify the characters in this work."));
+  if (a.pairings.some((p) => p.vibe?.length)) {
+    const bar = el("div", "display-opts");
+    bar.append(el("span", "mini-label", "Vibe display"));
+    for (const [mode, label, tip] of [
+      ["two", "Two ratings", "Sexual vibe (tops/bottoms) and everyday dynamic (leads/follows), kept apart"],
+      ["single", "One combined vibe", "The earlier single rating, with taking charge, caring, pet names and yielding folded into the vibe"],
+    ] as const) {
+      const b = el("button", `seg${vibeMode === mode ? " on" : ""}`, label);
+      b.type = "button";
+      b.title = tip;
+      b.setAttribute("aria-pressed", String(vibeMode === mode));
+      b.addEventListener("click", () => {
+        if (vibeMode === mode) return;
+        vibeMode = mode;
+        try { localStorage.setItem(VIBE_MODE_KEY, mode); } catch { /* not saved in a private window */ }
+        renderAnalysis(a, target, notesEl, true);
+      });
+      bar.append(b);
+    }
+    target.append(bar);
+  }
   for (const p of a.pairings) {
     const block = el("div", "pairing-block");
     if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
-    if (p.vibe?.length) block.append(renderVibe(p.vibe, p.pairing, a.source));
+    if (vibeMode === "single" && p.vibeCombined?.length) block.append(renderVibe(p.vibeCombined, p.pairing, a.source, { key: "vibe", title: "Vibe (combined)", ends: ["Total bottom", "Vers", "Total top"], hint: "One rating: sex acts, stated roles and tags, desires and hints, and everyday behaviour such as taking charge, caring and yielding, all together." }));
+    else if (p.vibe?.length) block.append(renderVibe(p.vibe, p.pairing, a.source));
+    if (vibeMode === "two" && p.dynamic?.length && p.dynamic.some((d) => d.label !== "Unclear")) block.append(renderVibe(p.dynamic, p.pairing, a.source, { key: "dynamic", title: "Everyday dynamic", ends: ["Follows", "Balanced", "Leads"], hint: "Who leads and who follows outside the sex: taking charge, caring, protecting, praising, yielding. Separate from who tops and bottoms." }));
     const grid = el("div", "grid two");
     grid.append(renderAct("anal", p.anal, p.pairing, a.source), renderAct("blowjob", p.blowjob, p.pairing, a.source), renderAct("rimming", p.rimming, p.pairing, a.source));
     if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus, p.pairing, a.source));
@@ -813,6 +1025,9 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) 
     block.append(grid);
     target.append(block);
   }
+  if (a.texting?.occurs) target.append(renderTexting(a.texting, a.source));
+  if (a.tagCheck?.length) target.append(renderTagCheck(a.tagCheck, a.source));
+  target.append(renderCalibration());
   notesEl.hidden = !a.notes;
   notesEl.textContent = a.notes;
 }

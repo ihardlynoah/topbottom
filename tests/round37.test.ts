@@ -6,7 +6,7 @@ const meta: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"],
 const base = ("Dracula and Jack were in bed, naked and kissing. The count kissed Jack. Jack kissed the count back, breathless. The count, Dracula, smiled. Vlad smiled at Jack. Jack’s cock was hard. ").repeat(2) + "\n\n";
 const run = (s: string) => analyzeWithPatterns(base + s, meta, { quiet: true }).pairings[0];
 const hints = (s: string) => { const p = run(s); return [...p.anal.desires, ...p.blowjob.desires]; };
-const factors = (s: string, who: string) => run(s).vibe!.find((v) => v.name.startsWith(who))!.factors!;
+const factors = (s: string, who: string) => [...run(s).vibe!.find((v) => v.name.startsWith(who))!.factors!, ...run(s).dynamic!.find((v) => v.name.startsWith(who))!.factors!];
 
 describe("error-report fixes from Jack's Phone", () => {
   it("a speech beat ending in a period names the speaker of the next quote", () => {
