@@ -100,7 +100,7 @@ word count is estimated and the main characters are guessed from frequently capi
    fic (a second pass). With two main characters, the opposite is inferred (taller known → shorter is the
    other). Otherwise an epithet falls back to “the person who isn’t the current subject”. Noble and medieval
    titles work as epithets too (“the lord”, “the baron”, “the prince”, “the knight”, “the squire”, “the
-   countess”…). Relationship words (“his husband”, “her lover”) are always relative: they mean the partner of
+   countess”…). Titles worn by a named character teach the epithet ("Lord Cregan" → "the lord", "Prince Jacaerys" → "the prince"), and a word in front of a title doesn't change who it is ("the dragon prince", "the northern lord"). "The boy", "the lad", "the youth" and "the kid" mean the younger one. Relationship words (“his husband”, “her lover”) are always relative: they mean the partner of
    whoever “his” is, never one fixed person. After “permitted/let/forced X to …”, a later “he” is X. Each scene shows
    whether roles came from names or pronouns/epithets.
 4. **Desire / fantasy**: wanting (“he wanted Draco to fuck him”), imagining (“imagined Harry sucking him
@@ -190,6 +190,11 @@ Each tier votes top or bottom with a strength that levels off as evidence piles 
 lower ones (`src/vibe.ts`). Confidence rises with how much evidence there is and how well it agrees, and is capped
 when only faint hints (about 40%) or only the tag counts (about 12%) exist. A single faint hint never makes anyone
 a “total”.
+
+**“His clit” as a penis.** In some dom/sub fics a man’s penis is called his clit. When the tags say it’s that kind of work
+(Master/Slave, Dom/sub, BDSM, humiliation, chastity, cock cages, feminization, “gender words just go anywhere”…), every
+category is M/M, and nothing says anyone has a vulva (no intersex, omega, trans, pussy, cuntboy… tag), “his clit” and “Teo’s clit”
+are read as cocks. Otherwise a clit stays a clit.
 
 **Vaginal sex** is reported separately: only whether it happens and between whom. Anal vs vaginal is decided
 by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since trans men and intersex characters

@@ -589,7 +589,7 @@ function renderAct(kind: ActKind, act: ActResult, pairing: string, source: strin
         li.append(c);
       }
       if (i.evidence) li.append(el("div", "evidence", i.evidence));
-      flagControl(li, { id: `${source}|${pairing}|${kind}|${n}`, kind: "scene", pairing, card: kind, top: i.top, bottom: i.bottom, act: i.act, basis: i.basis, confidence: i.confidence, confidenceReasons: i.reasons, where: i.where, evidence: i.evidence, context: i.context });
+      flagControl(li, { id: `${source}|${pairing}|${kind}|${n}`, kind: "scene", pairing, card: kind, top: i.top, bottom: i.bottom, topVerb: w.topVerb, bottomVerb: w.bottomVerb, act: i.act, basis: i.basis, confidence: i.confidence, confidenceReasons: i.reasons, where: i.where, evidence: i.evidence, context: i.context });
       ul.append(li);
     });
     det.append(ul);
