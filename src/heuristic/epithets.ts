@@ -49,7 +49,7 @@ const BUILD: Descriptor[] = [
     needsNoun: ["small", "little", "tiny", "slight", "slim", "slender", "skinny", "wiry", "lithe", "scrawny", "willowy"],
   },
   { key: "cmp:older", alone: ["older", "oldest", "elder", "eldest"], needsNoun: ["old", "aging", "ageing", "aged", "middle-aged", "grizzled", "senior", "mature"], nouns: ["veteran"] },
-  { key: "cmp:younger", alone: ["younger", "youngest"], needsNoun: ["young", "teenage", "youthful", "junior", "boyish", "baby-faced"], nouns: ["teen", "teenager", "kid", "youngster", "brat"] },
+  { key: "cmp:younger", alone: ["younger", "youngest"], needsNoun: ["young", "teenage", "youthful", "junior", "boyish", "baby-faced"], nouns: ["teen", "teenager", "kid", "youngster", "brat", "boy", "lad", "youth", "youngling"] },
 ];
 
 const OPPOSITE: Record<string, string> = {
