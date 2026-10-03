@@ -1034,6 +1034,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const main = firstEntity(sent.slice(0, m.index));
       if (main) subjChar = main;
     }
+    // "the hand on his cock and the tongue probing into him": a subject-less sentence where "his" and "him" are one
+    // person, the one on the receiving end, not the partner of whoever the last sentence was about.
+    if (!subjChar && !pat.elided && !tTok && pat.subj === "b" && /^(?:him|her)$/i.test(bTok ?? "")) {
+      const before = sent.slice(0, m.index);
+      const poss = bTok!.toLowerCase() === "him" ? /\bhis\s+(?:\w+\s+)?(?:cock|dick|prick|hips?|thighs?|back|chest|nipples?|skin|neck|hair)\b/i : /\bher\s+(?:\w+\s+)?(?:cock|dick|hips?|thighs?|back|chest|breasts?|nipples?|skin|neck|hair)\b/i;
+      if (poss.test(before) && !ctx.sentMentions.some((x) => x.at < m.index!) && !/\b(?:he|she|they)\b/i.test(before)) {
+        const same = ctx.subjectFor(bTok!.toLowerCase() === "him" ? "m" : "f");
+        if (same) subjChar = same;
+      }
+    }
     const causative = /^(?:him|her|them)$/.test(subjTok ?? "") && /\b(?:make|makes|made|making|let|lets|letting)\s+$/i.test(sent.slice(0, m.index));
     const clauseSubj =
       !pat.elided && subjTok && (pronoun(subjTok) || /^(?:[Hh]is|[Hh]er|[Tt]heir)$/.test(subjTok)) && m.index! > 0

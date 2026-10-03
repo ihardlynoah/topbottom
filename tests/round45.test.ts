@@ -67,3 +67,16 @@ describe("sweep: things that aren't scenes", () => {
     "Cas had meant to feed him and fuck him, but not necessarily in that order.",
   ]) it(l, () => expect(hits(SPN, cas, l).inst).toHaveLength(0));
 });
+
+describe("subject-less sentence with his … him is one person", () => {
+  it("credits the tongue to the partner, not the one it is probing", () => {
+    const line =
+      "Anakin pants against the car. He rocks back and Obi-Wan takes the chance to slip a hand around his hips to grab his cock. " +
+      "It feels almost unbearably good, the hand on his cock and the tongue probing into him.";
+    const p = analyzeWithPatterns(obi + line, SW, { quiet: true }).pairings[0];
+    const i = p.rimming.instances.find((x) => x.evidence.includes("It feels almost"));
+    expect(i).toBeTruthy();
+    expect(i!.top).toMatch(/Obi-Wan/);
+    expect(i!.bottom).toMatch(/Anakin/);
+  });
+});
