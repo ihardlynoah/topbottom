@@ -103,6 +103,13 @@ word count is estimated and the main characters are guessed from frequently capi
    countess”…). Titles worn by a named character teach the epithet ("Lord Cregan" → "the lord", "Prince Jacaerys" → "the prince"), and a word in front of a title doesn't change who it is ("the dragon prince", "the northern lord"). "The boy", "the lad", "the youth" and "the kid" mean the younger one. Relationship words (“his husband”, “her lover”) are always relative: they mean the partner of
    whoever “his” is, never one fixed person. After “permitted/let/forced X to …”, a later “he” is X. Each scene shows
    whether roles came from names or pronouns/epithets.
+   More pronoun rules: in a sentence that names no one, “the hand on his cock and the tongue probing into him” is one
+   person (the one receiving); after “Cas’s hands … holding him down as he …” or “Cas’s hand wandered, cupping …”
+   the “he” and the participle belong to Cas; “Dean had no warning before he …” is the other man; “beg him to just
+   fuck him” makes the asker the bottom. A qualifier on a relationship tag (“brief Castiel/Meg Masters”) is not
+   part of the name. An untagged quote takes its speaker from the action sentence right before it (“Cas pulled his
+   fingers free… ‘Good boy’”) or from the listener’s reaction right after it (“…” Dean’s breath hitched); lines
+   about a show other people are performing (“the sub”, “his Dom”) are skipped.
 4. **Desire / fantasy**: wanting (“he wanted Draco to fuck him”), imagining (“imagined Harry sucking him
    off”), hypotheticals, habits (“he’d always bottomed”), dialogue requests (“Fuck me,” Harry begged;
    “I want to ride you”), and negations (“didn’t want to bottom”). These are listed separately and never
@@ -118,6 +125,27 @@ word count is estimated and the main characters are guessed from frequently capi
    new clause (“fuck me, it’s cold”), in idioms (“fuck me sideways”), when muttered or sworn, or with no sex
    nearby in the narration.
    With no on-page anal sex, these give an “Unclear” verdict that leans one way, at low confidence.
+   Everyday sentences are kept out: lying on your stomach counts as presenting only with ass or hips nearby; “pushed
+   back” needs a sexual follow-on; leaking or aching needs a real hole word; “slid in next to” isn’t penetration;
+   shoving someone aside, fights, torture and rescues, dancing, family hugs and “take over the job” aren’t
+   dominance or submission; “no way X was asking…” is disbelief, not a stated dislike; “bottomed the dildo out” is
+   the top seating a toy; “done this to himself” is solo prep; the slit of a cock isn’t cunnilingus. Weak dialogue
+   cues (check-ins, aftercare, pet names) need an unambiguous sexual word within three paragraphs, or several loose
+   ones, so comfort after a nightmare doesn’t count.
+   A toy used on yourself counts as bottoming, and how sure it is depends on the wording: “fucked himself with the
+   dildo” or “fucked his own ass” (or wearing a plug) counts fully, while “pushed the dildo into his ass” with no
+   one else in the sentence counts a little over half as much. A long solo scene counts about twice, not once per
+   sentence, and “got himself fucked” or “made himself come” are not solo toy use.
+   **Solo acts** get their own card, per person: masturbation (“jerked himself off”, “stroked his own cock”,
+   “masturbated”, “got himself off”, “thrust up into his own fist”), self-fingering and toys on oneself. Masturbation
+   is never counted toward top or bottom. Self-fingering and toys keep counting as anal-bottom evidence for someone
+   with an ass; for a woman (or anyone with a vulva) they count that way only when the sentence says ass or anal,
+   otherwise they are solo and vaginal. A wish or plan (“wanted to touch himself”, “if he jerked off”) and a partner
+   being touched (“jerked Eddie off”) are not solo acts.
+   Oral phrasings include a cock taken out of the mouth, a throat squeezing around a cock, a cock forced down the
+   throat, fighting the urge to gag, tasting precum at the back of the throat, a grip in the hair with hips pushed
+   forward, the back of the tongue around the head, and an open mouth against a zipper. “Not without taking …” cancels
+   out, and “could taste/feel” is perception, not a hypothetical.
 6. **Verdict and confidence**: hits are grouped into scenes. “Switches” means each partner tops in at
    least one scene (a single weak contrary hit is flagged as a possible exception instead). Confidence goes
    up with more scenes, named (not pronoun) evidence, matching AO3 tags (“Bottom X”, “Switching”) and

@@ -29,7 +29,7 @@ export interface Desire {
   role: Role;
   /** false = the character explicitly does NOT want this role. */
   wants: boolean;
-  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname";
+  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname" | "masturbation";
   act: string;
   where: string;
   evidence: string;
@@ -99,6 +99,24 @@ export interface VibeRating {
   factors?: VibeFactor[];
 }
 
+/** Things a character does alone: masturbation, fingering themself, using a toy on themself. */
+export interface SoloAct {
+  who: string;
+  /** "Masturbation", "Self-fingering" or "Toy on self". */
+  act: string;
+  evidence: string;
+  where: string;
+}
+
+export interface SoloResult {
+  /** Whether anything solo was found. */
+  occurs: boolean;
+  summary: string;
+  /** Per person: how many times each kind of solo act was found. */
+  people: { name: string; total: number; acts: { act: string; count: number }[] }[];
+  instances: SoloAct[];
+}
+
 export interface PairingResult {
   pairing: string;
   anal: ActResult;
@@ -109,6 +127,8 @@ export interface PairingResult {
   rimming: ActResult;
   cunnilingus: ActResult;
   vaginal: VaginalResult;
+  /** Solo acts by either partner. These are shown on their own; self-fingering and toy use also count toward anal bottom evidence for people with an ass. */
+  solo?: SoloResult;
   /** Overall vibe for each partner, from every kind of evidence. */
   vibe?: VibeRating[];
 }

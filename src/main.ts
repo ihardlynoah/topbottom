@@ -6,7 +6,7 @@ import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, Instance, RoleOdds, VaginalResult, VibeFactor, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, Instance, RoleOdds, SoloResult, VaginalResult, VibeFactor, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -202,6 +202,7 @@ function cardSummaries(a: Analysis): string[] {
       out.push(`${p.pairing} · ${k}: ${r.verdict}${r.top ? ` (top/active ${r.top} / bottom/receiving ${r.bottom})` : ""} · ${r.confidence.label} ${Math.round(r.confidence.score * 100)}% · ${r.instances.length} scene${r.instances.length === 1 ? "" : "s"}`);
     }
     if (p.vaginal.instances.length) out.push(`${p.pairing} · vaginal: ${p.vaginal.instances.length} scene(s)`);
+    if (p.solo?.occurs) out.push(`${p.pairing} · solo: ${p.solo.summary}`);
     for (const v of p.vibe ?? []) out.push(`${p.pairing} · vibe ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
   }
   return out;
@@ -621,6 +622,29 @@ function renderVaginal(v: VaginalResult, pairing: string, source: string): HTMLE
   return card;
 }
 
+/** Solo acts: masturbation, self-fingering and toys on oneself, per person. */
+function renderSolo(v: SoloResult, pairing: string, source: string): HTMLElement {
+  const card = el("article", "card act verdict-one_way");
+  const head = el("div", "act-head");
+  head.append(el("h4", undefined, "Solo"), el("span", "badge one_way", `${v.instances.length} found`));
+  card.append(head, el("p", "summary", v.summary));
+  card.append(el("p", "hint", "Masturbation isn’t counted toward top or bottom. Self-fingering and toys also count as anal-bottom evidence for someone with an ass."));
+  const det = el("details", "instances");
+  det.append(el("summary", undefined, `${v.instances.length} solo moment${v.instances.length === 1 ? "" : "s"}`));
+  const ul = el("ul");
+  v.instances.forEach((i, n) => {
+    const li = el("li");
+    li.append(el("strong", undefined, i.who), ` · ${i.act}`);
+    if (i.where) li.append(el("span", "where", ` · ${i.where}`));
+    if (i.evidence) li.append(el("div", "evidence", i.evidence));
+    flagControl(li, { id: `${source}|${pairing}|solo|${n}`, kind: "hint", pairing, card: "solo", top: i.who, bottom: "", act: i.act, where: i.where, evidence: i.evidence });
+    ul.append(li);
+  });
+  det.append(ul);
+  card.append(det);
+  return card;
+}
+
 /** Overall vibe per partner: a five-step scale from total top to total bottom, with confidence and what it rests on. */
 function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLElement {
   const box = el("section", "vibe");
@@ -755,6 +779,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) 
     grid.append(renderAct("anal", p.anal, p.pairing, a.source), renderAct("blowjob", p.blowjob, p.pairing, a.source), renderAct("rimming", p.rimming, p.pairing, a.source));
     if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus, p.pairing, a.source));
     if (p.vaginal.applicable) grid.append(renderVaginal(p.vaginal, p.pairing, a.source));
+    if (p.solo?.occurs) grid.append(renderSolo(p.solo, p.pairing, a.source));
     block.append(grid);
     target.append(block);
   }
