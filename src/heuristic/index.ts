@@ -19,6 +19,8 @@ import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START
 import { ActHit, Basis, DesireHit } from "./hits";
 import { CHAPTER_RE, Quote, maskQuotes, sentenceSpans } from "./quotes";
 import { ANAL_NEAR_RE, ANIMAL_NEAR, DANGER, DESIRE, DESIRE_LEAD, DESIRE_TAIL, FANTASY, FANTASY_PARA, HABIT_AUX, HYPO_AUX, HYPO_MATCH, HYPO_SENT, HYPO_WINDOW, IDIOM_ASS, IDIOM_SAFE, NEG, ORAL_LINE_RE, ORAL_NEAR_RE, REFLEXIVE, SAY, SCENE_BREAK, SEX_STRICT, STRONG_FANTASY, contextAround } from "./markers";
+import { AddressBook } from "./address";
+import { reliabilityOf } from "./reliability";
 import { Ctx, groupValue, pronoun, resolvePair, stripPoss } from "./resolve";
 import { PairTags, buildAct, buildDynamic, buildManual, buildSolo, buildVaginal, buildVibes, plural, soloIsAnal, tagsFor } from "./builders";
 
@@ -135,6 +137,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   /** Whether the last speaker was named by a dialogue tag (“…,” Eddie says) rather than guessed from who the narration is about. */
   let attribExplicit = false;
+  // Terms of address ("sir", "baby", "half man") that one character keeps using for the other; the previous pass's book also
+  // helps tell who an untagged line is addressed to.
+  const lowerAliases = new Set([...cast.byAlias.keys()].flatMap((a) => a.toLowerCase().split(/\s+/)));
+  const isNameWord = (w: string) => lowerAliases.has(w);
+  let addressBook = new AddressBook();
+  let priorAddress = new AddressBook();
   let acts: ActHit[] = [];
   let ambiguousHoles = 0;
   let defaultedAnal = 0;
@@ -218,6 +226,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   chapters = [];
   chapter = "";
   prevSpeaker = undefined;
+  priorAddress = addressBook;
+  addressBook = new AddressBook();
   ctx.narratorNow = undefined;
   ambiguousHoles = 0;
   holeVotes.clear();
@@ -338,9 +348,20 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const speaker = (continues ? paraSpeaker : undefined) ?? attributeSpeaker(para, mp, q, paraSpeaker, lastQPrev) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
       if (!speaker) continue;
       paraSpeaker = speaker;
+      if (continues || attribExplicit) addressBook.record(speaker, ctx.partnerOf(speaker), q.text, pi, q.text, isNameWord);
       scanDialogue(q.text, speaker, pi, { animal: ANIMAL_NEAR.test(near), explicit: !!continues || attribExplicit, sexy: narrationSexy, oral: ORAL_NEAR_RE.test(near) && !ANAL_NEAR_RE.test(near), after: para.slice(q.end, q.end + 60), before: para.slice(Math.max(0, q.start - 60), q.start) });
     }
     if (paraSpeaker) prevSpeaker = paraSpeaker;
+  }
+  // Lopsided titles and endearments between the pair are hints about who defers and who looks after whom.
+  for (const [x, y] of cast.pairings) {
+    for (const a of addressBook.asymmetries(x, y)) {
+      desires.push(
+        a.kind === "title"
+          ? { via: "address-title", cat: "vibe", act: `addressing ${a.partner.name.split(" ")[0]} as “${a.terms[0]}”`, who: a.who, partner: a.partner, role: "bottom", wants: true, kind: "behavior", weight: 0.5, para: a.para, sentence: a.example }
+          : { via: "address-endearment", cat: "vibe", act: `pet name “${a.terms[0]}” for ${a.partner.name.split(" ")[0]}`, who: a.who, partner: a.partner, role: "top", wants: true, kind: "petname", weight: 0.5, para: a.para, sentence: a.example },
+      );
+    }
   }
   }
 
@@ -523,6 +544,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     const fromNarration = narr.length > 5 ? firstEntity(narr) : undefined;
     if (fromNarration) return fromNarration;
+    // A term this pair keeps using for one of them ("sir", "half man") says who the line is for, so the other one said it.
+    const viaTerm = addressBook.listenerOf(q.text, isNameWord) ?? priorAddress.listenerOf(q.text, isNameWord);
+    if (viaTerm) { const sp = ctx.partnerOf(viaTerm); if (sp) return sp; }
     // A line that addresses someone by name ("…, Dean.") was said by the other person.
     const voc = new RegExp(`(?:^|[,.!?]\\s+|\\b(?:hey|oh|please|yes|no|god),?\\s+)(${NAMES})(?=\\s*[,.!?…]|\\s*$)|,\\s*(${NAMES})\\b`).exec(q.text);
     const addressed = voc ? cast.byAlias.get(voc[1] ?? voc[2]) : undefined;
@@ -571,7 +595,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         role: d.role,
         wants: !negated,
         kind: d.kind,
-        weight: (d.weight ?? (d.kind === "ogling" ? 0.6 : 1)) * (around.explicit === false ? 0.5 : 1),
+        weight: (d.weight ?? (d.kind === "ogling" ? 0.6 : 1)) * reliabilityOf(`dialogue:${d.act}`) * (around.explicit === false ? 0.5 : 1),
         guessed: around.explicit === false ? true : undefined,
         para: pi,
         sentence: `“${line.trim()}”`,
@@ -800,7 +824,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     let { basis } = resolved;
     let act = pat.act;
     let cat = pat.cat;
-    let weight = pat.weight * (basis === "named" ? 1 : basis === "pronoun" ? 0.75 : 0.5);
+    let weight = pat.weight * reliabilityOf(pat.id) * (basis === "named" ? 1 : basis === "pronoun" ? 0.75 : 0.5);
     const matchText = m[0];
     const after = sent.slice(m.index! + matchText.length, m.index! + matchText.length + 70);
 
@@ -1212,6 +1236,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         ? "“rode him” can describe either partner" : holeGuess === "ambiguous" ? "the sentence doesn't say which hole" : undefined;
       // "Now he knew what it was like to fuck Ilya Rozanov": a look back that, after being the bottom, means "have sex with".
       const retro = /\bwhat it (?:was|is|felt|had been|'d been)\s+like\s+to\b/i.test(sent);
+      // "took them both at once": everyone else named just before is inside him too.
+      if (pat.id.startsWith("dp-took-both")) {
+        const earlier = paras.slice(Math.max(0, pi - 1), pi).join(" ") + " " + para.slice(0, para.indexOf(original) + original.length);
+        for (const c of cast.chars) {
+          if (c === top || c === bottom || c === cast.secondPerson || !c.aliases.some((a) => earlier.includes(a))) continue;
+          acts.push({ via: pat.id, cat, act, top: c, bottom, weight: weight * 0.9, basis: "named", para: pi, sentence: original, context: contextAround(paras[pi] ?? "", original) });
+        }
+      }
       acts.push({ via: pat.id, cat, act, top, bottom, weight: retro ? weight * 0.4 : weight, basis, para: pi, sentence: original, holeGuess, shaky: retro ? "“what it was like to…” looks back on an earlier time and can describe either partner" : shaky, context: contextAround(paras[pi] ?? "", original) });
       ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;

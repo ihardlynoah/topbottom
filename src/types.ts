@@ -18,6 +18,8 @@ export interface Instance {
   context?: string;
   /** Paragraph number of the evidence sentence (for the gold-label eval). */
   para?: number;
+  /** The internal pattern behind the evidence sentence (for mistake reports). */
+  via?: string;
 }
 
 /**
@@ -39,6 +41,8 @@ export interface Desire {
   confidence?: number;
   /** Why: strength of the wording, how the people were found, hedging, and whether other lines agree. */
   reasons?: string[];
+  /** The internal pattern behind this line (for mistake reports, so the right pattern can be fixed). */
+  via?: string;
 }
 
 export interface Confidence {
@@ -142,7 +146,7 @@ export interface ManualAct {
   /** The one whose hand it is (or either, when mutual). */
   giver: string;
   receiver: string;
-  /** "Handjob", "Mutual handjob" or "Frottage". */
+  /** "Handjob", "Mutual handjob", "Frottage", "Thigh sex" or "Chest sex" (giver = whose thighs or chest). */
   act: string;
   mutual: boolean;
   evidence: string;

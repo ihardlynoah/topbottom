@@ -310,6 +310,14 @@ counterpart), except for blushing, which is only one side. Labels run Follows, L
 Leads. The same expandable factors and “What's wrong with this?” forms work here, and a Dom/Sub tag is checked against
 this axis (with the tag itself left out) in “Tags vs text”.
 
+**Terms of address.** Fics build their own vocabulary of address ("sir", "baby", "your highness", "half man", "Scotty"). The engine
+notes the forms of address in lines whose speaker is certain (tagged) and learns a term once it has been used for the same
+person three times. Two things follow. A term used for one of the pair almost every time tells who an untagged line is for, so
+the other one said it ("Fuck me, half man" after three tagged "half man"s from Steve is Steve; an ABO fic's untagged "Alpha,
+please, fuck me" is the omega). And lopsided use feeds the everyday-dynamic axis: a title (sir, master, your highness, daddy)
+used at least three times as often one way as the other is a yielding cue for the sayer, and a pet name (baby, princess,
+sweetheart) used that lopsidedly is a caring, leading cue. Terms both of them use cancel out.
+
 ## Running locally
 
 ```sh
@@ -340,6 +348,14 @@ AO3_DIR=ao3-samples npx vitest run tests/gold-eval.test.ts                      
 - **Pattern audit.** For every pattern, how many acts and hints it produced, in how many fics, and a fixed-hash sample of the
   sentences it matched. A pattern that is matching the wrong thing (a room "slipped inside", a wave of nausea "swallowed
   down") shows up here without waiting for a bug report. Patterns with no hits at all are listed too.
+- **Pattern reliability.** `tests/labels/*.json` hold hand-checked labels (ok / wrong / unclear) for the audit's samples, keyed by
+  pattern and a hash of the sentence, never the sentence itself. `tests/reliability.test.ts` turns them into
+  `src/heuristic/reliability.ts`: for each pattern, the share of its labelled hits that were read correctly (smoothed toward
+  90% so a handful of samples can't condemn a pattern, floored at 0.4). The engine multiplies each hit's weight by that
+  number, so a pattern that is often wrong counts for less without anyone hand-tightening it. The test fails when the table
+  and the labels disagree; after relabelling run `WRITE_RELIABILITY=1 npx vitest run tests/reliability.test.ts`. Fixing a
+  pattern makes its old labels stale, so relabel its samples from a fresh audit (`AUDIT_SAMPLES=8`, which also writes
+  `PATTERN_AUDIT.json` with a key per row). Mistake reports name the pattern behind each flagged line.
 - **Gold labels.** `tests/gold/*.json` hold hand-checked readings of real fics: verdicts per pairing and act, which scenes are
   real and who tops (as paragraph ranges), acts whose scene list is complete (any extra scene is a false positive), known
   false positives, who the point of view is by section, and who sent which text. They store paragraph numbers and a hash of
