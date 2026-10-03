@@ -29,7 +29,7 @@ export interface Desire {
   role: Role;
   /** false = the character explicitly does NOT want this role. */
   wants: boolean;
-  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo" | "behavior";
+  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname";
   act: string;
   where: string;
   evidence: string;

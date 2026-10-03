@@ -208,7 +208,7 @@ export function roleOdds(names: string[], evidence: RoleEvidence[], doubt: RoleE
 }
 
 /** Hint kinds that are behaviour rather than something said or done. */
-const BEHAVIOUR = new Set<Desire["kind"]>(["ogling", "touch", "fingering", "prep", "fingers", "solo"]);
+const BEHAVIOUR = new Set<Desire["kind"]>(["ogling", "touch", "fingering", "prep", "fingers", "solo", "body", "aftercare", "position", "petname"]);
 
 /** Evidence from a finished result (for Claude's answers): each scene counts fully, each hint a little. */
 export function oddsFromResult(act: Pick<ActResult, "instances" | "desires">, names: string[]): RoleOdds[] {
