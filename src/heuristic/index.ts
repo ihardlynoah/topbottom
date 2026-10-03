@@ -12,6 +12,7 @@ import { ANAL_CTX, type Cat, VULVA_CTX, type CompiledPattern, DIALOGUE, type Dia
 import { EPITHET, learnEpithets } from "./epithets";
 import { readTags } from "./tags";
 import { checkTags } from "./tagcheck";
+import { type TextingMap, detectTexts, looksLikeChat, summarizeTexts } from "./texting";
 import { detectPov, POV_SENTENCE } from "./pov";
 import { ORAL_KINDS, oralKindOf } from "../roles";
 import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
@@ -43,7 +44,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const analysisText = clitIsCock
     ? analysisText0.replace(/\b(his|their|[A-Z][\w-]*['’]s)(\s+(?:[a-z-]+\s+){0,2}?)clit(?:ty|oris)?\b/g, "$1$2cock")
     : analysisText0;
-  const paras = splitParagraphs(analysisText);
+  let paras = splitParagraphs(analysisText);
+  // Text messages shown as chat lines ("Shane: Why?") become dialogue with a speaker tag, so the rest of the engine reads them.
+  let texting: TextingMap = { messages: [], rewritten: new Map() };
+  if (looksLikeChat(paras)) {
+    const pre = paras.map((p) => maskQuotes(p, false).masked);
+    texting = detectTexts(paras, buildCast(meta, pre.join("\n"), paras.join("\n")));
+    if (texting.rewritten.size) paras = paras.map((p, i) => texting.rewritten.get(i) ?? p);
+  }
   const doubleQuotes = (analysisText.match(/[“"]/g) ?? []).length;
   const singleQuotes = doubleQuotes < 4 && (analysisText.match(/(^|\s)‘/g) ?? []).length >= 4;
   const masked = paras.map((p) => maskQuotes(p, singleQuotes));
@@ -1254,6 +1262,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
   }
 
+  const narratedTexts = detectTexts(paras, cast).messages.filter((m) => m.how === "narrated" && !texting.rewritten.has(m.para));
   const where = (pi: number) => chapters[pi] || `~${Math.round((pi / Math.max(1, paras.length)) * 100)}% through`;
   const pairKey = (a: Character, b: Character) => [a.name, b.name].sort().join("\u0000");
   const pairOrder = new Map<string, [Character, Character]>();
@@ -1370,12 +1379,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   const romantic = romanticPairings(meta);
   const pairings: PairingResult[] = results.map(({ weight: _w, key: _k, ...p }) => p);
+  const textingResult = summarizeTexts([...texting.messages, ...narratedTexts], where);
   return {
     source: "patterns",
     fandom: meta.fandoms.join(", "),
     main_pairing: romantic[0] ?? results[0]?.pairing ?? "",
     pairings: pairings,
-    tagCheck: checkTags(meta.freeforms, tags, pairings, paras, where),
+    tagCheck: checkTags(meta.freeforms, tags, pairings, paras, where, textingResult),
+    texting: textingResult,
     notes: notes.join(" "),
   };
 }

@@ -269,6 +269,12 @@ Your API key stays in your browser and is sent only to `api.anthropic.com`.
 
 ## Vibe display: two ratings or one
 
+**Text messages.** Chat-style lines ("Shane: Why?", often under a timestamp, with a phone cue or a long exchange nearby) and
+narrated texting ("Cas texted him", "his phone buzzed", "a message from Dean") are found and shown on a Text messages card:
+who texted whom, how many, and how many were sexual. A contact name ("Lily", "Unknown Number") is matched to the character on the
+other end. Chat lines are rewritten as dialogue from the sender before analysis, so a texted "I want to fuck you" counts like a
+spoken one. "Texting" and "Sexting" tags are checked against the text.
+
 **Omegaverse.** In a work tagged alpha/beta/omega (or one that uses the words all through the text), nonsexual gestures count
 toward the everyday dynamic: baring the neck or scent gland, lowering the eyes, nesting and submitting to an alpha read as
 following; scenting, growling at someone, the alpha voice, gripping the scruff and a claiming bite read as leading.

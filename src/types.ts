@@ -112,6 +112,20 @@ export interface SoloAct {
   where: string;
 }
 
+/** Text messages between characters (chat-log lines or narrated texting). */
+export interface TextingResult {
+  occurs: boolean;
+  summary: string;
+  total: number;
+  /** Messages shown as chat lines vs. told in narration ("he texted", "his phone buzzed"). */
+  chat: number;
+  narrated: number;
+  /** Chat messages that are sexual (sexting). */
+  sexual: number;
+  pairs: { from: string; to: string; count: number }[];
+  examples: { from: string; to: string; text: string; where: string; how: "chat" | "narrated"; sexual: boolean }[];
+}
+
 export interface SoloResult {
   /** Whether anything solo was found. */
   occurs: boolean;
@@ -183,6 +197,7 @@ export interface Analysis {
   pairings: PairingResult[];
   /** AO3 tags that name an act, role or kink, checked against what the text shows. */
   tagCheck?: TagCheck[];
+  texting?: TextingResult;
   notes: string;
 }
 

@@ -1,6 +1,6 @@
 // Tags vs text: for each AO3 tag that names an act, a role or a kink, did the text back it up?
 
-import type { TagCheck, PairingResult } from "../types";
+import type { TagCheck, PairingResult, TextingResult } from "../types";
 import type { TagInfo } from "./tags";
 
 interface Detector {
@@ -45,6 +45,7 @@ export function checkTags(
   results: PairingResult[],
   paras: string[],
   where: (pi: number) => string,
+  texting?: TextingResult,
 ): TagCheck[] {
   const out: TagCheck[] = [];
   const seen = new Set<string>();
@@ -75,6 +76,19 @@ export function checkTags(
       if (hits.length) add({ tag, kind: "act", status: "supported", note: `${hits.length} ${a.label} moment${hits.length === 1 ? "" : "s"} found in the text.`, evidence: pull(hits) });
       else add({ tag, kind: "act", status: "not_found", note: `No on-page ${a.label} recognized. It may be implied or fade to black, or phrased in a way the patterns miss.`, evidence: [] });
       break;
+    }
+  }
+
+  // ── Texting / Sexting ──
+  if (texting) {
+    for (const raw of freeforms) {
+      const tag = raw.trim();
+      const sext = /\bsexting\b|\bsext\b|phone sex/i.test(tag);
+      if (!sext && !/\btext(?:ing| messages?| messaging)\b|\bchat(?:ting)?\b|\binstant messag|\bdms?\b|\bgroup chat/i.test(tag)) continue;
+      const ev = texting.examples.filter((e) => (sext ? e.sexual : true)).slice(0, 3).map((e) => ({ text: clip(`${e.from} → ${e.to}: ${e.text}`), where: e.where }));
+      const n = sext ? texting.sexual : texting.total;
+      if (n) add({ tag, kind: "kink", status: "supported", note: `${n} ${sext ? "sexual " : ""}text message${n === 1 ? "" : "s"} found in the text.`, evidence: ev });
+      else add({ tag, kind: "kink", status: "not_found", note: sext ? "No sexual text messages recognized." : "No text messages recognized.", evidence: [] });
     }
   }
 

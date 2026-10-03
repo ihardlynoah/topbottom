@@ -8,7 +8,7 @@ import { addLabel, calibrationLines, clearLabels, type Label, labelKey, loadLabe
 import { testSkeletons } from "./testgen";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, DynamicRating, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, VaginalResult, VibeFactor, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, DynamicRating, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, TextingResult, VaginalResult, VibeFactor, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -210,6 +210,7 @@ function cardSummaries(a: Analysis): string[] {
     for (const v of p.vibe ?? []) out.push(`${p.pairing} · vibe ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
     for (const v of p.dynamic ?? []) if (v.label !== "Unclear") out.push(`${p.pairing} · everyday dynamic ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
   }
+  if (a.texting?.occurs) out.push(`text messages: ${a.texting.summary}`);
   return out;
 }
 
@@ -829,6 +830,28 @@ function renderSolo(v: SoloResult, pairing: string, source: string): HTMLElement
   return card;
 }
 
+function renderTexting(v: TextingResult, source: string): HTMLElement {
+  const card = el("article", "card act verdict-one_way");
+  const head = el("div", "act-head");
+  head.append(el("h4", undefined, "Text messages"), el("span", "badge one_way", `${v.total} found`));
+  card.append(head, el("p", "summary", v.summary));
+  card.append(el("p", "hint", "Chat-style lines (“Name: message”) and narrated texting. Chat lines are read as dialogue from the sender, so sexting feeds the same desire and hint logic as spoken lines."));
+  const det = el("details", "instances");
+  det.append(el("summary", undefined, "Examples"));
+  const ul = el("ul");
+  v.examples.forEach((e, n) => {
+    const li = el("li");
+    li.append(el("strong", undefined, `${e.from} → ${e.to}`), ` · ${e.how === "chat" ? "chat line" : "narrated"}${e.sexual ? " · sexual" : ""}`);
+    if (e.where) li.append(el("span", "where", ` · ${e.where}`));
+    li.append(el("div", "evidence", e.text));
+    flagControl(li, { id: `${source}|texting|${n}`, kind: "hint", pairing: `${e.from} → ${e.to}`, card: "texting", top: e.from, bottom: e.to, act: "text message", where: e.where, evidence: e.text });
+    ul.append(li);
+  });
+  det.append(ul);
+  card.append(det);
+  return card;
+}
+
 /** Overall vibe per partner: a five-step scale from total top to total bottom, with confidence and what it rests on. */
 function renderVibe(
   vibe: (VibeRating | DynamicRating)[],
@@ -1002,6 +1025,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement, 
     block.append(grid);
     target.append(block);
   }
+  if (a.texting?.occurs) target.append(renderTexting(a.texting, a.source));
   if (a.tagCheck?.length) target.append(renderTagCheck(a.tagCheck, a.source));
   target.append(renderCalibration());
   notesEl.hidden = !a.notes;
