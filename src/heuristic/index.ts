@@ -915,6 +915,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (cat === "oral" && /\bworship/i.test(matchText) && !PENIS_CTX.test(matchText)) return;
     // "the shadows are going to swallow him whole": only a cock (or a penis word nearby) makes it oral.
     if (pat.id.startsWith("swallowed-down") && /\bwhole\b/i.test(matchText) && !PENIS_CTX.test(sent)) return;
+    // "Shane slipped inside and sat on the edge of the bed": entering a room, not penetration.
+    if (pat.id.startsWith("pushed-in") && /^\s*,?\s*(?:and\s+)?(?:then\s+)?(?:sat|stood|closed|shut|locked|walked|went|looked|waited|crossed|leaned|turned|stepped|paused|dropped|collapsed|hung|stopped|froze|glanced|checked|set|put|placed|kicked|tossed|threw|flicked)\b/i.test(sent.slice(m.index! + m[0].length))) return;
+    // "…tried to find his prostate" right after he fingered himself: the same solo act, not the partner's.
+    if (pat.id.startsWith("prostate") && (!tTok || /^(?:he|she|they)$/i.test(tTok)) && /^(?:his|her|their)$/i.test(bTok ?? "")) {
+      const at = para.indexOf(sent);
+      const before = (at > 0 ? para.slice(Math.max(0, at - 300), at) : paras[pi - 1] ?? "").slice(-300);
+      if (/\b(?:inside|into|in|stretch\w*|prepp?\w*|finger\w*|open\w*)\s+(?:\w+\s+){0,3}?(?:himself|herself|themselves|myself)\b/i.test(before)) return;
+    }
     // "the skin he had slipped in": a relative clause about a thing, not penetration.
     if (pat.id.startsWith("pushed-in") && /\b(?:the|a|that|this|those|these)\s+[\w-]+\s+(?:that\s+)?(?:he|she|they|I)\s+(?:had\s+|'d\s+)?$/i.test(sent.slice(0, m.index! + (matchText.search(/\b(?:slip|slid|sank|push|sunk)/i) > 0 ? matchText.search(/\b(?:slip|slid|sank|push|sunk)/i) : 0))) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent)) return;
     // "his chained wrists … until they were stretched taut": things being stretched or filled, not a person.
@@ -956,6 +964,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const prefix = sent.slice(0, m.index);
       if (NEG.test(m.groups?.aux ?? "") || NEG.test(prefix.slice(-40))) return;
       if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
+      // "resisted the urge to shove a hand down his pants": an urge about his own body, not a touch of the partner.
+      if ((pat.id.startsWith("hand-in-pants") || pat.id.startsWith("hj-hand-in-pants")) && /\b(?:urge|temptation|tempted|resist\w*|fought|fighting)\b[^.!?]*$/i.test(prefix)) return;
       // A wish, a plan or an attempt isn't a solo act: "wanted to touch himself", "if he jerked off", "tried not to masturbate".
       if ((pat.signal.kind === "masturbation" || pat.signal.kind === "handjob") && (HYPO_AUX.test(m.groups?.aux ?? "") || /\b(?:want\w*|wish\w*|imagin\w*|fantasi[sz]\w*|thought\s+about|think\w*\s+about|if|unless|would|could|might|should|gonna|going\s+to|tempted|temptation|urge|tried|trying|try|needed|need|about\s+to|stop\w*|refus\w*|without|keep\s+from|kept\s+from|resist\w*|difficult|struggl\w*|held\s+back|hold\s+back)\b[^.!?]{0,40}$/i.test(prefix.slice(-60) + " " + (m.groups?.aux ?? "") + " " + m[0].slice(0, 25)))) return;
       // Blushing and stammering say something about the pair only when the other one is right there.
