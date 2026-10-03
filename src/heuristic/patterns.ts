@@ -415,7 +415,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:enter(?:s|ed|ing)?|penetrat(?:e|es|ed|ing)|breach(?:es|ed|ing)?|impal(?:e|es|ed|ing)|spear(?:s|ed|ing)?)\\s+{B:ass}(?!\\s+with\\s+(?:him|her|them|me|you|us)\\b)(?=\\s*[,.;:!?—–]|\\s*$|\\s+(?:with|in one|in a|slowly|carefully|from behind|hard|deep|all the way|inch|bare|raw|for the first time|again|at last|finally)\\b)`,
+    src: `\\b{T}\\s+{aux}(?:enter(?:s|ed|ing)?|penetrat(?:e|es|ed|ing)|breach(?:es|ed|ing)?|impal(?:e|es|ed|ing)|spear(?:s|ed|ing)?)\\s+{B:ass}(?!\\s+with\\s+(?:him|her|them|me|you|us|(?:his|her|their|my|your)\\s+(?:tongue|fingers?|hands?|mouth))\\b)(?=\\s*[,.;:!?—–]|\\s*$|\\s+(?:with|in one|in a|slowly|carefully|from behind|hard|deep|all the way|inch|bare|raw|for the first time|again|at last|finally)\\b)`,
   },
   {
     // "Stiles spread his legs and let Derek in"
@@ -530,7 +530,7 @@ export const PATTERNS: PatternDef[] = [
     act: "fingering",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|eas|press|work|crook|curl|sink|sank|thrust|add|scissor|twist|insert|wiggl|drove|driv|guid|teas|circl|rub)\\w*\\s+(?:(?:a|one|two|three|four|another|the|{x's}|first|second|third|slick|lubed|wet|long|thick|blunt|slender|slim|thin|gloved|calloused|single|index|middle)\\s+){0,3}${FINGERS}\\s+(?:(?:back|deep(?:er)?|slowly|all the way|further|carefully|gently|in|up|down)\\s+)*(?:in(?:to|side)?(?:\\s+of)?|past|through|around|against|over|at)\\s+{B:ass}`,
+    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|eas|press|work|crook|curl|sink|sank|thrust|add|scissor|twist|insert|wiggl|drove|driv|guid|teas|circl|rub)\\w*\\s+(?:(?:a|one|two|three|four|another|the|{x's}|first|second|third|slick|lubed|wet|long|thick|blunt|slender|slim|thin|gloved|calloused|single|index|middle)\\s+){0,3}${FINGERS}\\s+(?:(?:back|deep(?:er)?|slowly|all the way|further|carefully|gently|in|up|down)\\s+)*(?:in(?:to|side)?(?:\\s+of)?|past|through|around|against|over|at)\\s+{B:ass}(?!-?\\s*cheeks?\\b)`,
   },
   {
     id: "fingers-inside",
@@ -539,7 +539,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b{T:poss}\\s+(?:[\\w-]+\\s+){0,2}?${FINGERS}\\s+(?:\\w+\\s+){0,3}?(?:in|into|inside|past|stretching|opening|scissoring|crooked inside|curled inside|pressed into|working|circling|teasing|rubbing)\\s+{B:ass}`,
+    src: `\\b{T:poss}\\s+(?:[\\w-]+\\s+){0,2}?${FINGERS}\\s+(?:\\w+\\s+){0,3}?(?:in|into|inside|past|stretching|opening|scissoring|crooked inside|curled inside|pressed into|working|circling|teasing|rubbing)\\s+{B:ass}(?!-?\\s*cheeks?\\b)`,
   },
   {
     id: "stretched-open",
@@ -1097,7 +1097,7 @@ export const PATTERNS: PatternDef[] = [
     act: "rimming",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|flick|swirl)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?(?:\\w+ly\\s+)?|(?:drag|ran|run|trac|slid|slide|slip|press|push|work|dip|delv|point|thrust|stab|flatten)\\w*\\s+(?:(?:his|her|their|my|your)\\s+)?(?:\\w+\\s+)?tongue\\s+)(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of|the length of|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:with\\s+(?:his|her|their|my|your)\\s+tongue\\s+)?(?:up|along|down|over|across))\\s+)*{B:rimReq}`,
+    src: `\\b{T}\\s+{aux}(?:(?:lick|tongu|lap|kiss|suck|nuzzl|mouth|nibbl|lav|flick|swirl)\\w*\\s+(?:(?:his|her|their|my|your)\\s+tongue\\s+)?(?:\\w+ly\\s+)?|(?:drag|ran|run|trac|slid|slide|slip|press|push|work|dip|delv|point|thrust|stab|flatten)\\w*\\s+(?:(?:his|her|their|my|your)\\s+)?(?:\\w+\\s+)?tongue\\s+)(?:(?:into|at|over|across|around|along|against|inside|in|up|down|on|between|past|the rim of|the length of|a\\s+(?:\\w+\\s+){0,2}?(?:stripe|line|path|trail)\\s+(?:with\\s+(?:his|her|their|my|your)\\s+tongue\\s+)?(?:up|along|down|over|across))\\s+)*{B:rimReq}(?!-?\\s*cheeks?\\b)`,
   },
   {
     id: "licked-into",
@@ -1448,7 +1448,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.6,
     needsCtx: true,
     signal: { kind: "solo", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:fuck|rid|rode|bounc|rock|grind|ground|sink|sank|thrust|lower|work|impal)\\w*\\s+(?:${SELF}\\s+)?(?:\\w+ly\\s+)?(?:back\\s+|down\\s+)*(?:(?:on(?:to)?|with)\\s+)?(?:a|the|his|her|my|their)\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|toy|vibrator|vibe|plug)s?\\b(?!\\s+(?:\\w+\\s+)?(?:into|inside|in|up|against)\\s+(?!himself|herself|themself|themselves|myself|his|her|their|my|the)\\w)`,
+    src: `\\b{B}\\s+{aux}(?:fuck|rid|rode|bounc|rock|grind|ground|sink|sank|thrust|lower|work|impal)\\w*\\s+(?:${SELF}\\s+)?(?:\\w+ly\\s+)?(?:back\\s+|down\\s+)*(?:(?:on(?:to)?|with)\\s+)?(?:a|the|his|her|my|their)\\s+(?:own\\s+)?(?:[\\w-]+\\s+){0,2}?(?:dildo|toy|vibrator|vibe|plug)s?\\b(?!\\s+out\\b)(?!\\s+(?:\\w+\\s+)?(?:into|inside|in|up|against)\\s+(?!himself|herself|themself|themselves|myself|his|her|their|my|the)\\w)`,
   },
   {
     // "thrusts down on his own finger", "fucked himself on his own fingers"
@@ -1723,7 +1723,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.6,
     signal: { kind: "behavior", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:grip(?:ped|s|ping)?|grabb?ed|grabs|grabbing|caught|catch(?:es)?|tilt(?:ed|s|ing)|tugg?ed|tugs|tugging|yank(?:ed|s|ing)|fisted)\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:chin|jaw|hair|wrists?|nape|neck|throat|collar)\\b`,
+    src: `\\b{T}\\s+{aux}(?:grip(?:ped|s|ping)?|grabb?ed|grabs|grabbing|caught|catch(?:es)?|tugg?ed|tugs|tugging|yank(?:ed|s|ing)|fisted)\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:chin|jaw|hair|wrists?|nape|neck|throat|collar)\\b`,
   },
   {
     id: "dom-order",
@@ -2887,7 +2887,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     signal: { kind: "handjob", actorRole: "top" },
-    src: `\\b{T:poss}\\s+hand\\s+(?:\\w+\\s+){0,3}?(?:wrap|clos|curl|wound|slid|snak|reach|moved|went|settled|found)\\w*\\s+(?:\\w+\\s+){0,3}?(?:around|on|over|to)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection)`,
+    src: `\\b{T:poss}\\s+hand\\s+(?:\\w+\\s+){0,3}?(?:wrap|clos|curl|wound|slid|snak|reach|moved|went|settled|found)\\w*\\s+(?:\\w+\\s+){0,3}?(?:around|on|over|to)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection)(?![\\w-])(?![^.!?]{0,30}\\bcage\\b)`,
   },
   {
     // "loosely jerking him", "stroked him slowly", "jerked Dean off"

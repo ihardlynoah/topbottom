@@ -47,3 +47,33 @@ describe("pattern audit fixes", () => {
     expect(via("Eddie went pliant underneath him.", "sub-melt").length).toBeGreaterThan(0);
   });
 });
+
+describe("pattern audit fixes, batch 2", () => {
+  it("penetrating with the tongue is not anal sex", () => {
+    expect(via("Steve was very loud when Eddie penetrated his ass with his tongue.", "enter")).toHaveLength(0);
+  });
+  it("a hand cupping a caged cock is not a handjob", () => {
+    expect(via("Steve’s hand settled on Eddie’s cock, cupping it gently in its cage.", "hj-hand-subject")).toHaveLength(0);
+    expect(via("Steve’s hand wrapped around Eddie’s cock and he started stroking.", "hj-hand-subject").length).toBeGreaterThan(0);
+  });
+  it("working a plug out of someone is not using a toy on yourself", () => {
+    expect(via("Steve slowly worked the plug out of Eddie while Eddie moaned.", "self-toy")).toHaveLength(0);
+  });
+  it("kissing an asscheek is not licking the hole", () => {
+    expect(via("Steve kissed Eddie’s asscheek and bit down just to hear him yelp.", "licked-hole")).toHaveLength(0);
+  });
+  it("‘his eyes were glued to Eddie’s cock’ is not Eddie looking at his own cock", () => {
+    const h = hits("Steve laughed and turned away. Eddie said nothing. His eyes were glued to Eddie’s cock.").filter((x) => x.via.startsWith("eyes-on-crotch"));
+    expect(h.every((x) => x.a.startsWith("Steve"))).toBe(true);
+  });
+});
+
+describe("pattern audit fixes, batch 3", () => {
+  it("digging fingers into ass cheeks is not fingering", () => {
+    expect(via("Steve dug his fingers into Eddie’s ass cheeks, massaging them.", "fingers-into")).toHaveLength(0);
+    expect(via("Steve pushed two fingers into Eddie’s ass.", "fingers-into").length).toBeGreaterThan(0);
+  });
+  it("tilting your own chin is not gripping someone", () => {
+    expect(via("Eddie enunciated clearly, tilting his chin.", "dom-grip")).toHaveLength(0);
+  });
+});
