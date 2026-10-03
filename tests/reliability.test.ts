@@ -47,7 +47,7 @@ describe("pattern reliability table", () => {
   it("is smoothed toward trusting a pattern, with a floor", () => {
     const t = table(new Map([["good", { ok: 6, wrong: 0 }], ["bad", { ok: 0, wrong: 6 }], ["one", { ok: 0, wrong: 1 }], ["half", { ok: 3, wrong: 3 }], ["x~elided", { ok: 5, wrong: 0 }]]));
     expect(t.good).toBeUndefined();
-    expect(t.bad).toBe(0.44);
+    expect(t.bad).toBe(0.4);
     expect(t.one).toBe(0.8);
     expect(t.half).toBeCloseTo(0.73, 2);
   });
