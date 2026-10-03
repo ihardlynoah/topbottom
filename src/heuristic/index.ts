@@ -42,6 +42,7 @@ import {
 import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
 import { checkTags } from "./tagcheck";
+import { detectPov, POV_SENTENCE } from "./pov";
 import { ORAL_KINDS, type OralKind, ROLE_WORDS, type RoleEvidence, oralKindOf, roleOdds, roleSummary } from "../roles";
 import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 
@@ -346,6 +347,8 @@ class Ctx {
 
   /** Whose "I" this stretch is, when sections are headed by the narrator's name ("Scott - Saturday, September 6, 2014"). */
   narratorNow: Character | undefined;
+  /** The point-of-view character of this stretch of the text, when known (see pov.ts). */
+  povNow: Character | undefined;
 
   fixed(kind: "I" | "you"): Character | undefined {
     return kind === "I" ? (this.narratorNow ?? this.cast.narrator) : this.cast.secondPerson;
@@ -609,6 +612,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   const bodyCtxCache = new Map<number, boolean>();
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
+  const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast);
   scan();
   if (ctx.learnFromVotes()) scan();
 
@@ -631,6 +635,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       chapter = para.length > 60 ? para.slice(0, 60) + "…" : para;
     }
     chapters[pi] = chapter;
+    ctx.povNow = pov.at[pi];
+    // Alternating first person: a chapter headed with the narrator's name says whose "I" follows.
+    if (cast.narrator && pov.source === "headings" && pov.at[pi]) ctx.narratorNow = pov.at[pi];
     // Alternating first person: a short heading that is just a character's name (and a date) says whose "I" follows.
     if (cast.narrator && para.length <= 80) {
       const head = new RegExp(`^\\s*(${NAMES})(?:\\s*[-–—:]\\s*[^.!?“”"]{0,60})?\\s*$`).exec(para);
@@ -678,6 +685,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         .map((m) => ({ c: cast.byAlias.get(stripPoss(m[0]))!, at: m.index! }))
         .filter((m) => !!m.c);
       ctx.cutoff = Infinity;
+      // In this person's chapter, "He wanted…" / "His heart raced" is them, whoever was named in the line before.
+      if (ctx.povNow && POV_SENTENCE.test(sent)) {
+        const g: Gender = /^\W*(?:She|Her)\b/.test(sent) ? "f" : "m";
+        if (Ctx.compatible(ctx.povNow, g)) ctx.lastSubject = ctx.povNow;
+      }
       const subj = firstEntity(sent);
       if (subj) ctx.lastSubject = subj;
 

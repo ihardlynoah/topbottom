@@ -2921,6 +2921,18 @@ export const PATTERNS: PatternDef[] = [
     signal: { kind: "behavior", actorRole: "bottom" },
     src: `\\b{B:poss}\\s+(?:face|cheeks|ears|neck)\\s+(?:went|turned|grew|burned|heated|flamed|got)\\s+(?:\\w+\\s+)?(?:red|pink|scarlet|hot|bright)`,
   },
+  {
+    // "He wanted to be fucked", "needed to get fucked", "got properly fucked": the receiver with no one named doing it
+    id: "be-fucked",
+    cat: "anal",
+    kw: "fucked|plowed|ploughed|pounded|railed|bred|knotted|wrecked|ruined|stretched|filled|stuffed",
+    act: "anal sex",
+    subj: "b",
+    weight: 0.8,
+    dedupe: true,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:be|get|got|gets|getting|being|been)\\s+(?:so\\s+|properly\\s+|thoroughly\\s+|really\\s+|finally\\s+|well\\s+)*(?:fucked|plowed|ploughed|pounded|railed|bred|knotted|wrecked|ruined|stretched|filled|stuffed)(?!\\s+(?:up|over|off|around|with|out\\s+of)\\b)(?!(?:\\s+[\\w-]+){0,2}\\s+by\\b)\\b`,
+  },
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────

@@ -104,3 +104,45 @@ describe("Dom/Sub tags are checked against everyday behaviour", () => {
     expect(c.find((x) => x.tag === "Dom/sub")?.status).toBe("supported");
   });
 });
+
+describe("point of view", () => {
+  const ST: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Stranger Things (TV 2016)"], relationships: ["Steve Harrington/Eddie Munson"], characters: ["Steve Harrington", "Eddie Munson"], freeforms: ["Two POVs"] };
+  const intro = (`Steve and Eddie were on the couch, kissing. Steve kissed Eddie. Eddie kissed Steve back, moaning. `).repeat(2);
+  const body = "Eddie smiled at him across the room. He wanted to be fucked.";
+  const wants = (text: string) => analyzeWithPatterns(text, ST, { quiet: true }).pairings[0].anal.desires.filter((d) => d.kind === "wanted" && d.wants);
+  it("in a chapter headed with Steve’s name, ‘He wanted to be fucked’ is Steve wanting to bottom", () => {
+    const d = wants(`${intro}\n\nChapter 2: Steve\n\n${body}`);
+    expect(d.length).toBeGreaterThan(0);
+    expect(d[0].who).toMatch(/Steve/);
+    expect(d[0].role).toBe("bottom");
+  });
+  it("‘Eddie’s POV’ in the heading works the same way for Eddie", () => {
+    const d = wants(`${intro}\n\nChapter 3 - Eddie’s POV\n\nSteve smiled at him across the room. He wanted to be fucked.`);
+    expect(d[0]?.who).toMatch(/Eddie/);
+    expect(d[0]?.role).toBe("bottom");
+  });
+  it("a name-only line inside a chapter switches the point of view", () => {
+    const d = wants(`${intro}\n\nChapter 4\n\nSteve\n\nEddie grinned at him. He wanted to be fucked.\n\nEddie\n\nSteve grinned at him. He wanted to be fucked.`);
+    expect(d.map((x) => `${x.who.split(" ")[0]}:${x.role}`)).toEqual(["Steve:bottom", "Eddie:bottom"]);
+  });
+  it("without any marker the old behaviour stands (the pronoun follows the line before)", () => {
+    const d = wants(`${intro}\n\n${body}`);
+    expect(d.some((x) => x.who.startsWith("Steve") && x.role === "bottom")).toBe(false);
+  });
+  it("a chapter that reports one man’s feelings again and again is read as his point of view", () => {
+    const feel = Array.from({ length: 8 }, () => "Steve felt his stomach flip. Steve wondered what Eddie thought.").join(" ");
+    const d = wants(`${intro}\n\nChapter 5\n\n${feel}\n\nEddie smiled at him across the room. He wanted to be fucked.`);
+    expect(d[0]?.who).toMatch(/Steve/);
+    expect(d[0]?.role).toBe("bottom");
+  });
+});
+
+describe("alternating first person, chapters headed with the narrator’s name", () => {
+  const ST: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Stranger Things (TV 2016)"], relationships: ["Steve Harrington/Eddie Munson"], characters: ["Steve Harrington", "Eddie Munson"] };
+  const ch = (name: string, other: string) => `Chapter ${name === "Steve" ? 1 : 2}: ${name}\n\n` + Array.from({ length: 6 }, () => `I kissed ${other} and I laughed. I put my hand on ${other}’s waist.`).join(" ") + `\n\nI wanted to be fucked.`;
+  it("each chapter’s ‘I’ is the man in its heading", () => {
+    const a = analyzeWithPatterns(`${ch("Steve", "Eddie")}\n\n${ch("Eddie", "Steve")}`, ST, { quiet: true });
+    const d = a.pairings[0].anal.desires.filter((x) => x.kind === "wanted" && x.wants);
+    expect(d.map((x) => `${x.who.split(" ")[0]}:${x.role}`).sort()).toEqual(["Eddie:bottom", "Steve:bottom"]);
+  });
+});
