@@ -78,6 +78,8 @@ interface DesireHit {
   sentence: string;
   /** A solo act worded with “himself” / “his own”: certainly the actor’s own body, no partner in it. */
   reflexive?: boolean;
+  /** How the people in the sentence were found (names, pronouns, inference). */
+  basis?: Basis;
 }
 
 // ───────────── text helpers ─────────────
@@ -1416,6 +1418,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         para: pi,
         sentence: original,
         reflexive: pat.signal.kind === "solo" && REFLEXIVE.test(matchText) ? true : undefined,
+        basis,
       });
       return;
     }
@@ -1559,6 +1562,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       weight: kind === "hypothetical" ? 0.6 : 1,
       para: pi,
       sentence: original,
+      basis,
     });
   }
 
@@ -2004,6 +2008,58 @@ function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
+// ───────────── how sure each desire / fantasy / hint line is ─────────────
+
+/** How much a line of this kind says, before looking at its wording. */
+const DESIRE_BASE: Partial<Record<Desire["kind"], number>> = {
+  said: 0.8, stated: 0.8, identity: 0.85, wanted: 0.75, history: 0.7, fantasy: 0.6, hypothetical: 0.45,
+  body: 0.65, masturbation: 0.7, handjob: 0.7, solo: 0.6, fingering: 0.6, touch: 0.55, prep: 0.55, fingers: 0.5,
+  ogling: 0.55, behavior: 0.5, aftercare: 0.5, position: 0.5, petname: 0.5,
+};
+const DESIRE_NOTE: Partial<Record<Desire["kind"], string>> = {
+  said: "said outright in dialogue", stated: "a stated preference", identity: "says what they are", wanted: "a stated want",
+  history: "something they have done", fantasy: "a fantasy", hypothetical: "a ‘what if’ or conditional", body: "a bodily sign after sex",
+  solo: "a solo act", ogling: "a look", touch: "a touch short of sex", prep: "lead-up", fingers: "fingers and mouth", behavior: "everyday behaviour",
+  aftercare: "care or comfort", position: "a position", petname: "a pet name",
+};
+const HEDGE = /\b(?:maybe|perhaps|kind of|sort of|almost|might|seemed|as if|as though|probably|supposedly|apparently)\b/i;
+
+/** Per-line confidence for every desire, fantasy and hint of an act. `pointsTo` says who the line makes the top. */
+function scoreDesires(sig: DesireHit[], pointsTo: (d: DesireHit) => string | undefined): Map<DesireHit, { conf: number; reasons: string[] }> {
+  const sentencesBy = new Map<string, Set<string>>();
+  for (const d of sig) {
+    const t = pointsTo(d);
+    if (!t) continue;
+    if (!sentencesBy.has(t)) sentencesBy.set(t, new Set());
+    sentencesBy.get(t)!.add(`${d.para}\u0000${d.sentence}`);
+  }
+  const out = new Map<DesireHit, { conf: number; reasons: string[] }>();
+  for (const d of sig) {
+    const reasons: string[] = [];
+    let conf = (DESIRE_BASE[d.kind] ?? 0.5) * (0.7 + 0.3 * Math.min(1, d.weight));
+    if (DESIRE_NOTE[d.kind]) reasons.push(DESIRE_NOTE[d.kind]!);
+    if (d.guessed) { conf -= 0.2; reasons.push("speaker guessed from the narration"); }
+    else if (d.basis === "named") conf += 0.05;
+    else if (d.basis === "inferred") { conf -= 0.15; reasons.push("people inferred, not named"); }
+    else if (d.basis === "pronoun") reasons.push("people found through pronouns");
+    if (!d.wants) reasons.push("negated, so it counts the other way");
+    if (HEDGE.test(d.sentence)) { conf -= 0.1; reasons.push("hedged wording"); }
+    const t = pointsTo(d);
+    if (t) {
+      const mine = `${d.para}\u0000${d.sentence}`;
+      const agree = (sentencesBy.get(t)?.size ?? 1) - 1;
+      let conflict = 0;
+      for (const [other, set] of sentencesBy) if (other !== t) conflict += set.size - (set.has(mine) ? 1 : 0);
+      if (agree) { conf += Math.min(0.09, 0.03 * agree); reasons.push(`${agree} other line${agree === 1 ? "" : "s"} point the same way`); }
+      if (conflict) { conf -= Math.min(0.12, 0.04 * conflict); reasons.push(`${conflict} other line${conflict === 1 ? "" : "s"} point the other way`); }
+    }
+    out.set(d, { conf: Math.max(0.15, Math.min(0.95, conf)), reasons });
+  }
+  return out;
+}
+/** A line's weight in the verdict and the odds: 1 at 70% sure, less when shakier, a little more when firm. */
+const confFactor = (conf: number) => Math.max(0.3, Math.min(1.2, conf / 0.7));
+
 function buildAct(
   cat: Cat,
   hits: ActHit[],
@@ -2192,6 +2248,10 @@ function buildAct(
       sig.push({ cat, act: "fingering", who: f.top, partner: f.bottom, role: "top", wants: true, kind: "fingering", weight: 0.8, para: f.para, sentence: f.sentence });
     }
   }
+  // Every hint "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
+  const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
+  const lineConf = scoreDesires(sig, desireTop);
+  const cf = (d: DesireHit) => confFactor(lineConf.get(d)?.conf ?? 0.7);
   const desireOut: Desire[] = sig
     .filter((d) => d.kind !== "fingering") // fingering is already listed under scenes
     .map((d) => ({
@@ -2202,17 +2262,17 @@ function buildAct(
       act: d.act,
       where: where(d.para),
       evidence: truncate(d.sentence),
+      confidence: Math.round((lineConf.get(d)?.conf ?? 0.5) * 100) / 100,
+      reasons: lineConf.get(d)?.reasons ?? [],
     }));
-  // Every hint "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
-  const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
   const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep" || d.kind === "fingers" || d.kind === "solo" || d.kind === "body" || d.kind === "aftercare" || d.kind === "position" || d.kind === "petname";
   const tally = { desAgree: 0, desConflict: 0, behAgree: 0, behConflict: 0, wAgree: 0, wConflict: 0 };
   for (const d of sig) {
     const pointsTo = desireTop(d);
     if (!pointsTo || verdict === "none") continue;
     const agrees = verdict === "switch" || pointsTo === top;
-    if (agrees) { tally.wAgree += d.weight; isBehaviour(d) ? tally.behAgree++ : tally.desAgree++; }
-    else { tally.wConflict += d.weight; isBehaviour(d) ? tally.behConflict++ : tally.desConflict++; }
+    if (agrees) { tally.wAgree += d.weight * cf(d); isBehaviour(d) ? tally.behAgree++ : tally.desAgree++; }
+    else { tally.wConflict += d.weight * cf(d); isBehaviour(d) ? tally.behConflict++ : tally.desConflict++; }
   }
   let desAdj = Math.min(0.2, tally.wAgree * 0.05) - Math.min(0.2, tally.wConflict * 0.05);
   if (verdict !== "none") {
@@ -2222,13 +2282,21 @@ function buildAct(
     if (tally.behConflict) reasons.push(`${plural(tally.behConflict, "other signal")} (fingering, ogling, touching, lead-up) ${tally.behConflict === 1 ? "disagrees" : "disagree"}`);
   }
 
+  {
+    const lines = sig.filter((d) => d.kind !== "fingering");
+    if (lines.length) {
+      const avg = Math.round((lines.reduce((n, d) => n + (lineConf.get(d)?.conf ?? 0.5), 0) / lines.length) * 100);
+      reasons.push(`${plural(lines.length, "desire/fantasy/hint line")}, ${avg}% sure on average`);
+    }
+  }
+
   // ── nothing found on-page ──
   if (verdict === "none") {
     const hasTagRoles = roleTagsApply && (tagTops.length || tagBottoms.length || tagSwitch);
     const pointing = new Map<string, number>();
     for (const d of sig) {
       const p = desireTop(d);
-      if (p) pointing.set(p, (pointing.get(p) ?? 0) + d.weight);
+      if (p) pointing.set(p, (pointing.get(p) ?? 0) + d.weight * cf(d));
     }
     const desireRank = [...pointing.entries()].sort((a, b) => b[1] - a[1]);
 
@@ -2297,7 +2365,7 @@ function buildAct(
     if (!t || !b) continue;
     // Behaviour (ogling, touching, lead-up) points a little; saying you want something, or having done it, points more.
     const [kind, w] = isBehaviour(d) ? (["hint", 0.15] as const) : (["desire", d.kind === "history" ? 0.25 : 0.2] as const);
-    ev.push({ who: t, role: "top", weight: w * d.weight, kind }, { who: b, role: "bottom", weight: w * d.weight, kind });
+    ev.push({ who: t, role: "top", weight: w * d.weight * cf(d), kind }, { who: b, role: "bottom", weight: w * d.weight * cf(d), kind });
   }
   if (roleTagsApply) {
     // Tags alone reach about 60%; "Top X" also says a little about the partner.

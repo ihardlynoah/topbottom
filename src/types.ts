@@ -33,6 +33,10 @@ export interface Desire {
   act: string;
   where: string;
   evidence: string;
+  /** How sure the engine is that this line says what it was read as (0–1). */
+  confidence?: number;
+  /** Why: strength of the wording, how the people were found, hedging, and whether other lines agree. */
+  reasons?: string[];
 }
 
 export interface Confidence {

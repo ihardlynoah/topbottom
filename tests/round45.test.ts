@@ -433,3 +433,47 @@ describe("bottom wishes and tastes: ‘get fucked’, ‘plow me’, ‘I love c
     expect(bottomFor("“I want to get fucked,” Steve said.").some((f) => f.tier === 4)).toBe(true);
   });
 });
+
+describe("every desire, fantasy and hint line carries a confidence", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const run = (line: string) => analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0];
+  const lines = (line: string) => run(line).anal.desires;
+  it("each line has a score between 0.15 and 0.95 and reasons", () => {
+    const d = lines("Steve wanted Eddie to fuck him. Steve checked out Eddie’s ass. “Fuck me,” Steve said.");
+    expect(d.length).toBeGreaterThan(1);
+    for (const x of d) {
+      expect(x.confidence).toBeGreaterThanOrEqual(0.15);
+      expect(x.confidence).toBeLessThanOrEqual(0.95);
+      expect(Array.isArray(x.reasons)).toBe(true);
+    }
+  });
+  it("a hedged line is less sure than the same line stated plainly", () => {
+    const plain = lines("Steve wanted Eddie to fuck him.").find((x) => x.kind === "wanted")!;
+    const hedged = lines("Steve maybe kind of wanted Eddie to fuck him.").find((x) => x.kind === "wanted")!;
+    expect(plain && hedged).toBeTruthy();
+    expect(hedged.confidence!).toBeLessThan(plain.confidence!);
+    expect(hedged.reasons!.join(" ")).toMatch(/hedged/);
+  });
+  it("a spoken line with a named speaker is surer than a fantasy", () => {
+    const said = lines("“Fuck me,” Steve said.").find((x) => x.kind === "said")!;
+    const fant = lines("Steve imagined Eddie fucking him.").find((x) => x.kind === "fantasy" || x.kind === "hypothetical")!;
+    expect(said && fant).toBeTruthy();
+    expect(said.confidence!).toBeGreaterThan(fant.confidence!);
+  });
+  it("lines pointing the same way support each other, and lines pointing the other way count against", () => {
+    const solo = lines("“Fuck me,” Steve said.").find((x) => x.kind === "said")!;
+    const agreeing = lines("“Fuck me,” Steve said. Steve wanted Eddie to fuck him. Steve imagined Eddie fucking him.").find((x) => x.kind === "said")!;
+    const against = lines("“Fuck me,” Steve said. Eddie wanted Steve to fuck him. Eddie imagined Steve fucking him.").find((x) => x.kind === "said" && x.who.startsWith("Steve"))!;
+    expect(agreeing.confidence!).toBeGreaterThan(solo.confidence!);
+    expect(against.confidence!).toBeLessThan(solo.confidence!);
+  });
+  it("a shaky hint moves a hints-only verdict less than a firm one", () => {
+    const firm = run("“Fuck me,” Steve said. Steve wanted Eddie to fuck him. “I want you inside me,” Steve said.").anal.confidence.score;
+    const shaky = run("Steve maybe kind of wanted Eddie to fuck him, probably. Steve might have imagined Eddie fucking him.").anal.confidence.score;
+    expect(firm).toBeGreaterThan(shaky);
+  });
+  it("the overall reasons mention how sure the lines are", () => {
+    expect(run("Steve wanted Eddie to fuck him.").anal.confidence.reasons.join(" ")).toMatch(/% sure on average/);
+  });
+});

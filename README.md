@@ -140,6 +140,11 @@ word count is estimated and the main characters are guessed from frequently capi
    inside me”, “put it in me”, “come inside me”, “plow me”, “take me hard”, “I want to ride that dick” (whoever the cock
    belongs to) are bottom wishes; “I love getting fucked”, “I love taking dick”, “I love cock”, “I’m a cockslut” are stated
    tastes. “Get fucked up”, “fucked over”, “go get fucked” and “use me as a shield” are not.
+   **Per-line confidence.** Every line under “Desire, fantasy & hints” has its own “N% sure” (hover for why). It starts from what
+   kind of line it is (said outright or a stated preference are firm, a fantasy less, a ‘what if’ least) and the strength of
+   the wording, goes up when the person is named or other lines point the same way, and down when the speaker was only guessed,
+   the people were inferred, the wording is hedged (“maybe”, “kind of”) or other lines point the other way. A line’s
+   confidence scales how much it counts toward the verdict’s confidence, the per-person odds and a hints-only reading.
    **Solo acts** get their own card, per person: masturbation (“jerked himself off”, “stroked his own cock”,
    “masturbated”, “got himself off”, “thrust up into his own fist”), self-fingering and toys on oneself. Masturbation
    is never counted toward top or bottom. Self-fingering and toys keep counting as anal-bottom evidence for someone
