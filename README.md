@@ -146,6 +146,12 @@ word count is estimated and the main characters are guessed from frequently capi
    stretch, a sentence that opens with “He felt / wanted / thought…” or “His heart raced…” is them, whoever was named in the
    line before; and in alternating first person a chapter headed with the narrator's name says whose “I” follows. Also new:
    “He wanted to be fucked” / “needed to get fucked” (no one named) is a bottom desire.
+   **Checking the confidence numbers.** Each scene and each desire/hint line has a “✓ Looks right” button next to “Report a
+   mistake”. Pressing it marks the item right; reporting a mistake that says it was misread (wrong top/bottom, wrong speaker,
+   wrong pronoun, not a sex act, a wish…) marks it wrong. Marks are kept in your browser only (never sent anywhere), and the
+   “Is the confidence calibrated?” panel at the bottom shows stated confidence against how often those items were right, in
+   bins, with the average gap. Export them as JSON, import them back or clear them; a summary also goes into the copied
+   mistake report, so the numbers can be tuned against real checks.
    **Tags vs text.** Below the results, each AO3 tag that names an act, a role or a kink is checked against what the patterns
    found: **supported** (with the lines), **not found** (the sex may fade to black or be phrased in a way the patterns miss),
    **contradicted** (a “Top X” tag when the scenes show X bottoming) or **can’t tell**. Act tags (Anal Sex, Blow Jobs, Hand Jobs,

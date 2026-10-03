@@ -347,3 +347,11 @@ footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: 
 .badge.tag-missing { background: var(--unclear); }
 .badge.tag-contra { background: var(--accent); }
 .badge.tag-unknown { background: var(--muted); }
+
+/* Calibration */
+.ok-btn { margin-right: 4px; }
+.calibration { margin-top: 18px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+.calibration > summary { cursor: pointer; font-weight: 600; }
+.calib-table { border-collapse: collapse; margin: 8px 0; font-size: 0.85rem; }
+.calib-table th, .calib-table td { text-align: left; padding: 3px 12px 3px 0; border-bottom: 1px solid var(--border); }
+.calib-actions { font-size: 0.85rem; margin-top: 6px; }

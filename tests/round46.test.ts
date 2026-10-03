@@ -146,3 +146,12 @@ describe("alternating first person, chapters headed with the narrator’s name",
     expect(d.map((x) => `${x.who.split(" ")[0]}:${x.role}`).sort()).toEqual(["Eddie:bottom", "Steve:bottom"]);
   });
 });
+
+describe("calibration lines in the mistake report", () => {
+  it("are printed under their own heading when there are marks, and left out otherwise", async () => {
+    const { buildReport } = await import("../src/report");
+    const input = { source: "patterns", summaries: [], flags: [], missed: [], general: "" };
+    expect(buildReport({ ...input, calibration: ["2 items marked so far (1 right, 1 wrong). Average gap between stated and observed: 40%."] })).toMatch(/## How well the confidence has matched so far\n- 2 items marked/);
+    expect(buildReport(input)).not.toMatch(/How well the confidence/);
+  });
+});

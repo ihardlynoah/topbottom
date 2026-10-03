@@ -90,6 +90,8 @@ export interface ReportInput {
   flags: FlaggedScene[];
   missed: MissedScene[];
   general: string;
+  /** How the engine's stated confidence has matched what the reader marked right or wrong so far. */
+  calibration?: string[];
 }
 
 
@@ -158,6 +160,12 @@ export function buildReport(r: ReportInput): string {
       out.push(`${n + 1}. “${m.passage.trim()}”`);
       if (m.note.trim()) out.push(`   - ${m.note.trim()}`);
     });
+  }
+
+  if (r.calibration?.length) {
+    out.push("");
+    out.push("## How well the confidence has matched so far");
+    for (const l of r.calibration) out.push(`- ${l}`);
   }
 
   if (r.general.trim()) {

@@ -4,6 +4,7 @@ import { hasAo3Meta, romanticPairings } from "./ao3";
 import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerptExplicit } from "./analyze";
 import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
+import { addLabel, calibrationLines, clearLabels, type Label, labelKey, loadLabels, parseLabels, saveLabels, summarize } from "./calibration";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
 import type { ActResult, Analysis, Desire, DynamicRating, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, VaginalResult, VibeFactor, VibeRating } from "./types";
@@ -224,6 +225,7 @@ function reportText(): string {
     flags: [...flagged.values()],
     missed: missedScenes,
     general: els.reportGeneral.value,
+    calibration: calibrationLines(labels),
   });
 }
 
@@ -283,6 +285,86 @@ function vibeExtra(id: string, v: VibeRating | DynamicRating): string[] {
   ];
 }
 
+// ── Marking items right or wrong, to check the confidence numbers ──
+let labels: Label[] = loadLabels();
+/** Reasons that mean the item itself was misread (not just counted too strongly or twice). */
+const WRONG_REASONS = new Set<FlagReason>(["wrong_top", "wrong_bottom", "swapped", "wrong_person", "wrong_speaker", "wrong_pronoun", "wrong_people", "wrong_act", "not_sex", "not_sexual_context", "figurative", "solo", "hypothetical", "negated"]);
+const labelable = (spec: { kind?: FlagKind; card: string; confidence?: number }) =>
+  spec.confidence !== undefined && (spec.kind === "scene" || spec.kind === "hint" || spec.kind === undefined) && !["solo", "manual", "tagcheck", "vibe", "dynamic"].includes(spec.card);
+function recordLabel(spec: { kind?: FlagKind; card: string; confidence?: number; evidence: string }, right: boolean) {
+  if (!labelable(spec) || !spec.evidence) return;
+  const kind = spec.kind === "hint" ? "line" : "scene";
+  labels = addLabel(labels, { key: labelKey(kind, spec.card, spec.evidence), kind, confidence: spec.confidence!, right, at: Date.now() });
+  saveLabels(labels);
+  refreshCalibration();
+  refreshReport();
+}
+
+function refreshCalibration() {
+  const box = document.getElementById("calibration-box");
+  if (!box) return;
+  const s = summarize(labels);
+  box.replaceChildren();
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  if (!s.n) {
+    box.append(el("p", "hint", "Nothing marked yet. Press “Looks right” on a scene or line you checked and agree with, or report a mistake on one that is wrong. Each mark is a data point: stated confidence against whether it was right."));
+  } else {
+    box.append(el("p", "hint", `${s.n} marked (${s.right} right, ${s.n - s.right} wrong). Average gap between stated and observed: ${pct(s.ece)}. ${s.n < 20 ? "Too few for the bins to mean much yet." : ""}`));
+    const table = el("table", "calib-table");
+    const head = el("tr");
+    for (const h of ["Stated", "Marked", "Right", "Average sure"]) head.append(el("th", undefined, h));
+    table.append(head);
+    for (const r of s.rows) {
+      const tr = el("tr");
+      for (const c of [`${pct(r.lo)}–${pct(r.hi)}`, String(r.n), pct(r.observed), pct(r.expected)]) tr.append(el("td", undefined, c));
+      table.append(tr);
+    }
+    box.append(table);
+  }
+  const row = el("div", "calib-actions");
+  const exp = el("button", "linklike", "Export marks (JSON)");
+  exp.type = "button";
+  exp.addEventListener("click", () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ labels }, null, 2)], { type: "application/json" }));
+    a.download = "tbv-marks.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  const imp = el("button", "linklike", "Import marks");
+  imp.type = "button";
+  imp.addEventListener("click", () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.addEventListener("change", async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      for (const l of parseLabels(await f.text())) labels = addLabel(labels, l);
+      saveLabels(labels);
+      refreshCalibration();
+      refreshReport();
+    });
+    input.click();
+  });
+  const clr = el("button", "linklike", "Clear marks");
+  clr.type = "button";
+  clr.disabled = !s.n;
+  clr.addEventListener("click", () => { labels = []; clearLabels(); refreshCalibration(); refreshReport(); });
+  row.append(exp, " · ", imp, " · ", clr);
+  box.append(row);
+}
+
+function renderCalibration(): HTMLElement {
+  const det = el("details", "calibration");
+  det.append(el("summary", undefined, "Is the confidence calibrated?"));
+  const box = el("div");
+  box.id = "calibration-box";
+  det.append(box);
+  queueMicrotask(refreshCalibration);
+  return det;
+}
+
 /** The "Report a mistake" button on a scene, hint or vibe rating, and the little form it opens. */
 type FlagSpec = Omit<FlaggedScene, "reasons" | "note" | "included">;
 function flagControl(li: HTMLElement, spec: FlagSpec) {
@@ -291,6 +373,11 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
   li.dataset.flag = id;
   const btn = el("button", "linklike flag-btn", "Report a mistake");
   btn.type = "button";
+  const okBtn = el("button", "linklike ok-btn", "✓ Looks right");
+  okBtn.type = "button";
+  okBtn.title = "Mark this as correct, to help check how well the confidence numbers match";
+  if (labelable(spec) && labels.some((l) => l.key === labelKey(spec.kind === "hint" ? "line" : "scene", spec.card, spec.evidence) && l.right)) okBtn.textContent = "✓ Marked right";
+  okBtn.addEventListener("click", () => { recordLabel(spec, true); okBtn.textContent = "✓ Marked right"; });
   const form = el("form", "flag-form");
   form.hidden = true;
   const ticks = new Map<FlagReason, HTMLInputElement>();
@@ -328,9 +415,10 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
     li.classList.add("flagged");
     form.hidden = true;
     add.textContent = "Update report";
+    if (reasons.some((r) => WRONG_REASONS.has(r))) { recordLabel(spec, false); okBtn.textContent = "✓ Looks right"; }
     refreshReport();
   });
-  li.append(" ", btn, form);
+  li.append(" ", labelable(spec) ? okBtn : "", " ", btn, form);
 }
 
 // Remember the last passage the reader selected outside the report panel; opening the form would otherwise clear it.
@@ -872,6 +960,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) 
     target.append(block);
   }
   if (a.tagCheck?.length) target.append(renderTagCheck(a.tagCheck, a.source));
+  target.append(renderCalibration());
   notesEl.hidden = !a.notes;
   notesEl.textContent = a.notes;
 }
