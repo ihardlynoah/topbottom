@@ -2,30 +2,47 @@
 // pattern that misfired. Pure text building, no DOM, so it can be tested.
 
 export const FLAG_REASONS = [
+  // Who or what is credited
   { key: "wrong_top", label: "Wrong character is flagged as topping / doing it" },
   { key: "wrong_bottom", label: "Wrong character is flagged as bottoming / receiving" },
   { key: "swapped", label: "Roles are reversed (top and bottom swapped)" },
+  { key: "wrong_person", label: "Credited to the wrong character" },
+  { key: "wrong_speaker", label: "Wrong speaker: someone else said this line" },
+  { key: "wrong_pronoun", label: "A pronoun (he / him / his) points at the wrong person" },
+  { key: "wrong_people", label: "Wrong people (someone outside this pairing)" },
+  // What it is
   { key: "wrong_act", label: "Wrong sexual act is flagged (e.g. oral shown as anal)" },
-  { key: "not_sex", label: "Not a sex act at all" },
+  { key: "not_sex", label: "Not a sex act, or not that kind of cue, at all" },
+  { key: "not_sexual_context", label: "An everyday action, not in a sexual scene" },
+  { key: "figurative", label: "Figure of speech, idiom or joke, not literal" },
   { key: "solo", label: "Solo or reflexive act (himself, his own…) shown as a scene with the partner" },
   { key: "hypothetical", label: "A wish, fantasy or \"what if\", not something that happens" },
-  { key: "wrong_people", label: "Wrong people (someone outside this pairing, or a pronoun pointing at the wrong person)" },
+  { key: "negated", label: "Negated or refused (didn't, wouldn't, never)" },
+  // How much it counts
+  { key: "duplicate", label: "Counted more than once" },
+  { key: "wrong_tier", label: "Belongs in a different evidence tier" },
+  { key: "too_strong", label: "Counts for too much for how weak the clue is" },
+  { key: "too_weak", label: "Counts for too little" },
+  // The overall rating
   { key: "vibe_too_top", label: "Rating leans too far toward top" },
   { key: "vibe_too_bottom", label: "Rating leans too far toward bottom" },
   { key: "vibe_confidence", label: "Confidence is too high or too low" },
   { key: "other", label: "Something else (explain below)" },
 ] as const;
 
-export type FlagKind = "scene" | "hint" | "vibe";
+export type FlagKind = "scene" | "hint" | "vibe" | "factor";
 
 /** Which boxes make sense for what is being reported. */
 export const REASONS_FOR: Record<FlagKind, FlagReason[]> = {
-  scene: ["wrong_top", "wrong_bottom", "swapped", "wrong_act", "not_sex", "solo", "hypothetical", "wrong_people", "other"],
-  hint: ["wrong_top", "swapped", "not_sex", "hypothetical", "wrong_people", "other"],
+  scene: ["wrong_top", "wrong_bottom", "swapped", "wrong_pronoun", "wrong_people", "wrong_act", "not_sex", "figurative", "solo", "hypothetical", "negated", "duplicate", "other"],
+  hint: ["wrong_person", "wrong_speaker", "wrong_pronoun", "swapped", "wrong_people", "not_sex", "not_sexual_context", "figurative", "hypothetical", "negated", "duplicate", "other"],
   vibe: ["vibe_too_top", "vibe_too_bottom", "vibe_confidence", "other"],
+  factor: ["wrong_person", "swapped", "wrong_speaker", "wrong_pronoun", "not_sex", "not_sexual_context", "figurative", "hypothetical", "negated", "duplicate", "wrong_tier", "too_strong", "too_weak", "other"],
 };
 
 export type FlagReason = (typeof FLAG_REASONS)[number]["key"];
+
+export const reasonLabel = (k: FlagReason) => FLAG_REASONS.find((r) => r.key === k)?.label ?? k;
 
 export interface FlaggedScene {
   id: string;
@@ -72,7 +89,6 @@ export interface ReportInput {
   general: string;
 }
 
-const reasonLabel = (k: FlagReason) => FLAG_REASONS.find((r) => r.key === k)?.label ?? k;
 
 export function buildReport(r: ReportInput): string {
   const out: string[] = [];
