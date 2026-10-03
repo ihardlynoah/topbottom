@@ -394,3 +394,42 @@ describe("bottom-coded oral cues: offering the mouth, asking to be fed, licking 
     expect(bottomFactors(line).length, line).toBe(0);
   });
 });
+
+describe("bottom wishes and tastes: ‘get fucked’, ‘plow me’, ‘I love cock’…", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const bottomFor = (line: string) => analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].vibe!.filter((v) => v.name.startsWith("Steve")).flatMap((v) => v.factors!).filter((f) => f.role === "bottom" && f.tier < 7);
+  it.each([
+    "“I want to get fucked,” Steve said.",
+    "“I wanna be fucked so bad,” Steve said.",
+    "“I need to get bred,” Steve whispered.",
+    "“I want him to plow me,” Steve said.",
+    "“I want Eddie to ruin me,” Steve said.",
+    "“I love getting fucked,” Steve said.",
+    "“I love being filled,” Steve said.",
+    "“I love cock,” Steve said.",
+    "“I fucking love taking dick,” Steve said.",
+    "“I want his cock inside me,” Steve said.",
+    "“Put it in me,” Steve said.",
+    "“Plow me,” Steve said.",
+    "“Come inside me,” Steve said.",
+    "“I’m a cockslut,” Steve said.",
+    "“I need cock,” Steve said.",
+    "“Take me hard,” Steve said.",
+  ])("%s", (line) => {
+    expect(bottomFor(line).length, line).toBeGreaterThan(0);
+  });
+  it.each([
+    "“Go get fucked,” Steve said.",
+    "“I want to get fucked up tonight,” Steve said.",
+    "“I love cocktails,” Steve said.",
+    "“Use me as a shield,” Steve said.",
+    "“I want to get fucked over by the bank,” Steve said.",
+  ])("not a bottom wish: %s", (line) => {
+    expect(bottomFor(line).length, line).toBe(0);
+  });
+  it("‘I love getting fucked’ is a stated preference (tier 2), a wish is tier 4", () => {
+    expect(bottomFor("“I love getting fucked,” Steve said.").some((f) => f.tier === 2)).toBe(true);
+    expect(bottomFor("“I want to get fucked,” Steve said.").some((f) => f.tier === 4)).toBe(true);
+  });
+});

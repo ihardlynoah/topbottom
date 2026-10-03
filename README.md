@@ -136,6 +136,10 @@ word count is estimated and the main characters are guessed from frequently capi
    dildo” or “fucked his own ass” (or wearing a plug) counts fully, while “pushed the dildo into his ass” with no
    one else in the sentence counts a little over half as much. A long solo scene counts about twice, not once per
    sentence, and “got himself fucked” or “made himself come” are not solo toy use.
+   Bottom wishes and tastes in dialogue: “I want to get fucked”, “I wanna be bred”, “I want him to plow me”, “I want his cock
+   inside me”, “put it in me”, “come inside me”, “plow me”, “take me hard”, “I want to ride that dick” (whoever the cock
+   belongs to) are bottom wishes; “I love getting fucked”, “I love taking dick”, “I love cock”, “I’m a cockslut” are stated
+   tastes. “Get fucked up”, “fucked over”, “go get fucked” and “use me as a shield” are not.
    **Solo acts** get their own card, per person: masturbation (“jerked himself off”, “stroked his own cock”,
    “masturbated”, “got himself off”, “thrust up into his own fist”), self-fingering and toys on oneself. Masturbation
    is never counted toward top or bottom. Self-fingering and toys keep counting as anal-bottom evidence for someone
