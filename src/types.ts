@@ -29,7 +29,7 @@ export interface Desire {
   role: Role;
   /** false = the character explicitly does NOT want this role. */
   wants: boolean;
-  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname" | "masturbation";
+  kind: "said" | "wanted" | "fantasy" | "hypothetical" | "identity" | "history" | "ogling" | "touch" | "fingering" | "prep" | "fingers" | "solo" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname" | "masturbation" | "handjob";
   act: string;
   where: string;
   evidence: string;
@@ -117,6 +117,25 @@ export interface SoloResult {
   instances: SoloAct[];
 }
 
+/** Hand sex between the pair: handjobs and frottage. Not ranked top/bottom; shown as who does what to whom. */
+export interface ManualAct {
+  /** The one whose hand it is (or either, when mutual). */
+  giver: string;
+  receiver: string;
+  /** "Handjob", "Mutual handjob" or "Frottage". */
+  act: string;
+  mutual: boolean;
+  evidence: string;
+  where: string;
+}
+
+export interface ManualResult {
+  occurs: boolean;
+  summary: string;
+  people: { name: string; gives: number; gets: number; mutual: number }[];
+  instances: ManualAct[];
+}
+
 export interface PairingResult {
   pairing: string;
   anal: ActResult;
@@ -129,6 +148,8 @@ export interface PairingResult {
   vaginal: VaginalResult;
   /** Solo acts by either partner. These are shown on their own; self-fingering and toy use also count toward anal bottom evidence for people with an ass. */
   solo?: SoloResult;
+  /** Handjobs and frottage between the pair. */
+  manual?: ManualResult;
   /** Overall vibe for each partner, from every kind of evidence. */
   vibe?: VibeRating[];
 }

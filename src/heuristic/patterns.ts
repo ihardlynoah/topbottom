@@ -40,7 +40,7 @@ export interface PatternDef {
   femaleTarget?: "flip" | "drop";
   /** Not an act: a hint about who'd top (ogling an ass, grabbing it, staring at a bulge). */
   /** A hint, not an act. `actor` says whose behaviour it is when that isn't the subject ("shoved his fingers into Peter's mouth"). */
-  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo" | "masturbation" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
+  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo" | "masturbation" | "handjob" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
 }
 
 export interface CompiledPattern extends PatternDef {
@@ -2790,6 +2790,66 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.4,
     signal: { kind: "behavior", actorRole: "top" },
     src: `\\b{T}\\s+{aux}(?:(?:took|grabbed|caught)\\s+{B:poss}\\s+(?:hand|arm|wrist|sleeve)\\s*(?:,\\s*)?(?:and\\s+)?(?:led|pulled|tugged|dragged|steered|guided)|(?:led|steered|guided|tugged|ushered|herded|marched)\\s+{B}\\s+(?:by\\s+the\\s+(?:hand|arm|wrist|sleeve)|toward|towards|to|out|inside|through|into|over|along|down|up|away)|gestur\\w*\\s+for\\s+{B}\\s+to\\s+follow)\\b`,
+  },
+  // ───────────── hand sex between the pair: handjobs and frottage (shown on their own card) ─────────────
+  {
+    // "stroked Steve's cock", "worked Eddie's length", "jerked him slowly" with a cock named
+    id: "hj-stroke",
+    cat: "vibe",
+    kw: "strok|jerk|pump|tug|squeez|grip|fist|palm|work|rub|cup|fondl|wrap|curl|clos|tighten|grab|seiz|clutch",
+    act: "handjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:(?:strok|jerk|pump|tugg?|squeez|grip|gripp|fist|palm|work|rubb?|cupp?|fondl|grabb?|seiz|clutch)\\w*\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection|hard-?on|member)|(?:wrapp?|curl|clos|wound)\\w*\\s+(?:a|one|his|her|their)\\s+(?:\\w+\\s+)?hands?\\s+around\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection|hard-?on|member)|(?:tighten|loosen)\\w*\\s+(?:his|her|their)\\s+grip\\s+(?:on|around)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection))\\b`,
+  },
+  {
+    // "shoved a hand into his underwear", "slid a hand down Steve's pants and wrapped it around him"
+    id: "hj-hand-in-pants",
+    cat: "vibe",
+    kw: "hand",
+    act: "handjob",
+    subj: "t",
+    weight: 0.6,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:shov|slid|slip|push|sneak|dip|work|reach|thrust)\\w*\\s+(?:a|one|his|her|their)\\s+(?:\\w+\\s+)?hand\\s+(?:down\\s+|up\\s+)?(?:into|inside|in|down|under)\\s+{B:poss}\\s+(?:underwear|boxers|briefs|shorts|jeans|pants|trousers|sweatpants|waistband)\\b(?!\\s*,?\\s*(?:and\\s+)?(?:squeezed|grabbed|cupped|kneaded)\\s+(?:his|her|their)\\s+(?:ass|butt|cheeks))`,
+  },
+  {
+    // "wrapped his hands around them both" (mutual)
+    id: "hj-around-both",
+    cat: "vibe",
+    kw: "both|together|each other",
+    act: "mutual handjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:wrapp?|curl|clos|wound)\\w*\\s+(?:a|one|his|her|their|both)\\s+(?:\\w+\\s+)?hands?\\s+around\\s+(?:them\\s+both|both\\s+of\\s+them|the\\s+two\\s+of\\s+them|their\\s+(?:cocks|dicks|erections|lengths))`,
+  },
+  {
+    // "rutted against each other", "ground their cocks together", "rubbed their erections together"
+    id: "frottage",
+    cat: "vibe",
+    kw: "together|each other",
+    act: "frottage",
+    subj: "t",
+    weight: 0.7,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:rubb?|grind|ground|rock|rutt?|slid|slide|press|thrust|roll)\\w*\\s+(?:their\\s+)?(?:cocks|dicks|erections|lengths|hard-?ons)\\s+(?:together|against\\s+each\\s+other)`,
+  },
+  {
+    // "just in time for hot ropes of come to splatter across his face"
+    id: "ropes-on-face",
+    cat: "oral",
+    kw: "ropes|streaks|spurts|jets|strands|splashes",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    src: `\\b(?:hot\\s+)?(?:ropes?|streaks?|spurts?|splashes?|jets?|strands?)\\s+of\\s+(?:hot\\s+)?(?:come|cum|spunk|jizz)\\s+(?:to\\s+|that\\s+)?(?:splatter|land|paint|streak|spatter|shoot|hit|spray|splash)\\w*\\s+(?:across|over|on)\\s+{B:poss}\\s+(?:face|lips|cheeks?|chin|tongue|mouth)`,
   },
 ];
 

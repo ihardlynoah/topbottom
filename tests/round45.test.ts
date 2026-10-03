@@ -321,3 +321,35 @@ describe("everyday dynamics between the pair: caretaking, leading by the hand, c
     expect(f(line).length, line).toBe(0);
   });
 });
+
+describe("handjobs and frottage get their own card", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const man = (line: string, pre = "") => analyzeWithPatterns(sb + pre + line, SB, { quiet: true }).pairings[0].manual!;
+  it.each([
+    ["Eddie stroked Steve’s cock slowly, watching his face.", "Eddie", "Steve"],
+    ["Steve wrapped a hand around Eddie’s cock and squeezed.", "Steve", "Eddie"],
+    ["Eddie shoved a hand into Steve’s underwear.", "Eddie", "Steve"],
+    ["Steve kissed Eddie until Eddie tightened his grip on his cock, almost painfully.", "Eddie", "Steve"],
+  ])("%s", (line, giver, receiver) => {
+    const r = man(line);
+    expect(r.occurs, line).toBe(true);
+    expect(r.instances[0].giver).toMatch(new RegExp(giver));
+    expect(r.instances[0].receiver).toMatch(new RegExp(receiver));
+  });
+  it("‘wrapped his hands around them both’ is mutual", () => {
+    const r = man("Eddie wrapped his hands around them both, spit and precum making it slick.");
+    expect(r.instances[0].mutual).toBe(true);
+  });
+  it("‘he stroked his cock’ with no partner around is not a handjob", () => {
+    expect(man("He lay back on the bed alone. He stroked his cock slowly, thinking of nothing.").occurs).toBe(false);
+  });
+  it("a thought about the partner before ‘stroked his cock’ is not a handjob", () => {
+    expect(man("Steve thought about Eddie all night. He stroked his cock in the dark.").occurs).toBe(false);
+  });
+  it("‘ropes of come across his face’ is a facial: the one it lands on is sucking", () => {
+    const p = analyzeWithPatterns(sb + "Steve squeezed his eyes shut just in time for hot ropes of come to splatter across his face.", SB, { quiet: true }).pairings[0];
+    const i = p.blowjob.instances.find((x) => x.evidence.includes("ropes of come"));
+    expect(i?.bottom).toMatch(/Steve/);
+  });
+});

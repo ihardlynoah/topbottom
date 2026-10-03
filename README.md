@@ -142,6 +142,11 @@ word count is estimated and the main characters are guessed from frequently capi
    with an ass; for a woman (or anyone with a vulva) they count that way only when the sentence says ass or anal,
    otherwise they are solo and vaginal. A wish or plan (“wanted to touch himself”, “if he jerked off”) and a partner
    being touched (“jerked Eddie off”) are not solo acts.
+   **Handjobs and frottage** between the pair get a card too: who uses their hand on whom (“stroked Steve’s cock”,
+   “wrapped a hand around Eddie’s cock”, “shoved a hand into his underwear”, “tightened his grip on his cock”), and mutual
+   moments (“wrapped his hands around them both”, “rubbed their cocks together”). They are not ranked top or bottom.
+   “He stroked his cock” counts only with the partner in the sentence or the one before (and no thought of them), because on
+   its own it is usually solo.
    Oral phrasings include a cock taken out of the mouth, a throat squeezing around a cock, a cock forced down the
    throat, fighting the urge to gag, tasting precum at the back of the throat, a grip in the hair with hips pushed
    forward, the back of the tongue around the head, and an open mouth against a zipper. “Not without taking …” cancels

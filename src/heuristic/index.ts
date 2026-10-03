@@ -12,6 +12,8 @@ import {
   type Desire,
   type Instance,
   type PairingResult,
+  type ManualAct,
+  type ManualResult,
   type Role,
   type SoloAct,
   type SoloResult,
@@ -1370,7 +1372,18 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (NEG.test(m.groups?.aux ?? "") || NEG.test(prefix.slice(-40))) return;
       if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
       // A wish, a plan or an attempt isn't a solo act: "wanted to touch himself", "if he jerked off", "tried not to masturbate".
-      if (pat.signal.kind === "masturbation" && (HYPO_AUX.test(m.groups?.aux ?? "") || /\b(?:want\w*|wish\w*|imagin\w*|fantasi[sz]\w*|thought\s+about|think\w*\s+about|if|unless|would|could|might|should|gonna|going\s+to|tempted|temptation|urge|tried|trying|try|needed|need|about\s+to|stop\w*|refus\w*|without|keep\s+from|kept\s+from|resist\w*|difficult|struggl\w*|held\s+back|hold\s+back)\b[^.!?]{0,40}$/i.test(prefix.slice(-60) + " " + (m.groups?.aux ?? "") + " " + m[0].slice(0, 25)))) return;
+      if ((pat.signal.kind === "masturbation" || pat.signal.kind === "handjob") && (HYPO_AUX.test(m.groups?.aux ?? "") || /\b(?:want\w*|wish\w*|imagin\w*|fantasi[sz]\w*|thought\s+about|think\w*\s+about|if|unless|would|could|might|should|gonna|going\s+to|tempted|temptation|urge|tried|trying|try|needed|need|about\s+to|stop\w*|refus\w*|without|keep\s+from|kept\s+from|resist\w*|difficult|struggl\w*|held\s+back|hold\s+back)\b[^.!?]{0,40}$/i.test(prefix.slice(-60) + " " + (m.groups?.aux ?? "") + " " + m[0].slice(0, 25)))) return;
+      // “He stroked his cock” could be his own: a handjob needs the partner in the sentence or the one before, and the
+      // one before mustn't be a thought about them.
+      if (pat.signal.kind === "handjob" && /^(?:his|her|their)$/i.test(bTok ?? "") && !pat.id.includes("both") && pat.id !== "frottage") {
+        const at = para.indexOf(sent);
+        const prevSent = (at > 0 ? para.slice(Math.max(0, at - 240), at) : "").trim().split(/(?<=[.!?”])\s+/).pop() ?? "";
+        const other = ctx.partnerOf(top);
+        const mentions = (txt: string) => new RegExp(`\\b(?:${NAMES})\\b|\\b(?:him|her|them)\\b`, "i").test(txt);
+        const inSentence = (other ? new RegExp(`\\b${other.name.split(" ")[0]}\\b`, "i").test(sent) : false) || /\b(?:him|her)\b/i.test(sent);
+        const prevOk = mentions(prevSent) && !/\b(?:thought|thinking|imagin\w*|pictur\w*|fantasi[sz]\w*|remember\w*|dream\w*|wonder\w*|alone)\b/i.test(prevSent);
+        if (!inSentence && !prevOk) return;
+      }
       // “Cas touched himself” is solo, but “Cas touched Dean, who was jerking himself off” has two people in it: only the subject counts.
 
       // "licking a couple fingers and pushing them in together": wetting his own fingers to open someone up, not being sucked on.
@@ -1654,7 +1667,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // Solo acts get their own card. Self-fingering and toys on oneself still count toward anal bottom evidence, but only for
     // someone with an ass in play: a woman fingering herself is vaginal unless the sentence says ass.
     const soloDes = allPairDes.filter((d) => d.kind === "solo" || d.kind === "masturbation");
-    const pDes = allPairDes.filter((d) => d.kind !== "masturbation" && !(d.kind === "solo" && !soloIsAnal(d)));
+    const manualDes = allPairDes.filter((d) => d.kind === "handjob");
+    const pDes = allPairDes.filter((d) => d.kind !== "masturbation" && d.kind !== "handjob" && !(d.kind === "solo" && !soloIsAnal(d)));
     const tagged = pairOrder.get(key);
     const members = tagged ?? (pActs[0] ? [pActs[0].top, pActs[0].bottom] : pDes[0] ? [pDes[0].who, pDes[0].partner!] : undefined);
     if (!members) continue;
@@ -1687,7 +1701,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     const vibe = buildVibes(pair, pActs, pDes, pairTags, meta, where);
     const solo = buildSolo(pair, soloDes, where);
-    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, solo, vibe, weight, key });
+    const manual = buildManual(pair, manualDes, where);
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, solo, manual, vibe, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
 
@@ -1794,6 +1809,31 @@ function buildSolo(pair: [Character, Character], hits: DesireHit[], where: (pi: 
     people,
     instances,
   };
+}
+
+function buildManual(pair: [Character, Character], hits: DesireHit[], where: (pi: number) => string): ManualResult {
+  const seen = new Set<string>();
+  const instances: ManualAct[] = [];
+  for (const d of hits) {
+    if (!d.wants || !d.partner || !pair.includes(d.who) || !pair.includes(d.partner)) continue;
+    const key = `${d.para}\u0000${d.sentence}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const mutual = /^(?:mutual|frottage)/i.test(d.act);
+    const act = d.act === "frottage" ? "Frottage" : mutual ? "Mutual handjob" : "Handjob";
+    instances.push({ giver: d.who.name, receiver: d.partner.name, act, mutual, evidence: truncate(d.sentence), where: where(d.para) });
+  }
+  const people = pair.map((c) => ({
+    name: c.name,
+    gives: instances.filter((i) => !i.mutual && i.giver === c.name).length,
+    gets: instances.filter((i) => !i.mutual && i.receiver === c.name).length,
+    mutual: instances.filter((i) => i.mutual).length,
+  }));
+  const parts: string[] = [];
+  for (const p of people) if (p.gives) parts.push(`${p.name} gives a handjob ×${p.gives}`);
+  const mut = instances.filter((i) => i.mutual).length;
+  if (mut) parts.push(`mutual/frottage ×${mut}`);
+  return { occurs: instances.length > 0, summary: parts.length ? parts.join("; ") : "No handjobs or frottage recognized.", people, instances };
 }
 
 // ───────────── vaginal sex (occurrence only) ─────────────
