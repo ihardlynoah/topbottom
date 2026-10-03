@@ -5,6 +5,7 @@ import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerp
 import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { addLabel, calibrationLines, clearLabels, type Label, labelKey, loadLabels, parseLabels, saveLabels, summarize } from "./calibration";
+import { testSkeletons } from "./testgen";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
 import type { ActResult, Analysis, Desire, DynamicRating, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, VaginalResult, VibeFactor, VibeRating } from "./types";
@@ -47,6 +48,7 @@ const els = {
   missedSelection: $<HTMLButtonElement>("missed-selection"),
   reportCopy: $<HTMLButtonElement>("report-copy"),
   reportClear: $<HTMLButtonElement>("report-clear"),
+  reportTests: $<HTMLButtonElement>("report-tests"),
   reportPreview: $("report-preview"),
 };
 
@@ -234,6 +236,7 @@ function refreshReport() {
   els.reportCount.textContent = n ? `${n} item${n === 1 ? "" : "s"}` : "none yet";
   els.reportCopy.disabled = !n && !els.reportGeneral.value.trim();
   els.reportClear.disabled = !n;
+  els.reportTests.disabled = !n;
   els.reportList.replaceChildren();
   for (const f of flagged.values()) {
     const li = el("li");
@@ -462,6 +465,19 @@ els.reportCopy.addEventListener("click", async () => {
     els.reportCopy.textContent = "Select the text below";
   }
   setTimeout(() => { els.reportCopy.textContent = "Copy report for Claude"; }, 2500);
+});
+
+els.reportTests.addEventListener("click", async () => {
+  const text = testSkeletons([...flagged.values()], missedScenes);
+  try {
+    await navigator.clipboard.writeText(text);
+    els.reportTests.textContent = "Copied!";
+  } catch {
+    els.reportPreview.textContent = text;
+    (els.reportPreview.closest("details") as HTMLDetailsElement | null)?.setAttribute("open", "");
+    els.reportTests.textContent = "Select the text below";
+  }
+  setTimeout(() => { els.reportTests.textContent = "Copy test skeletons"; }, 2500);
 });
 
 // ---- rendering ----

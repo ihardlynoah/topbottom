@@ -198,6 +198,9 @@ word count is estimated and the main characters are guessed from frequently capi
    bottom, or the wrong confidence) and say why. Select part of a sentence first and it’s noted as the part you mean.
    Missed scenes (or any text you select on the page) and other comments can be added too, and each item has a
    checkbox to leave it out of the report.
+   **Copy test skeletons** turns the same items into a vitest file with one test each (swapped roles expect the
+   reverse, a wish expects no scene, and so on). The fic’s sentence appears only in a comment to delete; you replace
+   each `PARAPHRASE_ME` with a made-up sentence, fill in the TODOs, and check the test fails before the fix.
    Each individual factor under a vibe rating has its own “What's wrong with this?” form with options for a wrong
    speaker, a pronoun pointing at the wrong person, credited to the wrong character, roles reversed, not a sexual cue,
    an everyday action, a figure of speech, a wish rather than an event, negated, counted twice, wrong tier, and counts
