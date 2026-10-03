@@ -277,7 +277,7 @@ Your API key stays in your browser and is sent only to `api.anthropic.com`.
 ## Vibe display: two ratings or one
 
 **Text messages.** Chat-style lines ("Shane: Why?", often under a timestamp, with a phone cue or a long exchange nearby) and
-narrated texting ("Cas texted him", "his phone buzzed") are recognized so the lines can be attributed: a contact name ("Lily",
+bracketed logs ("[Anakin] pick up your phone"), narrated texting ("Cas texted him", "he texts Eddie back", "his phone buzzes with a text. It's Buck") are recognized so the lines can be attributed: a contact name ("Lily",
 "Unknown Number") is matched to the character on the other end, and each chat line is rewritten as dialogue from the sender
 before analysis, so a texted "I want to fuck you" counts like a spoken one. There is no separate card; "Texting" and "Sexting"
 tags are checked against the text in the tags-vs-text section.
@@ -356,7 +356,7 @@ AO3_DIR=ao3-samples npx vitest run tests/gold-eval.test.ts                      
   and the labels disagree; after relabelling run `WRITE_RELIABILITY=1 npx vitest run tests/reliability.test.ts`. Fixing a
   pattern makes its old labels stale, so relabel its samples from a fresh audit (`AUDIT_SAMPLES=8`, which also writes
   `PATTERN_AUDIT.json` with a key per row). Mistake reports name the pattern behind each flagged line.
-- **Gold labels.** `tests/gold/*.json` hold hand-checked readings of real fics: verdicts per pairing and act, which scenes are
+- **Gold labels.** `tests/gold/*.json` hold hand-checked readings of real fics (six now: hockey, rugby, werewolf, Star Wars, 9-1-1 and an omegaverse Stranger Things AU): verdicts per pairing and act, which scenes are
   real and who tops (as paragraph ranges), acts whose scene list is complete (any extra scene is a false positive), known
   false positives, who the point of view is by section, and who sent which text. They store paragraph numbers and a hash of
   each paragraph, never the fic's own text; if the engine's paragraph splitting changes, the hash lets a file shift itself.
