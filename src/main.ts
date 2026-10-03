@@ -496,8 +496,13 @@ function renderDesires(desires: Desire[], kind: ActKind, pairing: string, source
   desires.forEach((d, n) => {
     const li = el("li");
     li.append(el("strong", undefined, desirePhrase(d, kind)), el("span", "where", ` · ${d.act} · ${d.where}`));
+    if (d.confidence !== undefined) {
+      const c = el("span", `scene-conf ${d.confidence >= 0.75 ? "high" : d.confidence >= 0.5 ? "medium" : "low"}`, `${Math.round(d.confidence * 100)}% sure`);
+      if (d.reasons?.length) c.title = d.reasons.join("; ");
+      li.append(c);
+    }
     li.append(el("div", "evidence", d.evidence));
-    flagControl(li, { id: `${source}|${pairing}|${kind}|hint|${n}`, kind: "hint", pairing, card: kind, top: d.who, bottom: `${d.wants ? "" : "NOT "}${d.role} (${d.kind})`, act: d.act, where: d.where, evidence: d.evidence });
+    flagControl(li, { id: `${source}|${pairing}|${kind}|hint|${n}`, kind: "hint", pairing, card: kind, top: d.who, bottom: `${d.wants ? "" : "NOT "}${d.role} (${d.kind})`, act: d.act, confidence: d.confidence, confidenceReasons: d.reasons, where: d.where, evidence: d.evidence });
     ul.append(li);
   });
   det.append(ul);
