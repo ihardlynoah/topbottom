@@ -206,7 +206,7 @@ function cardSummaries(a: Analysis): string[] {
     }
     if (p.vaginal.instances.length) out.push(`${p.pairing} · vaginal: ${p.vaginal.instances.length} scene(s)`);
     if (p.solo?.occurs) out.push(`${p.pairing} · solo: ${p.solo.summary}`);
-    if (p.manual?.occurs) out.push(`${p.pairing} · handjobs & frottage: ${p.manual.summary}`);
+    if (p.manual?.occurs) out.push(`${p.pairing} · hands & body play: ${p.manual.summary}`);
     for (const v of p.vibe ?? []) out.push(`${p.pairing} · vibe ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
     for (const v of p.dynamic ?? []) if (v.label !== "Unclear") out.push(`${p.pairing} · everyday dynamic ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
   }
@@ -787,9 +787,9 @@ function renderTagCheck(checks: TagCheck[], source: string): HTMLElement {
 function renderManual(v: ManualResult, pairing: string, source: string): HTMLElement {
   const card = el("article", "card act verdict-one_way");
   const head = el("div", "act-head");
-  head.append(el("h4", undefined, "Handjobs & frottage"), el("span", "badge one_way", `${v.instances.length} found`));
+  head.append(el("h4", undefined, "Handjobs, frottage & body play"), el("span", "badge one_way", `${v.instances.length} found`));
   card.append(head, el("p", "summary", v.summary));
-  card.append(el("p", "hint", "Not ranked top or bottom: this shows who uses their hand on whom."));
+  card.append(el("p", "hint", "Not ranked top or bottom: this shows who uses their hand (or thighs, or chest) on whom."));
   const det = el("details", "instances");
   det.append(el("summary", undefined, `${v.instances.length} moment${v.instances.length === 1 ? "" : "s"}`));
   const ul = el("ul");

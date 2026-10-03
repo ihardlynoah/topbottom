@@ -1212,6 +1212,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         ? "“rode him” can describe either partner" : holeGuess === "ambiguous" ? "the sentence doesn't say which hole" : undefined;
       // "Now he knew what it was like to fuck Ilya Rozanov": a look back that, after being the bottom, means "have sex with".
       const retro = /\bwhat it (?:was|is|felt|had been|'d been)\s+like\s+to\b/i.test(sent);
+      // "took them both at once": everyone else named just before is inside him too.
+      if (pat.id.startsWith("dp-took-both")) {
+        const earlier = paras.slice(Math.max(0, pi - 1), pi).join(" ") + " " + para.slice(0, para.indexOf(original) + original.length);
+        for (const c of cast.chars) {
+          if (c === top || c === bottom || c === cast.secondPerson || !c.aliases.some((a) => earlier.includes(a))) continue;
+          acts.push({ via: pat.id, cat, act, top: c, bottom, weight: weight * 0.9, basis: "named", para: pi, sentence: original, context: contextAround(paras[pi] ?? "", original) });
+        }
+      }
       acts.push({ via: pat.id, cat, act, top, bottom, weight: retro ? weight * 0.4 : weight, basis, para: pi, sentence: original, holeGuess, shaky: retro ? "“what it was like to…” looks back on an earlier time and can describe either partner" : shaky, context: contextAround(paras[pi] ?? "", original) });
       ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;

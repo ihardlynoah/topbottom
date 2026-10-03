@@ -2820,7 +2820,77 @@ export const PATTERNS: PatternDef[] = [
     signal: { kind: "behavior", actorRole: "top" },
     src: `\\b{T}\\s+{aux}(?:(?:took|grabbed|caught)\\s+{B:poss}\\s+(?:hand|arm|wrist|sleeve)\\s*(?:,\\s*)?(?:and\\s+)?(?:led|pulled|tugged|dragged|steered|guided)|(?:led|steered|guided|tugged|ushered|herded|marched)\\s+{B}\\s+(?:by\\s+the\\s+(?:hand|arm|wrist|sleeve)|toward|towards|to|out|inside|through|into|over|along|down|up|away)|gestur\\w*\\s+for\\s+{B}\\s+to\\s+follow)\\b`,
   },
+  // ───────────── fisting and double penetration (anal acts) ─────────────
+  {
+    // "fisted Eddie", "fisting him": needs sex around so a punch or a fistful of shirt isn't read as one
+    id: "fisting-verb",
+    cat: "anal",
+    kw: "fist",
+    act: "fisting",
+    subj: "t",
+    weight: 1,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}fist(?:ed|s|ing)?\\s+{B}(?![\\w'’-])(?!\\s+(?:in|on|against|into)\\s+(?:the|his|her|their)\\s+(?:face|jaw|chest|stomach|gut|shoulder|arm))`,
+  },
+  {
+    // "worked his whole fist into Eddie's ass", "slid his hand up inside him"
+    id: "fist-into",
+    cat: "anal",
+    kw: "fist|hand",
+    act: "fisting",
+    subj: "t",
+    weight: 1,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}(?:work|push|slid|slide|slip|sink|sank|eas|shov|forc|press|fit|drove|plung|thrust)\\w*\\s+(?:(?:his|her|their)\\s+)?(?:(?:whole|entire|full|slick|lubed|wet|big)\\s+)*(?:fist\\s+(?:slowly\\s+|carefully\\s+|deep\\s+|all\\s+the\\s+way\\s+)*(?:in(?:to|side)?(?:\\s+of)?|up)\\s+{B:ass}|hand\\s+(?:slowly\\s+|carefully\\s+|deep\\s+|all\\s+the\\s+way\\s+)*(?:in(?:to|side)?(?:\\s+of)?|up)\\s+{B:assReq})`,
+  },
+  {
+    // "took them both at once", "took both of them inside him": two people inside one
+    id: "dp-took-both",
+    cat: "anal",
+    kw: "both|two of them|them",
+    act: "double penetration",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:took|take|takes|taking|had|has)\\s+(?:them\\s+both|both\\s+of\\s+them|the\\s+two\\s+of\\s+them|both(?:\\s+(?:cocks|dicks))?)\\s+(?:at\\s+once|together|at\\s+the\\s+same\\s+time|inside(?:\\s+(?:him|her|them))?|in\\s+(?:his|her|their)\\s+(?:ass|hole))`,
+  },
   // ───────────── hand sex between the pair: handjobs and frottage (shown on their own card) ─────────────
+  {
+    // "fucked between Eddie's thighs", "slid his cock between Eddie's thighs": thigh sex, not ranked
+    id: "thigh-fuck",
+    cat: "vibe",
+    kw: "thigh|leg",
+    act: "thigh-fucking",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "bottom", actor: "b" },
+    src: `\\b{T}\\s+{aux}(?:(?:fuck|thrust|rutt?|pump|hump|rock|grind|ground)\\w*|(?:slid|slide|slip|push|work)\\w*\\s+(?:his|her|their)\\s+(?:cock|dick|length|shaft))\\s+(?:(?:his|her|their)\\s+(?:cock|dick|length|shaft|hips)\\s+)?(?:\\w+ly\\s+)?(?:between|into)\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:thighs|legs)`,
+  },
+  {
+    // "Eddie squeezed his thighs tight around Steve's cock"
+    id: "thighs-around-cock",
+    cat: "vibe",
+    kw: "thigh",
+    act: "thigh-fucking",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:squeez|clench|clamp|press|tighten|clos)\\w*\\s+(?:his|her|their)\\s+thighs\\s+(?:\\w+\\s+){0,2}?(?:around|on|over)\\s+{T:poss}\\s+(?:cock|dick|length|shaft)`,
+  },
+  {
+    // "thrust his cock between Eddie's pecs", "fucked her chest", "titfucked her"
+    id: "chest-fuck",
+    cat: "vibe",
+    kw: "pecs|chest|breasts|tits|boobs|cleavage|tit-?fuck",
+    act: "titfucking",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "bottom", actor: "b" },
+    src: `\\b{T}\\s+{aux}(?:(?:fuck|thrust|rutt?|pump|hump|rock|slid|slide|slip|push)\\w*\\s+(?:(?:his|her|their)\\s+(?:cock|dick|length|shaft)\\s+)?(?:\\w+ly\\s+)?(?:between|across|against)\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:pecs|chest|breasts|tits|boobs|cleavage)|(?:fuck|rutt?|hump)\\w*\\s+{B:poss}\\s+(?:pecs|chest|breasts|tits|boobs)|tit-?fuck(?:s|ed|ing)?\\s+{B})`,
+  },
   {
     // "stroked Steve's cock", "worked Eddie's length", "jerked him slowly" with a cock named
     id: "hj-stroke",
@@ -3153,6 +3223,8 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "oral", act: "blowjob", role: "bottom", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?(?:suck (?:you(?: off)?|your (?:cock|dick))|blow you|taste your (?:cock|dick)|go down on you|get my mouth on (?:you|your (?:cock|dick))|choke on (?:you|your (?:cock|dick))|deep-?throat you)\\b`) },
   { cat: "oral", act: "blowjob", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|just\s+)(?:fuck|use) my (?:mouth|throat|face)\b/ },
   { cat: "oral", act: "blowjob", role: "bottom", kind: "said", re: /\b(?:come|cum) (?:in|down) my (?:mouth|throat)\b/ },
+  { cat: "anal", act: "fisting", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+)fist me\b|\b(?:want|need|wanna|gonna|going to)\s+(?:you\s+)?to\s+fist\s+me\b/ },
+  { cat: "anal", act: "fisting", role: "top", kind: "said", re: /\b(?:want|wanna|gonna|going to|need|let me)\s+(?:to\s+)?fist\s+you\b/ },
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|just\s+)(?:eat me out|rim me|lick me open|eat my (?:ass|arse)|tongue-?fuck me)\b/ },
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /\b(?:want|need|wanna)\s+(?:you\s+)?to\s+(?:eat me out|rim me|eat my (?:ass|arse))\b/ },
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /\b(?:want|need)\s+your\s+(?:tongue|mouth)\s+(?:in\s+me|(?:in|on)\s+my\s+(?:ass|arse|hole))\b/ },

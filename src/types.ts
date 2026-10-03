@@ -142,7 +142,7 @@ export interface ManualAct {
   /** The one whose hand it is (or either, when mutual). */
   giver: string;
   receiver: string;
-  /** "Handjob", "Mutual handjob" or "Frottage". */
+  /** "Handjob", "Mutual handjob", "Frottage", "Thigh sex" or "Chest sex" (giver = whose thighs or chest). */
   act: string;
   mutual: boolean;
   evidence: string;

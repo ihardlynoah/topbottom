@@ -59,7 +59,7 @@ export function buildManual(pair: [Character, Character], hits: DesireHit[], whe
     if (seen.has(key)) continue;
     seen.add(key);
     const mutual = /^(?:mutual|frottage)/i.test(d.act);
-    const act = d.act === "frottage" ? "Frottage" : mutual ? "Mutual handjob" : "Handjob";
+    const act = d.act === "frottage" ? "Frottage" : /^thigh/i.test(d.act) ? "Thigh sex" : /^tit/i.test(d.act) ? "Chest sex" : mutual ? "Mutual handjob" : "Handjob";
     instances.push({ giver: d.who.name, receiver: d.partner.name, act, mutual, evidence: truncate(d.sentence), where: where(d.para) });
   }
   const people = pair.map((c) => ({
@@ -69,10 +69,19 @@ export function buildManual(pair: [Character, Character], hits: DesireHit[], whe
     mutual: instances.filter((i) => i.mutual).length,
   }));
   const parts: string[] = [];
-  for (const p of people) if (p.gives) parts.push(`${p.name} gives a handjob ×${p.gives}`);
+  for (const p of people) {
+    const hands = instances.filter((i) => !i.mutual && i.giver === p.name && i.act === "Handjob").length;
+    if (hands) parts.push(`${p.name} gives a handjob ×${hands}`);
+  }
   const mut = instances.filter((i) => i.mutual).length;
   if (mut) parts.push(`mutual/frottage ×${mut}`);
-  return { occurs: instances.length > 0, summary: parts.length ? parts.join("; ") : "No handjobs or frottage recognized.", people, instances };
+  for (const [act, what] of [["Thigh sex", "between their thighs"], ["Chest sex", "between their chest"]] as const) {
+    for (const p of people) {
+      const n = instances.filter((i) => i.act === act && i.giver === p.name).length;
+      if (n) parts.push(`${instances.find((i) => i.act === act && i.giver === p.name)!.receiver} thrusts ${what.replace("their", `${p.name}’s`)} ×${n}`);
+    }
+  }
+  return { occurs: instances.length > 0, summary: parts.length ? parts.join("; ") : "No handjobs, frottage or other body play recognized.", people, instances };
 }
 
 // ───────────── vaginal sex (occurrence only) ─────────────
