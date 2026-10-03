@@ -17,7 +17,10 @@ export interface PovMap {
   source: "headings" | "feelings" | "none";
 }
 
-export function detectPov(paras: string[], isChapterHead: (p: string) => boolean, cast: Cast, alternating = false): PovMap {
+export function detectPov(paras: string[], isChapterHead: (p: string) => boolean, cast: Cast, alternatingIn = false): PovMap {
+  // The opener and mid-section rules read close third person ("Shane felt…"). In first person the first name in a section is the
+  // one the narrator is talking to, so they would point at the wrong character.
+  const alternating = alternatingIn && !cast.narrator;
   const at: (Character | undefined)[] = new Array(paras.length).fill(undefined);
   if (!cast.aliasPattern) return { at, source: "none" };
   const nameRe = new RegExp(`\\b(${cast.aliasPattern})\\b`, "g");
@@ -32,6 +35,7 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
   // A line that opens on a main character's name and then breaks off before any sentence: "Steve, Tuesday night",
   // "Eddie – later". Not when it opens with a quotation mark, and not when it is a full sentence ("Steve laughed.").
   const leadsWithName = (p: string): Character | undefined => {
+    if (cast.narrator) return undefined; // first person: the engine reads "Scott - Saturday, …" narrator headings itself
     if (/^["“”‘'«]/.test(p) || /["“”]/.test(p)) return undefined;
     const m = p.match(new RegExp(`^(${cast.aliasPattern})\\b(.*)$`));
     if (!m) return undefined;
@@ -42,6 +46,7 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
     // "Ilya: who is this" is a chat line, not a heading: after a colon only a time or place may follow.
     if (rest.startsWith(":") && !/\b(?:\d|later|night|morning|evening|afternoon|dawn|dusk|earlier|before|after|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(rest)) return undefined;
     if (/[.!?]\s+\S/.test(rest)) return undefined; // another sentence follows on the same line
+    if (/[.!?]"?$/.test(rest) || rest.split(/\s+/).length > 8) return undefined; // a full sentence or a summary, not a heading
     return c;
   };
   const pairChars = new Set(cast.pairings.flat());

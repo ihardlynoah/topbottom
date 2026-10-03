@@ -211,3 +211,12 @@ describe("POV in an alternating work with dated sections", () => {
     expect(wishes(text)).toEqual(["Ilya"]);
   });
 });
+
+describe("alternating POV in first person", () => {
+  it("the section opener rule is not used: the first name in a first-person section is who the narrator talks to", () => {
+    const m: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Teen Wolf"], relationships: ["Derek Hale/Stiles Stilinski"], characters: ["Derek Hale", "Stiles Stilinski"], freeforms: ["POV First Person", "POV Alternating"] };
+    const text = `Derek and Stiles lay in bed, kissing. Derek kissed Stiles. Stiles kissed Derek back.\n\nJune 2011– Las Vegas\n\nStiles’ face went serious and I felt my stomach flip. Stiles smiled at me. I wanted to be fucked.`;
+    const r = analyzeWithPatterns(text, m, { quiet: true });
+    expect(r.pairings[0].anal.desires.some((d) => d.who.startsWith("Stiles") && d.role === "bottom" && d.wants)).toBe(false);
+  });
+});

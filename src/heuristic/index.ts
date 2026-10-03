@@ -211,7 +211,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       chapter = para.length > 60 ? para.slice(0, 60) + "…" : para;
     }
     chapters[pi] = chapter;
-    ctx.povNow = pov.at[pi];
+    ctx.povNow = cast.narrator ? undefined : pov.at[pi]; // in first person "he" is never the narrator
     // Alternating first person: a chapter headed with the narrator's name says whose "I" follows.
     if (cast.narrator && pov.source === "headings" && pov.at[pi]) ctx.narratorNow = pov.at[pi];
     // Alternating first person: a short heading that is just a character's name (and a date) says whose "I" follows.
