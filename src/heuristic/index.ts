@@ -831,7 +831,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (!m) continue;
       // Suggestive lines ("take it", "you're so tight", "you're huge") only count when the narration around them
       // is sexual: "please take it" can be a gift, "too proud to take it" help.
-      if (d.weight !== undefined && d.weight < 1 && d.kind === "said" && !around.sexy) continue;
+      if (d.weight !== undefined && d.weight < 1 && (d.kind === "said" || d.kind === "petname" || d.kind === "position" || d.kind === "aftercare") && !around.sexy) continue;
       if (d.cat === "anal" && IDIOM_ASS.test(lower)) continue;
       // "Fuck me, it's cold" / "Well, fuck me" / "fuck me sideways": an exclamation, not a request.
       if (/^fuck me$/.test(m[0]) && exasperated(lower, m.index!, around)) continue;
@@ -1250,7 +1250,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       } else if (hole === "ambiguous" && !holeGuess) {
         ambiguousHoles++;
         return;
-      } else if (top.penis === false && act !== "fingering" && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|butt ?plug|vibrator|anal beads)\b/i.test(para)) {
+      } else if (top.penis === false && act !== "fingering" && !/\b(?:sodomi[sz]\w*|bugger\w*)\b/i.test(sent) && !/\b(?:strap\w*|dildo|toy|peg\w*|harness|butt ?plug|vibrator|anal beads)\b/i.test(para)) {
         // A woman "fucking" someone with no strap-on mentioned: not anal penetration by her.
         return;
       }
@@ -1291,7 +1291,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const negWindow = window.slice(-40).replace(/\bwithout\s+(?:any\s+|much\s+|further\s+|more\s+|so much as\s+|a\s+)*(?:preamble|ado|hesitation|hesitating|warning|ceremony|delay|word|sound|protest|pause|question|complaint|fanfare|prelude|resistance|effort|being asked|asking|waiting|thought)\b|\b(?:just\s+)?not\s+(?:just\s+)?(?:yet|before|until|quite|now)\b|\b(?:did|does|do|would|will|won|could)(?:n['’]t| not)\s+take\s+(?:long|much|any time|a lot)\b/gi, " ");
     // "if Cas doesn't fuck him soon, he might die": a conditional, which says it is wanted, not refused.
     const ifNot = /\bif\s+(?:[\w'’-]+\s+){0,2}(?:doesn['’]t|don['’]t|didn['’]t|won['’]t|hadn['’]t|isn['’]t|wasn['’]t)\s*$/i.test(window) || (/\bif\s+(?:[\w'’-]+\s+){0,2}$/i.test(window) && NEG.test(aux));
-    const negated = !ifNot && (NEG.test(aux) || NEG.test(negWindow));
+    // "tried not to suppress the urge to pull out and snap back in": not resisting a wish means having it.
+    const doubleNeg = /\b(?:not|n['’]t|never|without)\s+(?:to\s+)?(?:\w+\s+){0,2}?(?:suppress|resist|fight|hold back|stifle|restrain|deny|ignore|squash|stop|hide|push down|swallow|fight off)\w*\s+(?:\w+\s+){0,2}(?:urge|desire|need|want|impulse|temptation|craving)/i.test(window);
+    const negated = !ifNot && !doubleNeg && (NEG.test(aux) || NEG.test(negWindow));
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
     else if (DESIRE_LEAD.test(sent) || DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
@@ -1455,7 +1457,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // Two women with no anal in the text: "Top X / Bottom Y" tags are about strap-on or other play, not anal sex.
     const analWords = /\b(?:ass|arse|butt|anal|asshole|arsehole|hole|plug|rim\w*|backdoor)\b/i;
     const noAnalHere = pair[0].penis === false && pair[1].penis === false && !pActs.some((a) => a.cat === "anal") && pDes.filter((d) => d.cat === "anal" && analWords.test(d.sentence ?? "")).length < 3;
-    const analTags: PairTags = noAnalHere ? { roles: [], switching: [], actTags: { ...pairTags.actTags, anal: [] } } : pairTags;
+    const analTags: PairTags = noAnalHere ? { roles: [], dynamics: [], dynamicTags: [], switching: [], actTags: { ...pairTags.actTags, anal: [] } } : pairTags;
     const anal = buildAct("anal", pActs.filter((a) => a.cat === "anal"), noAnalHere ? [] : pDes.filter((d) => d.cat === "anal"), analTags, pair, meta, where);
     const oralActs = pActs.filter((a) => a.cat === "oral");
     const oralDes = pDes.filter((d) => d.cat === "oral");
@@ -1583,7 +1585,9 @@ function buildVaginal(hits: ActHit[], pair: [Character, Character], meta: Ao3Met
 // ───────────── per-act verdicts ─────────────
 
 interface PairTags {
-  roles: { char: Character; role: "top" | "bottom" | "switch"; tag: string }[];
+  roles: { char: Character; role: "top" | "bottom" | "switch"; tag: string; style?: "power" | "service" | "pillow" }[];
+  dynamics: { char: Character; lean: "top" | "bottom"; tag: string }[];
+  dynamicTags: string[];
   switching: string[];
   actTags: Record<"anal" | "oral" | OralKind, string[]>;
 }
@@ -1591,6 +1595,8 @@ interface PairTags {
 function tagsFor(info: TagInfo, pair: [Character, Character], isMain: boolean): PairTags {
   return {
     roles: info.roles.filter((r) => pair.includes(r.char)),
+    dynamics: info.dynamics.filter((r) => pair.includes(r.char)),
+    dynamicTags: isMain ? info.dynamicTags : [],
     switching: isMain ? info.switching : [],
     actTags: isMain
       ? { anal: info.anal, oral: info.oral, blowjob: info.blowjobs, rimming: info.rimming, cunnilingus: info.oral.filter((t) => /cunnilingus|eating out|pussy/i.test(t)) }
@@ -1612,7 +1618,7 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
   // 1. Sex acts: penetration, strap-ons and fingering (oral isn't about topping).
   for (const a of acts) {
     if (a.cat !== "anal" && !(a.cat === "vaginal" && !/scissor/i.test(a.act))) continue;
-    const w = (a.basis === "named" ? 1 : a.basis === "pronoun" ? 0.8 : 0.6) * (/fingering/i.test(a.act) ? 0.15 : 0.5);
+    const w = (a.basis === "named" ? 1 : a.basis === "pronoun" ? 0.8 : 0.6) * (/fingering/i.test(a.act) ? 0.15 : 0.5) * (a.shaky ? 0.4 : 1);
     add(a.top, 1, "top", w);
     add(a.bottom, 1, "bottom", w);
   }
@@ -1623,9 +1629,18 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
       add(r.char, 2, "top", 0.6);
       add(r.char, 2, "bottom", 0.6);
     } else {
-      add(r.char, 2, r.role, 1);
+      add(r.char, 2, r.role, r.style === "pillow" ? 0.9 : 1);
       add(other(r.char), 2, flip(r.role), 0.5);
+      // A power bottom runs the show; a service top is there to please.
+      if (r.style === "power") add(r.char, 6, "top", 0.5);
+      if (r.style === "service") add(r.char, 6, "bottom", 0.4);
     }
+  }
+  // "Dominant Dean", "Submissive Cas": a dynamic, which leans that way but isn't the same as topping.
+  for (const d of tags.dynamics) {
+    if (!items.has(d.char)) continue;
+    add(d.char, 2, d.lean, 0.6);
+    add(other(d.char), 2, flip(d.lean), 0.3);
   }
   for (const c of pair) if (tags.switching.length) { add(c, 2, "top", 0.4); add(c, 2, "bottom", 0.4); }
   const TIER_OF: Partial<Record<Desire["kind"], [VibeItem["tier"], number]>> = {
@@ -1634,6 +1649,8 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     said: [4, 0.6], wanted: [4, 0.8], fantasy: [4, 0.6], hypothetical: [4, 0.4], history: [4, 0.5],
     ogling: [5, 0.4], fingers: [5, 0.4], solo: [5, 0.4],
     behavior: [6, 0.4],
+    // Says what they are or prefer (tier 2), aftermath of sex (tier 3), position, aftercare and pet names (tier 6).
+    stated: [2, 0.8], body: [3, 0.8], position: [6, 0.4], aftercare: [6, 0.3], petname: [6, 0.25],
   };
   for (const d of des) {
     if (usesToyOnSelf(d) && d.wants && items.has(d.who)) {
@@ -1644,7 +1661,9 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     if (!hit || !items.has(d.who)) continue;
     if (d.cat === "oral") continue;
     const [tier, w] = hit;
-    add(d.who, tier, d.wants ? d.role : flip(d.role), d.wants ? w : w * 0.5);
+    add(d.who, tier, d.wants ? d.role : flip(d.role), (d.wants ? w : w * 0.5) * (d.kind === "stated" || d.kind === "body" ? Math.min(1, d.weight + 0.2) : 1));
+    // A tag that names the pair's dynamic ("Dom/sub", "Praise Kink") backs up who gives the orders, the praise or the care.
+    if (tags.dynamicTags.length && d.wants && (d.kind === "petname" || d.kind === "aftercare" || d.kind === "position" || d.kind === "behavior")) add(d.who, 2, d.role, w * 0.5);
   }
   // 7. How AO3 tags the character overall.
   for (const [name, pr] of tagPriors(meta, pair)) {
@@ -1862,7 +1881,7 @@ function buildAct(
   // ── desire, fantasy & other signals ──
   // Ogling/touching/fingering hints only mean something for same-sex pairs.
   const sameSex = pair[0].gender === pair[1].gender || pair[0].gender === "u" || pair[1].gender === "u";
-  const sig: DesireHit[] = des.filter((d) => sameSex || (d.kind !== "ogling" && d.kind !== "touch" && d.kind !== "prep" && d.kind !== "fingers" && d.kind !== "solo"));
+  const sig: DesireHit[] = des.filter((d) => sameSex || (d.kind !== "ogling" && d.kind !== "touch" && d.kind !== "prep" && d.kind !== "fingers" && d.kind !== "solo" && d.kind !== "body" && d.kind !== "aftercare" && d.kind !== "position" && d.kind !== "petname"));
   if (cat === "anal" && sameSex) {
     for (const f of fingering) {
       sig.push({ cat, act: "fingering", who: f.top, partner: f.bottom, role: "top", wants: true, kind: "fingering", weight: 0.8, para: f.para, sentence: f.sentence });
@@ -1881,7 +1900,7 @@ function buildAct(
     }));
   // Every hint "points" to a top: wanting to bottom (or not wanting to top) means the partner tops.
   const desireTop = (d: DesireHit) => ((d.role === "top") === d.wants ? d.who.name : d.partner?.name);
-  const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep" || d.kind === "fingers" || d.kind === "solo";
+  const isBehaviour = (d: DesireHit) => d.kind === "ogling" || d.kind === "touch" || d.kind === "fingering" || d.kind === "prep" || d.kind === "fingers" || d.kind === "solo" || d.kind === "body" || d.kind === "aftercare" || d.kind === "position" || d.kind === "petname";
   const tally = { desAgree: 0, desConflict: 0, behAgree: 0, behConflict: 0, wAgree: 0, wConflict: 0 };
   for (const d of sig) {
     const pointsTo = desireTop(d);

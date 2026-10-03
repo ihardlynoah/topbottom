@@ -128,10 +128,12 @@ word count is estimated and the main characters are guessed from frequently capi
    describe either partner). A shaky scene that goes against nearly every firm scene in the pair loses more. Scene
    confidence scales how much the scene counts toward the verdict, the per-person odds and the vibe rating, and a
    scene under 40% sure can’t on its own make someone a switch.
-8. **Report a mistake**: under each scene, “Report a mistake” opens a short form: tick what’s wrong (wrong
+8. **Report a mistake**: under each scene, hint line and vibe rating, “Report a mistake” opens a short form: tick what’s wrong (wrong
    character flagged as topping or bottoming, roles reversed, wrong act, not a sex act, solo act shown as a scene
-   with the partner, a wish rather than an event, wrong people) and say why. Missed scenes and other comments can
-   be added too. “Copy report for Claude” produces a text report (work tags, what the analyzer concluded, each
+   with the partner, a wish rather than an event, wrong people; for a vibe rating, leaning too far toward top or
+   bottom, or the wrong confidence) and say why. Select part of a sentence first and it’s noted as the part you mean.
+   Missed scenes (or any text you select on the page) and other comments can be added too, and each item has a
+   checkbox to leave it out of the report. “Copy report for Claude” produces a text report (work tags, what the analyzer concluded, each
    flagged sentence with its surrounding passage, the scene confidence and reasons, and your explanation) to paste
    into Claude to find which pattern misfired. Nothing is sent anywhere; the report holds the passages you flag, so
    read it before sharing.
@@ -143,14 +145,31 @@ Each partner in a pairing gets one of *Total top*, *Vers top*, *Vers*, *Vers bot
 important first:
 
 1. **Actual sex acts** in the work (penetration, strap-ons, fingering)
-2. **Stating what they are or prefer** (“I'm a top”), and AO3 role tags (“Top X”, “Switching”)
-3. **Groping and similar behaviour** (grabbing an ass, fingering, lining up, spreading legs)
+2. **Stating what they are or prefer**, and AO3 role tags.
+   - *Said in dialogue:* “I'm a top”, “I like being on top”, “I never bottom”, “I never top”, “I love being fucked”.
+   - *Said about someone:* “he liked being fucked”, “she loved being in control”, “he'd always been the one who topped”
+     (or “the type to take charge” / “the one who took it”). “On top of the world” is nothing.
+   - *Tags:* “Top X”, “Bottom X”, “Switch X”, “Power Bottom X” (a bottom who also takes charge), “Service Top X” (a top
+     who also gives way), “Pillow Prince/Princess X” and “Size Queen X” (lean bottom), “Dominant X”/“Dom!X”
+     (leans top) and “Submissive X”/“Sub X” (leans bottom) at a lower weight than Top/Bottom since a dynamic isn't a
+     position, and pair-wide tags (“Switching”, “Dom/sub”, “Praise Kink”, “Daddy Kink”, “Power Dynamics”) which
+     count a little for whoever gives the praise, orders or care in the text.
+3. **Groping and similar behaviour** (grabbing an ass, fingering, lining up, spreading legs), and **how the body
+   shows it afterwards**, which is a strong bottom signal even without a named scene: a sore ass, walking funny or
+   sitting down gingerly after a night with sex around it, come leaking out of a hole, a hole clenching around
+   nothing, feeling full or empty. A leaking pipe, a sore throat and a long drive are not.
 4. **Desires, plans and fantasies** (“he wanted Draco to fuck him”, “fuck me,” he begged)
 5. **Other hints**, like ogling a bulge or an ass
 6. **Dominant or submissive behaviour**, in or out of bed: pinning someone, taking control of a kiss, gripping a
    chin or wrists, giving orders, lifting or carrying, protecting someone, leading them by the hand (dominant);
    going pliant, yielding, letting someone lead, being pinned, squirming under a touch, looking up through the
-   lashes (submissive). These only feed the vibe, never the anal/oral cards.
+   lashes (submissive). Also here, each a little weaker: *position and initiative* (pulling someone onto their lap,
+   pinning wrists → top; climbing into a lap, having your wrists held → bottom; asking “ready?”, “tell me if it
+   hurts” → top), *aftercare* (cleaning someone up or wrapping them in a blanket → top; being held close or curling
+   up against someone afterwards → bottom; “let me clean you up”, “I've got you” → top; “hold me” → bottom), and
+   *pet names* (“good boy” said to someone → top; “please, daddy/sir” → bottom), which only count when the
+   scene around them is sexual. When the work is tagged with a dynamic (“Dom/sub”, “Praise Kink”…), these also count
+   a little at tier 2. These only feed the vibe, never the anal/oral cards.
 7. **AO3 tag counts**: a very faint prior from how often AO3 tags the character as a top or bottom, for ~230
    popular characters (`src/heuristic/ao3-prior-data.ts`, from the community Top Tops / Top Bottoms / Most
    Versatile sheets). It is only used for characters in a fandom the work is tagged with, nudges per-person

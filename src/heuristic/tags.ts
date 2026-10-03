@@ -6,10 +6,22 @@ export interface TagRole {
   char: Character;
   role: "top" | "bottom" | "switch";
   tag: string;
+  /** "Power Bottom" bosses the bed, "Service Top" aims to please, "Pillow Prince" lies back and receives. */
+  style?: "power" | "service" | "pillow";
+}
+
+/** "Dominant Dean", "Submissive Cas", "Dom!Dean": a dynamic, which leans top or bottom but isn't the same thing. */
+export interface TagDynamic {
+  char: Character;
+  lean: "top" | "bottom";
+  tag: string;
 }
 
 export interface TagInfo {
   roles: TagRole[];
+  dynamics: TagDynamic[];
+  /** Tags about the pair's power dynamic or praise without saying who ("Dom/sub", "Praise Kink", "Daddy Kink"). */
+  dynamicTags: string[];
   switching: string[];
   /** Tags saying an act happens, by category. */
   anal: string[];
@@ -33,7 +45,7 @@ function normalizeRole(word: string): TagRole["role"] {
 }
 
 export function readTags(freeforms: string[], cast: Cast): TagInfo {
-  const info: TagInfo = { roles: [], switching: [], anal: [], oral: [], rimming: [], blowjobs: [] };
+  const info: TagInfo = { roles: [], dynamics: [], dynamicTags: [], switching: [], anal: [], oral: [], rimming: [], blowjobs: [] };
   const findChar = (name: string): Character | undefined => {
     const n = name.replace(/\([^)]*\)/g, "").replace(/[!]/g, " ").trim();
     if (!n) return undefined;
@@ -64,11 +76,28 @@ export function readTags(freeforms: string[], cast: Cast): TagInfo {
         const [roleWord, name] = re === ROLE_PATTERNS[0].re ? [m[1], m[2]] : [m[2], m[1]];
         const char = findChar(name);
         if (char) {
-          info.roles.push({ char, role: normalizeRole(roleWord), tag });
+          const style = /^(power|service|pillow)\b/i.exec(part)?.[1]?.toLowerCase() as TagRole["style"] | undefined;
+          info.roles.push({ char, role: normalizeRole(roleWord), tag, style });
           break;
         }
       }
     }
+
+    // "Pillow Prince Dean", "Size Queen Cas": the one who lies back and receives.
+    {
+      const pm = tag.match(/^(?:pillow (?:prince|princess|queen)|size queen)\s*!?\s*(.+)$/i);
+      const pc = pm && findChar(pm[1]);
+      if (pc) info.roles.push({ char: pc, role: "bottom", tag, style: "pillow" });
+    }
+    // "Dominant Dean", "Dom!Cas", "Cas Is A Sub", "Submissive Dean Winchester"
+    for (const part of tag.split("/").map((x) => x.trim())) {
+      const dm = part.match(/^(dominant|domme?|dommy|submissive|sub|subby)\s*!?\s+(.+)$/i) ?? part.match(/^(dominant|domme?|dommy|submissive|sub|subby)!(.+)$/i);
+      const dm2 = dm ? undefined : part.match(/^(.+?)\s+(?:is (?:a |an )?)?(dominant|domme?|dommy|submissive|sub|subby)$/i);
+      const [word, name] = dm ? [dm[1], dm[2]] : dm2 ? [dm2[2], dm2[1]] : ["", ""];
+      const dc = word && findChar(name);
+      if (dc) info.dynamics.push({ char: dc, lean: /^(?:dom)/i.test(word) ? "top" : "bottom", tag });
+    }
+    if (/dom\/sub|dominant\/submissive|\bd\/s\b|praise kink|good boy|good girl|daddy kink|degradation|power (?:dynamics?|imbalance|play)|bdsm|pet names?|primal play|sir kink|master\/slave|service top|submissive|dominant|\bdom\b|\bsub\b/.test(t) && !info.dynamics.some((d) => d.tag === tag)) info.dynamicTags.push(tag);
 
     if (/\brim(?:ming|med|s)?\b|ass eating|eating ass/.test(t)) info.rimming.push(tag);
     if (/blow ?jobs?|fellatio|deep ?throat|face[- ]fuck|cock ?sucking|oral fixation/.test(t)) info.blowjobs.push(tag);

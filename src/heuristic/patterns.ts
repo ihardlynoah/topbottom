@@ -40,7 +40,7 @@ export interface PatternDef {
   femaleTarget?: "flip" | "drop";
   /** Not an act: a hint about who'd top (ogling an ass, grabbing it, staring at a bulge). */
   /** A hint, not an act. `actor` says whose behaviour it is when that isn't the subject ("shoved his fingers into Peter's mouth"). */
-  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo" | "behavior"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
+  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
 }
 
 export interface CompiledPattern extends PatternDef {
@@ -2026,6 +2026,251 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     src: `\\b{B:assReq}\\s+{aux}(?:strangl|squeez|grip|clench|hug|constrict|milk|swallow|choke|flutter|pulse|tighten|clamp|suck)\\w*\\s+(?:(?:around|on|down on|over)\\s+)?{T:penisReq}`,
   },
+  // ───────────── VIBE: stated preference, body after sex, position and initiative, aftercare, pet names ─────────────
+  {
+    // "He liked being on top", "she loved being in control", "preferred topping"
+    id: "stated-top-pref",
+    kw: "like|love|prefer|enjoy|crave",
+    cat: "anal",
+    act: "saying they like to top",
+    subj: "t",
+    weight: 0.8,
+    signal: { kind: "stated", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:\\w+\\s+){0,2}?(?:like[sd]?|love[sd]?|prefer(?:s|red)?|enjoy(?:s|ed)?|crave[sd]?)\\s+(?:being\\s+(?:(?:the\\s+one|Epithet\\d+)\\s+)?(?:on\\s+top|in\\s+control|in\\s+charge|the\\s+top|(?:(?:the\\s+one|Epithet\\d+)\\s+)?(?:who\\s+)?(?:fuck(?:s|ed|ing)?|top(?:s|ped)?|in\\s+charge))|topping(?![\\w-])|taking\\s+charge|being\\s+(?:the\\s+one|Epithet\\d+)\\s+(?:who\\s+)?(?:fuck(?:s|ed|ing)?|top(?:s|ped)?))(?![\\w-])`,
+  },
+  {
+    // "He liked being fucked", "loved getting filled", "preferred to bottom"
+    id: "stated-bottom-pref",
+    kw: "like|love|prefer|enjoy|crave",
+    cat: "anal",
+    act: "saying they like to bottom",
+    subj: "b",
+    weight: 0.8,
+    signal: { kind: "stated", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:\\w+\\s+){0,2}?(?:like[sd]?|love[sd]?|prefer(?:s|red)?|enjoy(?:s|ed)?|crave[sd]?)\\s+(?:being\\s+(?:fucked|filled|taken|stretched|bottomed|topped|bred|railed|pounded|used\\s+(?:and|like)|on\\s+the\\s+bottom|underneath)|getting\\s+(?:fucked|filled|taken|stretched|pounded|railed|bred|topped)|to\\s+be\\s+(?:fucked|filled|taken|topped|stretched|bred)|bottoming(?![\\w-])|to\\s+bottom(?![\\w-])|taking\\s+(?:it|cock|dick))(?![\\w-])`,
+  },
+  {
+    // "He had always been the one who topped", "he's always been the type to take charge"
+    id: "always-the-one-top",
+    kw: "always",
+    cat: "anal",
+    act: "always the one who tops",
+    subj: "t",
+    weight: 0.8,
+    signal: { kind: "stated", actorRole: "top" },
+    src: `\\b{T}(?:['’]s|['’]d|\\s+(?:had|has|was|is|would|will))\\s+always\\s+(?:been\\s+)?(?:(?:the\\s+)?(?:one|type|kind|guy|man|person)|Epithet\\d+)\\s+(?:who|to|that)\\s+(?:top(?:s|ped)?|fuck(?:s|ed)?|tak(?:e|es)\\s+charge|took\\s+charge|lead|led|call(?:s|ed)?\\s+the\\s+shots|be\\s+on\\s+top|do\\s+the\\s+fucking|was\\s+on\\s+top)(?![\\w-])`,
+  },
+  {
+    // "He had always been the one who got fucked", "the type to bottom"
+    id: "always-the-one-bottom",
+    kw: "always",
+    cat: "anal",
+    act: "always the one who bottoms",
+    subj: "b",
+    weight: 0.8,
+    signal: { kind: "stated", actorRole: "bottom" },
+    src: `\\b{B}(?:['’]s|['’]d|\\s+(?:had|has|was|is|would|will))\\s+always\\s+(?:been\\s+)?(?:(?:the\\s+)?(?:one|type|kind|guy|man|person)|Epithet\\d+)\\s+(?:who|to|that)\\s+(?:bottom(?:s|ed)?|got\\s+fucked|get\\s+fucked|took\\s+it|take\\s+it|was\\s+fucked|be\\s+fucked|submit(?:s|ted)?|follow(?:s|ed)?|let\\s+(?:the\\s+other|someone|others)|was\\s+on\\s+the\\s+bottom|be\\s+on\\s+the\\s+bottom)(?![\\w-])`,
+  },
+  {
+    id: "body-sore-ass",
+    kw: "sore|raw|tender|stretched|used|loose|open|empty|aching|achy|fucked|wrecked",
+    cat: "anal",
+    act: "sore after sex",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B:assReq}\\s+{aux}(?:was|were|felt|feels|ached|throbbed|burned|stung|hurt)\\s+(?:\\w+\\s+){0,2}?(?:sore|raw|tender|stretched|used|loose|open|empty|aching|achy|well-fucked|fucked-out|wrecked)(?![\\w-])`,
+  },
+  {
+    id: "body-sore-person",
+    kw: "sore|tender",
+    cat: "anal",
+    act: "sore after sex",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    needs: /\b(?:ass|arse|hole|rim|fucked|inside|thighs|cock|dick|last night|night before|morning after)\b/i,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:was|were|felt|feel|still|got|woke|ached)\\s+(?:up\\s+)?(?:\\w+\\s+){0,2}?(?:sore|tender)(?![\\w-])`,
+  },
+  {
+    id: "body-walk-funny",
+    kw: "walk|mov|limp|hobbl|stagger|shuffl|waddl|sat|sit|lower|wince",
+    cat: "anal",
+    act: "walking gingerly after sex",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    needs: /\b(?:ass|arse|hole|rim|fucked|inside|thighs|cock|dick|last night|night before|morning after|come|cum)\b/i,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:(?:walk|mov|limp|hobbl|stagger|shuffl|waddl)\\w*\\s+(?:\\w+\\s+){0,2}?(?:funny|gingerly|stiffly|bowlegged|bow-legged|carefully|with a (?:slight |small |faint |noticeable )?(?:limp|wince|hitch|waddle))|(?:sat|sit|sits|sitting|lower(?:ed|s|ing)\\s+${SELF})\\s+(?:down\\s+)?(?:gingerly|carefully|slowly|with a (?:wince|hiss|grimace))|wince[ds]?\\s+(?:as|when|while)\\s+(?:he|she|they)\\s+(?:sat|sit|lowered|moved|shifted))`,
+  },
+  {
+    id: "body-full",
+    kw: "full|filled|stuffed|stretched|split",
+    cat: "anal",
+    act: "feeling full",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    needs: /\b(?:cock|dick|prick|knot|inside|ass|hole|fucked|fucking|thrust\w*|buried|deep)\b/i,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:felt|feels|feel|was|were|is)\\s+(?:so\\s+|deliciously\\s+|wonderfully\\s+|incredibly\\s+|obscenely\\s+|completely\\s+|impossibly\\s+)*(?:full|filled|stuffed|stretched\\s+(?:wide|open|around)|split\\s+open)(?![\\w-])`,
+  },
+  {
+    id: "body-leaking-from",
+    kw: "leak|drip|dribbl|trickl|seep|ooz|slid|slipp|spill|ran|run",
+    cat: "anal",
+    act: "leaking come",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b(?:[Cc]ome|[Cc]um|[Ss]eed|[Ss]lick|[Ll]ube|[Rr]elease)\\s+(?:was\\s+|were\\s+|began\\s+to\\s+|started\\s+to\\s+)?(?:leak|dripp?|dribbl|trickl|seep|ooz|slid|slipp|spill|run|ran|spilled)\\w*\\s+(?:out\\s+of|from|down|out\\s+of\\s+and\\s+down)\\s+{B:assReq}`,
+  },
+  {
+    id: "body-leaking-ass",
+    kw: "leak|drip|dribbl|ooz",
+    cat: "anal",
+    act: "leaking come",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B:assReq}\\s+{aux}(?:leak|dripp?|dribbl|ooz)\\w*`,
+  },
+  {
+    id: "body-clench-empty",
+    kw: "nothing|air|empty|something|more",
+    cat: "anal",
+    act: "clenching around nothing",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B:assReq}\\s+{aux}(?:clench|flutter|twitch|spasm|pulse|squeez|tighten|contract|ach)\\w*\\s+(?:\\w+\\s+){0,2}?(?:around\\s+(?:nothing|empty\\s+air|the\\s+empty\\s+air|the\\s+emptiness|air)|on\\s+(?:nothing|air|empty\\s+air)|for\\s+(?:something|more|him|her|them))`,
+  },
+  {
+    id: "body-felt-empty",
+    kw: "empty|hollow",
+    cat: "anal",
+    act: "feeling empty",
+    subj: "b",
+    weight: 0.6,
+    needsCtx: true,
+    needs: /\b(?:cock|dick|prick|knot|inside|ass|hole|fucked|pulled out|withdr\w+|slid out)\b/i,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:felt|feel|feels|was|were)\\s+(?:so\\s+|suddenly\\s+|painfully\\s+|unbearably\\s+|achingly\\s+)*(?:empty|hollow)(?![\\w-])`,
+  },
+  {
+    id: "pos-pull-lap",
+    kw: "lap|thighs|knee",
+    cat: "vibe",
+    act: "pulling someone onto their lap",
+    subj: "t",
+    weight: 0.5,
+    signal: { kind: "position", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:pull|haul|drag|tug|guid|lift|coax|settl|gather|dr[ae]w)\\w*\\s+{B}\\s+(?:\\w+\\s+){0,2}?(?:onto|into|on)\\s+(?:his|her|their)\\s+(?:lap|thighs|knee|knees)(?![\\w-])`,
+  },
+  {
+    id: "pos-climb-lap",
+    kw: "lap|thighs|hips",
+    cat: "vibe",
+    act: "climbing into someone's lap",
+    subj: "b",
+    weight: 0.45,
+    needsCtx: true,
+    signal: { kind: "position", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:climb|crawl|straddl|settl|sat|sit|sink|sank|slid|slip|scrambl)\\w*\\s+(?:\\w+\\s+){0,2}?(?:into|onto|on|in|across)\\s+{T:poss}\\s+(?:lap|thighs|hips)(?![\\w-])`,
+  },
+  {
+    id: "pos-pin-wrists",
+    kw: "wrist|hands|arms",
+    cat: "vibe",
+    act: "pinning someone's wrists",
+    subj: "t",
+    weight: 0.55,
+    signal: { kind: "position", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:pinn?|held|hold|press|trapp?|secur|restrain|cuff|bound|bind|tied|tie|clasp|captur)\\w*\\s+{B:poss}\\s+(?:wrists?|hands|arms)\\s+(?:\\w+\\s+){0,2}?(?:above|over|against|to|down|behind|in)(?![\\w-])`,
+  },
+  {
+    id: "pos-wrists-held",
+    kw: "wrist|hands|arms",
+    cat: "vibe",
+    act: "having their wrists held",
+    subj: "b",
+    weight: 0.45,
+    signal: { kind: "position", actorRole: "bottom" },
+    src: `\\b{B:poss}\\s+(?:wrists?|hands|arms)\\s+(?:were|was|got|are|is)\\s+(?:pinn?ed|held|pressed|trapped|bound|tied|cuffed|restrained|clasped)\\s+(?:\\w+\\s+){0,2}?(?:above|over|against|to|down|behind)(?![\\w-])`,
+  },
+  {
+    id: "aftercare-clean",
+    kw: "clean|wip|wash|bath|towel|dab|sponge",
+    cat: "vibe",
+    act: "cleaning someone up",
+    subj: "t",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "aftercare", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:clean|wip|wash|bath|towel|dab|sponge)\\w*\\s+{B}\\s+(?:\\w+\\s+){0,2}?(?:up|off|down|clean)(?![\\w-])`,
+  },
+  {
+    id: "aftercare-wrap",
+    kw: "wrap|tuck|cover|drap",
+    cat: "vibe",
+    act: "wrapping someone up",
+    subj: "t",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "aftercare", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:wrapp?|tucked?|cover|drap)\\w*\\s+{B}\\s+(?:up\\s+)?(?:in|with|under)\\s+(?:a|the|his|her|their)\\s+(?:blanket|towel|robe|sheet|duvet|quilt|jacket|cloak)`,
+  },
+  {
+    id: "aftercare-held",
+    kw: "close|chest|arms",
+    cat: "vibe",
+    act: "being held afterwards",
+    subj: "t",
+    weight: 0.35,
+    needsCtx: true,
+    signal: { kind: "aftercare", actorRole: "bottom", actor: "b" },
+    src: `\\b{T}\\s+{aux}(?:gather|pull|draw|drew|tuck|cradl|hold|held|cuddl)\\w*\\s+{B}\\s+(?:\\w+\\s+){0,2}?(?:close|closer|to\\s+(?:his|her|their)\\s+chest|against\\s+(?:his|her|their)\\s+chest|into\\s+(?:his|her|their)\\s+arms)(?![\\w-])`,
+  },
+  {
+    id: "aftercare-nestle",
+    kw: "chest|side|arms|shoulder|neck",
+    cat: "vibe",
+    act: "curling up against someone afterwards",
+    subj: "b",
+    weight: 0.3,
+    needsCtx: true,
+    signal: { kind: "aftercare", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:curl|nestl|snuggl|cuddl|burrow|tuck|bur(?:y|ied))\\w*\\s+(?:\\w+\\s+){0,2}?(?:into|against)\\s+{T:poss}\\s+(?:chest|side|arms|shoulder|neck)(?![\\w-])`,
+  },
+  {
+    id: "petname-praise",
+    kw: "good|pretty|sweet",
+    cat: "vibe",
+    act: "calling someone a good boy/girl",
+    subj: "t",
+    weight: 0.45,
+    needsCtx: true,
+    signal: { kind: "petname", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:call|called|calls|calling|told|tell|tells|telling|praised|praise|praises)\\s+{B}\\s+(?:a\\s+|his\\s+|her\\s+|their\\s+|such\\s+a\\s+)?(?:good\\s+(?:boy|girl|pet|kitten|puppy)|pretty\\s+(?:boy|thing|baby)|sweet\\s+boy)(?![\\w-])`,
+  },
+  {
+    id: "petname-daddy",
+    kw: "daddy|sir|master|mistress|mommy",
+    cat: "vibe",
+    act: "calling someone daddy/sir",
+    subj: "b",
+    weight: 0.45,
+    needsCtx: true,
+    signal: { kind: "petname", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:call|called|calls|calling|whimper|whimpered|moan|moaned|gasp|gasped|beg|begged|breath|breathed|whisper|whispered)\\w*\\s+(?:out\\s+)?{T:poss}?\\s*(?:name\\s+)?(?:as\\s+)?["“]?(?:daddy|sir|master|mistress|mommy)(?![\\w-])`,
+  },
+
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────
@@ -2035,7 +2280,7 @@ export interface DialogueDef {
   act: string;
   /** Role this line implies for the SPEAKER. */
   role: "top" | "bottom";
-  kind: "said" | "identity" | "ogling";
+  kind: "said" | "identity" | "ogling" | "stated" | "position" | "aftercare" | "petname";
   /** How much it counts (default 1). */
   weight?: number;
   re: RegExp;
@@ -2088,6 +2333,18 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|just\s+)(?:eat me out|rim me|lick me open|eat my (?:ass|arse)|tongue-?fuck me)\b/ },
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /\b(?:want|need|wanna)\s+(?:you\s+)?to\s+(?:eat me out|rim me|eat my (?:ass|arse))\b/ },
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /\b(?:want|need)\s+your\s+(?:tongue|mouth)\s+(?:in|on)\s+(?:me|my (?:ass|arse|hole))\b/ },
+  // ── vibe: stated preference ("I like being on top", "I never bottom") ──
+  { cat: "anal", act: "saying they like to top", role: "top", kind: "stated", weight: 0.9, re: /\bi (?:really |just |always |do |absolutely )?(?:like|love|prefer|enjoy|need|crave) (?:being (?:the one )?(?:on top|in control|in charge|the top)(?! of)|topping\b|taking charge|(?:fucking|being inside) you\b|being the one (?:who )?(?:fucks|tops|in charge))/ },
+  { cat: "anal", act: "saying they never bottom", role: "top", kind: "stated", weight: 0.9, re: /\bi (?:never|don'?t|do not|won'?t|will not|can'?t|cannot|refuse to) (?:ever |really |usually )?bottom\b|\bi(?:'m| am) not (?:a |much of a )?bottom\b/ },
+  { cat: "anal", act: "saying they like to bottom", role: "bottom", kind: "stated", weight: 0.9, re: /\bi (?:really |just |always |do |absolutely )?(?:like|love|prefer|enjoy|need|crave) (?:being (?:fucked|filled|taken|stretched|bred|pinned down|used|on the bottom|underneath)|getting (?:fucked|filled|taken|stretched|pounded|railed|bred)|bottoming\b|taking (?:it|cock|dick|you)\b|(?:it when you|when you) (?:fuck|take|use|pin|fill|breed) me)/ },
+  { cat: "anal", act: "saying they never top", role: "bottom", kind: "stated", weight: 0.9, re: /\bi (?:never|don'?t|do not|won'?t|will not|can'?t|cannot|refuse to) (?:ever |really |usually )?top\b(?!\s+(?:of|off|up))|\bi(?:'m| am) not (?:a |much of a )?top\b/ },
+  { cat: "anal", act: "praising how well someone takes it", role: "top", kind: "said", weight: 0.7, re: /\byou take (?:it|me|my cock|all of me|that|everything) (?:so |just |really |fucking )*(?:well|good|beautifully|perfectly|nicely)\b|\bsuch a good (?:boy|girl|bottom) for (?:me|taking)/ },
+  // ── vibe: position and initiative, aftercare, pet names ──
+  { cat: "vibe", act: "checking in or leading", role: "top", kind: "position", weight: 0.4, re: /(?:^|[.!?,]\s*)(?:ready\?|you ready\?|are you ready\??|ready for me\??|tell me (?:if|when)|say (?:stop|the word)|is this (?:ok|okay|alright|good)\??|am i hurting you|did i hurt you|does (?:it|that) hurt\??|(?:relax|breathe) for me|let me know if)/ },
+  { cat: "vibe", act: "looking after someone", role: "top", kind: "aftercare", weight: 0.4, re: /\blet me (?:clean|take care of|wipe|wash|look after) you\b|\bi(?:'ve| have) got you\b|\byou did (?:so |really |very )?(?:well|good|perfect|beautifully)\b|\bgood job\b/ },
+  { cat: "vibe", act: "asking to be held", role: "bottom", kind: "aftercare", weight: 0.4, re: /\b(?:hold me|stay with me|don'?t let go|i can'?t (?:move|feel my legs|walk))\b/ },
+  { cat: "vibe", act: "calling someone a good boy/girl", role: "top", kind: "petname", weight: 0.5, re: /\bgood (?:boy|girl|pet|kitten|puppy)\b|\bpretty (?:boy|thing)\b|\bsweet boy\b/ },
+  { cat: "vibe", act: "calling someone daddy/sir", role: "bottom", kind: "petname", weight: 0.5, re: /\b(?:please|yes|thank you|thanks),? (?:daddy|sir|master|mistress|mommy)\b|\bdaddy\b(?!\s+(?:issues|long legs))|\byes,? sir\b/ },
 ];
 
 /** Sex-context vocabulary for patterns with innocent readings ("pushed into him" in a crowd). */
@@ -2096,7 +2353,7 @@ export const SEX_CTX =
 
 export const PENIS_CTX = /\b(?:cock|dick|prick|length|shaft|erection|hard-?on|member|manhood|strap|dildo|knot|girth)\b/i;
 export const ANAL_CTX =
-  /\b(?:ass|arse|anal|anus|asshole|arsehole|butt-?hole|sphincter|rosebud|starfish|back ?door|back entrance|rings? of muscles?|(?:ass|arse|butt) crack|(?<!front[ -]?)hole|prostate|rim\w*|pegg\w*|cheeks|bum|butt)\b/i;
+  /\b(?:ass|arse|anal|anus|asshole|arsehole|butt-?hole|sphincter|rosebud|starfish|back ?door|back entrance|rings? of muscles?|(?:ass|arse|butt) crack|(?<!front[ -]?)hole|prostate|rim\w*|pegg\w*|sodomi[sz]\w*|buggered|buggering|bugger|cheeks|bum|butt)\b/i;
 /** Vaginal vocabulary. Used instead of gender, since male omegas and trans men may have vaginas. */
 export const VULVA_CTX =
   /\b(?:pussy|cunt|vagina\w*|labia|clit(?:oris)?|front[ -]?hole|vulva|cervix|t-?dick|(?:her|wet|slick|swollen) folds|(?:his|her|their|my|your)\s+(?:\w+\s+)?seam(?!\s+of))\b/i;

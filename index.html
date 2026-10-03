@@ -61,7 +61,7 @@
             <h3>Report a mistake <span id="report-count" class="pill">none yet</span></h3>
           </div>
           <p class="hint">
-            See something wrong? Use “Report a mistake” under any scene above, tick what's wrong and say why. Add anything
+            See something wrong? Use “Report a mistake” under any scene, hint line or vibe rating above, tick what's wrong and say why. Select part of a sentence first and it's noted as the part you mean. Untick an item below to leave it out of the report. Add anything
             it missed below, then copy the report and paste it into Claude to work out which pattern misfired. The report
             contains the sentences and passages you flag, so check it before sharing.
           </p>
@@ -69,6 +69,7 @@
           <details>
             <summary>Add a scene it missed</summary>
             <label class="field"><span>Passage</span><textarea id="missed-passage" rows="3" placeholder="Paste the sentence or passage that should have been caught"></textarea></label>
+            <button id="missed-selection" type="button" class="linklike">Use the text I selected on the page</button>
             <label class="field"><span>What it shows</span><input id="missed-note" type="text" placeholder="e.g. Dracula tops Jack; this is anal sex" /></label>
             <button id="missed-add" type="button">Add missed scene</button>
           </details>

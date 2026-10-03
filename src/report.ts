@@ -10,13 +10,31 @@ export const FLAG_REASONS = [
   { key: "solo", label: "Solo or reflexive act (himself, his own…) shown as a scene with the partner" },
   { key: "hypothetical", label: "A wish, fantasy or \"what if\", not something that happens" },
   { key: "wrong_people", label: "Wrong people (someone outside this pairing, or a pronoun pointing at the wrong person)" },
+  { key: "vibe_too_top", label: "Rating leans too far toward top" },
+  { key: "vibe_too_bottom", label: "Rating leans too far toward bottom" },
+  { key: "vibe_confidence", label: "Confidence is too high or too low" },
   { key: "other", label: "Something else (explain below)" },
 ] as const;
+
+export type FlagKind = "scene" | "hint" | "vibe";
+
+/** Which boxes make sense for what is being reported. */
+export const REASONS_FOR: Record<FlagKind, FlagReason[]> = {
+  scene: ["wrong_top", "wrong_bottom", "swapped", "wrong_act", "not_sex", "solo", "hypothetical", "wrong_people", "other"],
+  hint: ["wrong_top", "swapped", "not_sex", "hypothetical", "wrong_people", "other"],
+  vibe: ["vibe_too_top", "vibe_too_bottom", "vibe_confidence", "other"],
+};
 
 export type FlagReason = (typeof FLAG_REASONS)[number]["key"];
 
 export interface FlaggedScene {
   id: string;
+  /** A scene, a hint line, or a vibe rating. */
+  kind?: FlagKind;
+  /** Left out of the copied report when false (default true). */
+  included?: boolean;
+  /** Extra lines to print under the item (e.g. what a vibe rating rests on). */
+  extra?: string[];
   pairing: string;
   /** The card it appeared on: anal, blowjob, rimming, cunnilingus, vaginal. */
   card: string;
@@ -81,17 +99,26 @@ export function buildReport(r: ReportInput): string {
     for (const s of r.summaries) out.push(`- ${s}`);
   }
 
-  if (r.flags.length) {
+  const flags = r.flags.filter((f) => f.included !== false);
+  if (flags.length) {
     out.push("");
-    out.push(`## Scenes I think are wrong (${r.flags.length})`);
-    r.flags.forEach((f, n) => {
+    out.push(`## Things I think are wrong (${flags.length})`);
+    flags.forEach((f, n) => {
       out.push("");
-      out.push(`### ${n + 1}. ${f.pairing} · ${f.card}`);
-      out.push(`- Shown as: top/doing it **${f.top || "?"}**, bottom/receiving **${f.bottom || "?"}** · ${f.act}`);
-      const how = [f.basis ? `people found ${f.basis === "named" ? "by name" : f.basis === "pronoun" ? "through pronouns" : "by inference"}` : "", f.confidence !== undefined ? `scene confidence ${Math.round(f.confidence * 100)}%` : "", f.where ?? ""].filter(Boolean);
+      const kind = f.kind ?? "scene";
+      out.push(`### ${n + 1}. ${f.pairing} · ${kind === "vibe" ? "vibe rating" : kind === "hint" ? `${f.card} hint` : f.card}`);
+      if (kind === "scene") {
+        out.push(`- Shown as: top/doing it **${f.top || "?"}**, bottom/receiving **${f.bottom || "?"}** · ${f.act}`);
+      } else if (kind === "hint") {
+        out.push(`- Shown as: **${f.top || "?"}** points toward ${f.bottom || "?"} · ${f.act}`);
+      } else {
+        out.push(`- Rating shown: **${f.top}** is **${f.act}**`);
+      }
+      const how = [f.basis ? `people found ${f.basis === "named" ? "by name" : f.basis === "pronoun" ? "through pronouns" : "by inference"}` : "", f.confidence !== undefined ? `${kind === "scene" ? "scene " : ""}confidence ${Math.round(f.confidence * 100)}%` : "", f.where ?? ""].filter(Boolean);
       if (how.length) out.push(`- ${how.join(" · ")}`);
       if (f.confidenceReasons?.length) out.push(`- Why it scored that: ${f.confidenceReasons.join("; ")}`);
-      out.push(`- Sentence: “${f.evidence}”`);
+      for (const x of f.extra ?? []) out.push(`- ${x}`);
+      if (f.evidence) out.push(`- Sentence: “${f.evidence}”`);
       if (f.context && f.context !== f.evidence) out.push(`- Around it: ${f.context.replace(/\s+/g, " ")}`);
       out.push(`- What is wrong: ${f.reasons.length ? f.reasons.map(reasonLabel).join("; ") : "(nothing ticked)"}`);
       if (f.note.trim()) out.push(`- My explanation: ${f.note.trim()}`);
