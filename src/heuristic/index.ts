@@ -59,6 +59,8 @@ interface ActHit {
 }
 
 interface DesireHit {
+  /** The speaker of a quoted line was guessed from the narration rather than named by a tag. */
+  guessed?: boolean;
   cat: Cat;
   act: string;
   who: Character;
@@ -890,7 +892,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         role: d.role,
         wants: !negated,
         kind: d.kind,
-        weight: d.weight ?? (d.kind === "ogling" ? 0.6 : 1),
+        weight: (d.weight ?? (d.kind === "ogling" ? 0.6 : 1)) * (around.explicit === false ? 0.5 : 1),
+        guessed: around.explicit === false ? true : undefined,
         para: pi,
         sentence: `“${line.trim()}”`,
       });
@@ -1109,6 +1112,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (pat.id.startsWith("cuddle-head-on-chest-poss") && !/['’]s?$/.test(bTok ?? "")) return;
       if (pat.id.startsWith("cuddle-head-on-chest") && /^(?:he|she|they)$/i.test(bTok ?? "") && /^(?:his|her|their)$/i.test(tTok ?? "") && !/\b(?:[A-Z][a-z]+)\b[^.]*\b(?:head|face|cheek)\b/.test(matchText)) return;
     }
+    // "Cregan takes him deeper … bottoming out with each punch of his cock into the prince": with his own cock in the same
+    // sentence, "takes him" is the one doing the fucking, which the penetration patterns already read.
+    if (pat.id.startsWith("took-deep") && /\b(?:his|her|their)\s+(?:[\w-]+\s+){0,2}?(?:cock|dick|prick|length)\b|\bbottom(?:ing|ed)?\s+out\b/i.test(sent.slice(m.index!))) return;
     // "He took the shoes and parted his legs": nobody else is in the sentence, so they're his own.
     if (pat.id.startsWith("spread-their-legs") && (!tTok || /^(?:he|she|they)$/i.test(tTok)) && /^(?:his|her|their)$/i.test(bTok ?? "") && !/\b(?:him|her|them)\b/i.test(sent.slice(0, m.index)) && !new RegExp(`^\\s*(?:to|so)?\\s*(?:stand|settle|kneel|get)\\w*\\s+between`, "i").test(after)) return;
     // A manspread on a sofa is just sitting.
@@ -1717,7 +1723,7 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     stated: [2, 0.8], body: [3, 0.8], position: [6, 0.4], aftercare: [6, 0.3], petname: [6, 0.25],
   };
   for (const d of des) {
-    const dsrc: Src = { what: `${d.act} (${d.kind}${d.wants ? "" : ", not wanted"})`, source: d.sentence, where: where(d.para) };
+    const dsrc: Src = { what: `${d.act} (${d.kind}${d.wants ? "" : ", not wanted"}${d.guessed ? "; speaker guessed from the narration" : ""})`, source: d.sentence, where: where(d.para) };
     if (usesToyOnSelf(d) && d.wants && items.has(d.who)) {
       add(d.who, 1, "bottom", 0.35, dsrc);
       continue;

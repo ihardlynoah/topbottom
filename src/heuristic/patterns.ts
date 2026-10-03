@@ -1682,7 +1682,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.6,
     signal: { kind: "touch", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:push|press|grind|ground|rock|arch|wiggl|shimm|back|rut)\\w*\\s+(?:his|her|their|my|your)\\s+(?:ass|arse|butt|bum|hips)\\s+(?:back\\s+|up\\s+)?(?:against|into|onto|toward|towards)\\s+{T:penis}`,
+    src: `\\b{B}\\s+{aux}(?:push|press|grind|ground|rock|arch|wiggl|shimm|back|rut)\\w*\\s+(?:his|her|their|my|your)\\s+(?:(?:ass|arse|butt|bum)\\s+(?:back\\s+|up\\s+)?|hips\\s+back\\s+)(?:against|into|onto|toward|towards)\\s+{T:penis}`,
   },
   {
     id: "grind-cock-on-ass",
@@ -2255,7 +2255,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.3,
     needsCtx: true,
     signal: { kind: "aftercare", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:curl|nestl|snuggl|cuddl|burrow|tuck|bur(?:y|ied))\\w*\\s+(?:\\w+\\s+){0,2}?(?:into|against)\\s+{T:poss}\\s+(?:chest|side|arms|shoulder|neck)(?![\\w-])`,
+    src: `\\b{B}\\s+{aux}(?:curl|nestl|snuggl|cuddl|burrow)\\w*\\s+(?:\\w+\\s+){0,2}?(?:into|against)\\s+{T:poss}\\s+(?:chest|side|arms|shoulder|neck)(?![\\w-])`,
   },
   {
     id: "petname-praise",

@@ -100,7 +100,7 @@ word count is estimated and the main characters are guessed from frequently capi
    fic (a second pass). With two main characters, the opposite is inferred (taller known → shorter is the
    other). Otherwise an epithet falls back to “the person who isn’t the current subject”. Noble and medieval
    titles work as epithets too (“the lord”, “the baron”, “the prince”, “the knight”, “the squire”, “the
-   countess”…). Relationship words (“his husband”, “her lover”) are always relative: they mean the partner of
+   countess”…). Titles worn by a named character teach the epithet ("Lord Cregan" → "the lord", "Prince Jacaerys" → "the prince"), and a word in front of a title doesn't change who it is ("the dragon prince", "the northern lord"). "The boy", "the lad", "the youth" and "the kid" mean the younger one. Relationship words (“his husband”, “her lover”) are always relative: they mean the partner of
    whoever “his” is, never one fixed person. After “permitted/let/forced X to …”, a later “he” is X. Each scene shows
    whether roles came from names or pronouns/epithets.
 4. **Desire / fantasy**: wanting (“he wanted Draco to fuck him”), imagining (“imagined Harry sucking him

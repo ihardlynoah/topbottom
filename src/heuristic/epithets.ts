@@ -151,6 +151,9 @@ const ROLE_NOUNS =
 /** Nouns that can follow a descriptor ("the tall man", "the American soldier"). */
 const NOUNS = `${MALE_NOUNS}|${FEMALE_NOUNS}|${ROLE_NOUNS}|one|kid|teen|teenager`;
 
+/** Words that sit in front of a title without changing who it means: "the dragon prince", "the northern lord". */
+const PRE_TITLE = "dragon|northern|northman|young|old|elder|silver|golden|crown|dark|wolf|ice|fire|winter|royal|handsome|beautiful|proud|stern|brave|little|great|noble|grey|gray|steel";
+
 const alt = (words: string[]) =>
   [...new Set(words)]
     .sort((a, b) => b.length - a.length)
@@ -175,7 +178,7 @@ export const EPITHET =
   `[Tt]he\\s+(?:` +
   // premodifier(s), then a word that can stand alone (+ optional noun) or one that needs a noun
   `(?:(?:very|much|slightly|obviously|clearly|much)\\s+)?(?:(?:${ANY_ADJ})\\s+){0,2}` +
-  `(?:(?:${ADJ_ALONE})(?:\\s+(?:${NOUNS}))?|(?:${ADJ_NEEDS_NOUN})\\s+(?:${NOUNS})|(?:${DESC_NOUNS})|(?:${NOUNS}))` +
+  `(?:(?:${ADJ_ALONE})(?:\\s+(?:${NOUNS}))?|(?:${ADJ_NEEDS_NOUN})\\s+(?:${NOUNS})|(?:${DESC_NOUNS})|(?:(?:${PRE_TITLE})\\s+)?(?:${NOUNS}))` +
   `(?:\\s+of\\s+the\\s+(?:two|pair|three)(?:\\s+(?:men|boys|guys|women|girls|of\\s+them))?)?` +
   `|(?:\\d+|[a-z]+(?:-[a-z]+)?)-year-old(?:\\s+(?:${NOUNS}))?` +
   `)(?![\\w-])`;
@@ -283,6 +286,17 @@ export function learnEpithets(cast: Cast, freeforms: string[], narration: string
     const k = colour(m[2]);
     const c = who(m[1]);
     if (k && c) tally.add(k, c);
+  }
+
+  // Titles worn by a named character: "Lord Cregan", "Prince Jacaerys", "LORD CREGAN STARK" teach "the lord", "the prince".
+  {
+    const lower = new Map<string, Character>();
+    for (const [a, c] of nameOf) lower.set(a.toLowerCase(), c);
+    const TITLES = "lord|lady|prince|princess|king|queen|duke|duchess|earl|baron|baroness|count|countess|captain|knight|emperor|empress|general|commander|sheriff|doctor|professor";
+    for (const m of narration.matchAll(new RegExp(`\\b(${TITLES})\\s+(${NAME})\\b`, "gi"))) {
+      const c = lower.get(m[2].toLowerCase());
+      if (c) tally.add(`noun:${m[1].toLowerCase()}`, c, 2);
+    }
   }
 
   // Comparisons: "Harry was taller than Draco", "Draco was two years older than Harry".
