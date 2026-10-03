@@ -2875,6 +2875,30 @@ export const PATTERNS: PatternDef[] = [
     signal: { kind: "prep", actorRole: "bottom" },
     src: `\\b{B}\\s+{aux}(?:\\w+ly\\s+)?(?:open|part)\\w*\\s+(?:his|her|their)\\s+(?:mouth|lips)(?:\\s*,\\s*|\\s+and\\s+)(?:letting|sticking|stick|let)\\w*\\s+(?:his|her|their)\\s+tongue\\s+(?:slip\\s+)?out`,
   },
+  {
+    // "Cas’s hand snaked down to wrap around Dean’s length"
+    id: "hj-hand-subject",
+    cat: "vibe",
+    kw: "hand",
+    act: "handjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T:poss}\\s+hand\\s+(?:\\w+\\s+){0,3}?(?:wrap|clos|curl|wound|slid|snak|reach|moved|went|settled|found)\\w*\\s+(?:\\w+\\s+){0,3}?(?:around|on|over|to)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection)`,
+  },
+  {
+    // "loosely jerking him", "stroked him slowly", "jerked Dean off"
+    id: "hj-jerk-him",
+    cat: "vibe",
+    kw: "jerk|stroke|strok|pump|tug",
+    act: "handjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:jerk|strok|pump|tugg?)\\w*\\s+{B}\\s+(?:off|slowly|loosely|lazily|tightly|firmly|faster|hard|gently|steadily)\\b`,
+  },
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────

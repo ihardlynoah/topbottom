@@ -140,6 +140,13 @@ word count is estimated and the main characters are guessed from frequently capi
    inside me”, “put it in me”, “come inside me”, “plow me”, “take me hard”, “I want to ride that dick” (whoever the cock
    belongs to) are bottom wishes; “I love getting fucked”, “I love taking dick”, “I love cock”, “I’m a cockslut” are stated
    tastes. “Get fucked up”, “fucked over”, “go get fucked” and “use me as a shield” are not.
+   **Tags vs text.** Below the results, each AO3 tag that names an act, a role or a kink is checked against what the patterns
+   found: **supported** (with the lines), **not found** (the sex may fade to black or be phrased in a way the patterns miss),
+   **contradicted** (a “Top X” tag when the scenes show X bottoming) or **can’t tell**. Act tags (Anal Sex, Blow Jobs, Hand Jobs,
+   Rimming, Masturbation…) use the act results; Top/Bottom/Switch tags are counted from the scenes alone, not from the person’s
+   odds, which already lean on the tag; kinks (edging, orgasm denial, praise, bondage, spanking, cock cage, panties,
+   exhibitionism, aftercare, safeword, negotiation, degradation, daddy, knotting, choking, collars) need enough sentences near
+   sexual narration. Tags that name nothing checkable (Slow Burn, Angst…) are left out, and tags that mean the same thing share a row.
    **Per-line confidence.** Every line under “Desire, fantasy & hints” has its own “N% sure” (hover for why). It starts from what
    kind of line it is (said outright or a stated preference are firm, a fantasy less, a ‘what if’ least) and the strength of
    the wording, goes up when the person is named or other lines point the same way, and down when the speaker was only guessed,

@@ -6,7 +6,7 @@ import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, Instance, ManualResult, RoleOdds, SoloResult, VaginalResult, VibeFactor, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, VaginalResult, VibeFactor, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -628,6 +628,56 @@ function renderVaginal(v: VaginalResult, pairing: string, source: string): HTMLE
   return card;
 }
 
+const TAG_STATUS: Record<TagCheck["status"], { label: string; cls: string }> = {
+  supported: { label: "Supported by the text", cls: "tag-ok" },
+  not_found: { label: "Not found in the text", cls: "tag-missing" },
+  contradicted: { label: "Text points the other way", cls: "tag-contra" },
+  cant_tell: { label: "Can’t tell", cls: "tag-unknown" },
+};
+
+/** AO3 tags that name an act, role or kink, checked against the text. */
+function renderTagCheck(checks: TagCheck[], source: string): HTMLElement {
+  const box = el("section", "tagcheck");
+  box.append(el("h5", "vibe-title", "Tags vs text"));
+  box.append(el("p", "hint", "Each AO3 tag that names an act, role or kink, checked against what the patterns found. “Not found” can mean fade-to-black or phrasing the patterns miss."));
+  // Tags that say the same thing (Cock Cage, “cas puts dean in a cock cage”) share a row.
+  const groups = new Map<string, TagCheck[]>();
+  for (const c of checks) {
+    const k = `${c.kind}|${c.status}|${c.note}`;
+    groups.set(k, [...(groups.get(k) ?? []), c]);
+  }
+  const order: TagCheck["status"][] = ["contradicted", "not_found", "supported", "cant_tell"];
+  const rows = [...groups.values()].sort((a, b) => order.indexOf(a[0].status) - order.indexOf(b[0].status));
+  const ul = el("ul", "tagcheck-list");
+  rows.forEach((g, n) => {
+    const c = g[0];
+    const li = el("li", `tagcheck-row ${TAG_STATUS[c.status].cls}`);
+    const head = el("div", "tagcheck-head");
+    head.append(el("span", `badge ${TAG_STATUS[c.status].cls}`, TAG_STATUS[c.status].label));
+    const chips = el("span", "chips");
+    for (const x of g) chips.append(el("span", "chip", x.tag));
+    head.append(chips);
+    li.append(head, el("div", "hint", c.note));
+    if (c.evidence.length) {
+      const det = el("details", "instances");
+      det.append(el("summary", undefined, `${c.evidence.length} line${c.evidence.length === 1 ? "" : "s"}`));
+      const inner = el("ul");
+      for (const e of c.evidence) {
+        const item = el("li");
+        if (e.where) item.append(el("span", "where", `${e.where} · `));
+        item.append(el("span", "evidence", e.text));
+        inner.append(item);
+      }
+      det.append(inner);
+      li.append(det);
+    }
+    flagControl(li, { id: `${source}|tagcheck|${n}`, kind: "hint", pairing: "Tags vs text", card: "tagcheck", top: g.map((x) => x.tag).join(" · "), bottom: TAG_STATUS[c.status].label, act: c.note, evidence: c.evidence[0]?.text ?? "" });
+    ul.append(li);
+  });
+  box.append(ul);
+  return box;
+}
+
 /** Handjobs and frottage between the pair. */
 function renderManual(v: ManualResult, pairing: string, source: string): HTMLElement {
   const card = el("article", "card act verdict-one_way");
@@ -813,6 +863,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) 
     block.append(grid);
     target.append(block);
   }
+  if (a.tagCheck?.length) target.append(renderTagCheck(a.tagCheck, a.source));
   notesEl.hidden = !a.notes;
   notesEl.textContent = a.notes;
 }

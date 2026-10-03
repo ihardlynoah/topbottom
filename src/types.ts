@@ -158,11 +158,22 @@ export interface PairingResult {
   vibe?: VibeRating[];
 }
 
+/** One AO3 tag checked against the text. */
+export interface TagCheck {
+  tag: string;
+  kind: "act" | "role" | "kink" | "dynamic";
+  status: "supported" | "not_found" | "contradicted" | "cant_tell";
+  note: string;
+  evidence: { text: string; where: string }[];
+}
+
 export interface Analysis {
   source: "patterns" | "claude";
   fandom: string;
   main_pairing: string;
   pairings: PairingResult[];
+  /** AO3 tags that name an act, role or kink, checked against what the text shows. */
+  tagCheck?: TagCheck[];
   notes: string;
 }
 

@@ -336,3 +336,14 @@ footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: 
 .factor-top strong { color: var(--accent); }
 .factor-bottom strong { color: var(--switch); }
 .vibe-flag { margin-top: 8px; }
+
+/* Tags vs text */
+.tagcheck { margin-top: 20px; }
+.tagcheck-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.tagcheck-row { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.tagcheck-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tagcheck-row .hint { margin: 6px 0 0; }
+.badge.tag-ok { background: var(--ok); }
+.badge.tag-missing { background: var(--unclear); }
+.badge.tag-contra { background: var(--accent); }
+.badge.tag-unknown { background: var(--muted); }

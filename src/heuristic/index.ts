@@ -40,6 +40,7 @@ import {
 } from "./patterns";
 import { EPITHET, canonEpithet, learnEpithets } from "./epithets";
 import { type TagInfo, readTags } from "./tags";
+import { checkTags } from "./tagcheck";
 import { ORAL_KINDS, type OralKind, ROLE_WORDS, type RoleEvidence, oralKindOf, roleOdds, roleSummary } from "../roles";
 import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 
@@ -1766,11 +1767,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   }
 
   const romantic = romanticPairings(meta);
+  const pairings: PairingResult[] = results.map(({ weight: _w, key: _k, ...p }) => p);
   return {
     source: "patterns",
     fandom: meta.fandoms.join(", "),
     main_pairing: romantic[0] ?? results[0]?.pairing ?? "",
-    pairings: results.map(({ weight: _w, key: _k, ...p }) => p),
+    pairings: pairings,
+    tagCheck: checkTags(meta.freeforms, tags, pairings, paras, where),
     notes: notes.join(" "),
   };
 }
