@@ -59,4 +59,21 @@ describe("text messages", () => {
     expect(run(["Shane’s phone buzzed.", "Ilya: fuck off", "Shane: holy fuck", "Ilya: ok"].join("\n\n")).texting!.sexual).toBe(0);
     expect(run(["Shane’s phone buzzed.", "Ilya: let me fuck you tonight", "Shane: ok"].join("\n\n")).texting!.sexual).toBe(1);
   });
+  it("arrow-style texts: > is sent by the viewpoint character, < received", () => {
+    const t = run(["Shane’s phone buzzed on the couch.", "Shane stared at it and typed back.", "> Jesus, man.", "would you let me fuck you? <", "> Why?", "i want to fuck you <"].join("\n\n")).texting!;
+    expect(t.chat).toBe(4);
+    expect(t.pairs.find((p) => p.from === "Shane Hollander")?.count).toBe(2);
+    expect(t.pairs.find((p) => p.from === "Ilya Rozanov")?.count).toBe(2);
+  });
+  it("an arrow-style received wish is read as dialogue from the sender", () => {
+    const p = run(["Shane’s phone buzzed on the couch.", "> Why?", "i want to fuck you <"].join("\n\n")).pairings[0];
+    expect(p.anal.desires.some((d) => d.who.startsWith("Ilya") && d.role === "top")).toBe(true);
+  });
+  it("quoted email-style > lines and <3 are not texts", () => {
+    expect(run("> quoted reply from an old email\n\nShane laughed. Hello <3 he said.").texting!.occurs).toBe(false);
+  });
+  it("arrow lines written on consecutive lines (no blank lines between) still count", () => {
+    const t = run("Shane’s phone buzzed on the couch.\n> Why?\ni want to fuck you <\n> Really?\nreally <").texting!;
+    expect(t.chat).toBe(4);
+  });
 });

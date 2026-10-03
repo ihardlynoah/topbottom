@@ -44,7 +44,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const analysisText = clitIsCock
     ? analysisText0.replace(/\b(his|their|[A-Z][\w-]*['’]s)(\s+(?:[a-z-]+\s+){0,2}?)clit(?:ty|oris)?\b/g, "$1$2cock")
     : analysisText0;
-  let paras = splitParagraphs(analysisText);
+  // Arrow-style texts ("> hi" sent, "Hello <" received) are one line each and carry no end punctuation: keep each on its own paragraph.
+  let paras = splitParagraphs(analysisText.replace(/^([ \t]*>[ \t]*\S.*|.*\S[ \t]+<[ \t]*)$/gm, "\n$1\n"));
   // Text messages shown as chat lines ("Shane: Why?") become dialogue with a speaker tag, so the rest of the engine reads them.
   let texting: TextingMap = { messages: [], rewritten: new Map() };
   if (looksLikeChat(paras)) {

@@ -75,6 +75,51 @@ export function detectTexts(paras: string[], cast: Cast): TextingMap {
     });
   }
 
+  // ── arrow style: "> hi" is a message the viewpoint character sends, "Hello <" (or "< Hello") one they receive ──
+  const ARROW_OUT = /^>\s*(\S.*)$/;
+  const ARROW_IN = /^(?:<\s*(?![3])(\S.*)|(\S.*?)\s+<)$/;
+  const arrowOf = (p: string): { out: boolean; text: string } | undefined => {
+    const t = p.trim();
+    if (t.length > 300 || /^>>|<<|^<\/?[a-z]/i.test(t)) return undefined;
+    const o = ARROW_OUT.exec(t);
+    if (o) return { out: true, text: o[1] };
+    const i = ARROW_IN.exec(t);
+    return i ? { out: false, text: (i[1] ?? i[2]).trim() } : undefined;
+  };
+  const arrows: { para: number; out: boolean; text: string }[] = [];
+  paras.forEach((p, i) => { const a = arrowOf(p); if (a) arrows.push({ para: i, ...a }); });
+  const arrowRuns: typeof arrows[] = [];
+  for (const a of arrows) {
+    const run = arrowRuns[arrowRuns.length - 1];
+    if (run && a.para - run[run.length - 1].para <= 2) run.push(a);
+    else arrowRuns.push([a]);
+  }
+  const partnerOf = (c: Character) => cast.pairings.find((pr) => pr.includes(c))?.find((x) => x !== c);
+  for (const run of arrowRuns) {
+    const first = run[0].para;
+    const around = paras.slice(Math.max(0, first - 3), run[run.length - 1].para + 2);
+    const cue = around.some((p) => TIMESTAMP.test(p.trim()) || (PHONE_CUE.test(p) && !arrowOf(p)));
+    if (!(run.length >= 3 || (run.length >= 2 && cue) || (cue && run.some((a) => a.out) && run.some((a) => !a.out)))) continue;
+    // The "I" of the arrows is the narrator, or else whoever was named last before the exchange.
+    let owner: Character | undefined = cast.narrator;
+    if (!owner) {
+      const re = new RegExp(`\\b(${cast.aliasPattern || "(?!)"})\\b`, "g");
+      for (let i = first - 1; i >= Math.max(0, first - 4) && !owner; i--) {
+        const hits = [...paras[i].matchAll(re)].map((m) => cast.byAlias.get(m[1])).filter((c): c is Character => !!c && c !== cast.secondPerson);
+        owner = hits[hits.length - 1];
+      }
+    }
+    for (const a of run) {
+      const sender = owner && (a.out ? owner : partnerOf(owner));
+      const receiver = sender && partnerOf(sender);
+      messages.push({ para: a.para, sender, receiver, text: a.text, how: "chat" });
+      if (sender) {
+        const msg = /[.!?…]$/.test(a.text) ? a.text : `${a.text}.`;
+        rewritten.set(a.para, `“${msg.replace(/[“”"]/g, "'")}” ${sender.name} texted.`);
+      }
+    }
+  }
+
   // ── narration: "he texted", "his phone buzzed", "a text from X" ──
   const NAMES = cast.aliasPattern || "(?!)";
   const sentRe = new RegExp(`\\b(${NAMES})\\s+(?:\\w+ly\\s+)?(?:texted|sexted|messaged|dm['’]?ed|wrote back|typed (?:out )?(?:a|his|her|their)\\s+(?:reply|response|message|text)|sent\\s+(?:\\w+\\s+){0,3}?(?:a\\s+)?(?:text|message|texts|messages|selfie|pic|photo|picture|emoji|sext)\\b)(?:\\s+(?:to\\s+)?(${NAMES}|him|her|them))?`, "g");
@@ -104,6 +149,7 @@ export function detectTexts(paras: string[], cast: Cast): TextingMap {
 
 /** Cheap pre-check: are there enough "Name: message" lines to be worth looking for a chat? */
 export function looksLikeChat(paras: string[]): boolean {
+  if (paras.filter((p) => /^\s*>\s*\S/.test(p) && p.length < 300).length >= 1 && paras.some((p) => /^\s*(?:<\s*\S|\S.*\s<\s*$)/.test(p))) return true;
   let n = 0;
   for (const p of paras) if (p.length < 400 && CHAT_LINE.test(p.trim())) n++;
   if (n >= 3) return true;

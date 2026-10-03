@@ -278,6 +278,8 @@ narrated texting ("Cas texted him", "his phone buzzed") are recognized so the li
 "Unknown Number") is matched to the character on the other end, and each chat line is rewritten as dialogue from the sender
 before analysis, so a texted "I want to fuck you" counts like a spoken one. There is no separate card; "Texting" and "Sexting"
 tags are checked against the text in the tags-vs-text section.
+Arrow-style texts are read too: a line starting with ">" is sent by the viewpoint character (the narrator, or whoever was named
+just before) and a line ending in "<" (or starting with "<") is received from the other one of the pair.
 
 **Omegaverse.** In a work tagged alpha/beta/omega (or one that uses the words all through the text), nonsexual gestures count
 toward the everyday dynamic: baring the neck or scent gland, lowering the eyes, nesting and submitting to an alpha read as
