@@ -6,7 +6,7 @@ import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, Instance, RoleOdds, VaginalResult, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, Instance, RoleOdds, VaginalResult, VibeFactor, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -168,6 +168,7 @@ async function handleFile(file: File) {
   }
   renderMeta(current, file.name);
   flagged.clear();
+  pickedFactors.clear();
   missedScenes.length = 0;
   shown = null;
   els.reportGeneral.value = "";
@@ -257,6 +258,20 @@ function refreshReport() {
   els.reportPreview.textContent = n || els.reportGeneral.value.trim() ? reportText() : "";
 }
 
+/** Vibe factors the reader ticked as worth showing Claude, by vibe id. */
+const pickedFactors = new Map<string, Map<number, string>>();
+const vibeSpec = new Map<string, VibeRating>();
+
+function factorLine(f: VibeFactor): string {
+  return `${f.role} · tier ${f.tier} (${f.tierName}) · weight ${f.weight}${f.fromOther ? " · from the other person's side" : ""} · ${f.what}${f.where ? ` · ${f.where}` : ""}${f.source ? ` — “${f.source}”` : ""}`;
+}
+
+/** The extra lines a vibe item carries: what it rests on, plus any factors the reader ticked. */
+function vibeExtra(id: string, v: VibeRating): string[] {
+  const picked = [...(pickedFactors.get(id)?.values() ?? [])];
+  return [`Evidence: ${v.basis.join("; ") || "none"}`, ...picked.map((l) => `Factor I'm pointing at: ${l}`)];
+}
+
 /** The "Report a mistake" button on a scene, hint or vibe rating, and the little form it opens. */
 type FlagSpec = Omit<FlaggedScene, "reasons" | "note" | "included">;
 function flagControl(li: HTMLElement, spec: FlagSpec) {
@@ -298,7 +313,7 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const reasons = [...ticks].filter(([, cb]) => cb.checked).map(([k]) => k);
-    flagged.set(id, { ...spec, kind, reasons, note: note.value, included: flagged.get(id)?.included ?? true });
+    flagged.set(id, { ...spec, extra: vibeSpec.get(id) ? vibeExtra(id, vibeSpec.get(id)!) : spec.extra, kind, reasons, note: note.value, included: flagged.get(id)?.included ?? true });
     li.classList.add("flagged");
     form.hidden = true;
     add.textContent = "Update report";
@@ -330,8 +345,10 @@ els.missedAdd.addEventListener("click", () => {
 els.reportGeneral.addEventListener("input", refreshReport);
 els.reportClear.addEventListener("click", () => {
   flagged.clear();
+  pickedFactors.clear();
   missedScenes.length = 0;
   els.reportGeneral.value = "";
+  document.querySelectorAll(".factors input:checked").forEach((x) => ((x as HTMLInputElement).checked = false));
   document.querySelectorAll(".flagged").forEach((x) => x.classList.remove("flagged"));
   refreshReport();
 });
@@ -616,13 +633,55 @@ function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLEl
       card.append(scale, ends);
     }
     card.append(el("p", "vibe-conf", `Confidence: ${v.confidence.label} · ${Math.round(v.confidence.score * 100)}%`));
+    const vid = `${source}|${pairing}|vibe|${v.name}`;
+    vibeSpec.set(vid, v);
+    const vspec: FlagSpec = { id: vid, kind: "vibe", pairing, card: "vibe", top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: vibeExtra(vid, v), evidence: "" };
+    // Tick a factor to send it with the report; ticking one starts a report item for this rating.
+    const toggleFactor = (idx: number, f: VibeFactor, on: boolean) => {
+      const m = pickedFactors.get(vid) ?? new Map<number, string>();
+      if (on) m.set(idx, factorLine(f)); else m.delete(idx);
+      pickedFactors.set(vid, m);
+      const prior = flagged.get(vid);
+      if (prior) flagged.set(vid, { ...prior, extra: vibeExtra(vid, v) });
+      else if (on) flagged.set(vid, { ...vspec, extra: vibeExtra(vid, v), reasons: [], note: "", included: true });
+      document.querySelector(`[data-flag="${CSS.escape(vid)}"]`)?.classList.toggle("flagged", flagged.has(vid));
+      refreshReport();
+    };
     if (v.basis.length) {
       const ul = el("ul", "vibe-basis");
-      for (const b of v.basis) ul.append(el("li", undefined, b));
+      const byTier = new Map<string, { idx: number; f: VibeFactor }[]>();
+      (v.factors ?? []).forEach((f, idx) => {
+        const label = f.tierName;
+        byTier.set(label, [...(byTier.get(label) ?? []), { idx, f }]);
+      });
+      for (const b of v.basis) {
+        const li = el("li");
+        const group = [...byTier.entries()].find(([name]) => b.startsWith(name))?.[1];
+        if (!group) { li.append(b); ul.append(li); continue; }
+        const det = el("details", "factors");
+        det.append(el("summary", undefined, b));
+        const fl = el("ul", "factor-list");
+        for (const { idx, f } of group) {
+          const fi = el("li", `factor factor-${f.role}`);
+          const label = el("label");
+          const cb = el("input");
+          cb.type = "checkbox";
+          cb.checked = !!pickedFactors.get(vid)?.has(idx);
+          cb.title = "Include this in the error report";
+          cb.addEventListener("change", () => toggleFactor(idx, f, cb.checked));
+          label.append(cb, " ", el("strong", undefined, f.role), el("span", "where", ` · ${f.what}${f.where ? ` · ${f.where}` : ""}${f.fromOther ? " · other person's side" : ""} · weight ${f.weight}`));
+          fi.append(label);
+          if (f.source) fi.append(el("div", "evidence", f.source));
+          fl.append(fi);
+        }
+        det.append(fl);
+        li.append(det);
+        ul.append(li);
+      }
       card.append(ul);
     } else card.append(el("p", "hint", "No evidence either way."));
     const fl = el("div", "vibe-flag");
-    flagControl(fl, { id: `${source}|${pairing}|vibe|${v.name}`, kind: "vibe", pairing, card: "vibe", top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: [`Evidence: ${v.basis.join("; ") || "none"}`], evidence: "" });
+    flagControl(fl, vspec);
     card.append(fl);
     row.append(card);
   }
@@ -633,7 +692,9 @@ function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLEl
 function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) {
   target.replaceChildren();
   // A new analysis replaces the reading the flags pointed at.
-  if (shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k); }
+  if (shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k);
+    for (const k of [...pickedFactors.keys()]) if (k.startsWith(`${a.source}|`)) pickedFactors.delete(k);
+  }
   shown = { source: a.source, analysis: a };
   refreshReport();
   if (!a.pairings.length) target.append(el("p", "hint", "Couldn't identify the characters in this work."));

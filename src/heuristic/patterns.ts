@@ -2192,7 +2192,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.55,
     signal: { kind: "position", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:pinn?|held|hold|press|trapp?|secur|restrain|cuff|bound|bind|tied|tie|clasp|captur)\\w*\\s+{B:poss}\\s+(?:wrists?|hands|arms)\\s+(?:\\w+\\s+){0,2}?(?:above|over|against|to|down|behind|in)(?![\\w-])`,
+    src: `\\b{T}\\s+{aux}(?:pinn?|held|hold|trapp?|restrain|cuff|bound|bind|tied|tie)\\w*\\s+{B:poss}\\s+(?:wrists?|hands|arms)\\s+(?:\\w+\\s+){0,2}?(?:above|over|against|down|behind)(?![\\w-])`,
   },
   {
     id: "pos-wrists-held",

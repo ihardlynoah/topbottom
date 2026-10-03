@@ -7,12 +7,16 @@
 // Each tier votes top or bottom with a strength that saturates as items pile up; tiers are weighted so a higher tier
 // dominates a lower one. Confidence grows with how much evidence there is and how well it agrees.
 
-import { type Confidence, confidenceLabel, type Role, type VibeRating } from "./types";
+import { type Confidence, confidenceLabel, type Role, type VibeFactor, type VibeRating } from "./types";
 
 export interface VibeItem {
   tier: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   role: Role;
   weight: number;
+  what?: string;
+  source?: string;
+  where?: string;
+  fromOther?: boolean;
 }
 
 export const VIBE_TIERS: { name: string; weight: number; tau: number }[] = [
@@ -31,6 +35,9 @@ export function rateVibe(name: string, items: VibeItem[]): VibeRating {
   let strength = 0; // Σ weight·mass
   let signed = 0; // Σ weight·direction·mass
   const basis: string[] = [];
+  const factors: VibeFactor[] = items
+    .map((x) => ({ tier: x.tier, tierName: VIBE_TIERS[x.tier - 1].name, role: x.role, weight: Math.round(x.weight * 100) / 100, what: x.what ?? "", source: x.source, where: x.where, fromOther: x.fromOther }))
+    .sort((a, b) => a.tier - b.tier || b.weight - a.weight);
   let hasReal = false; // evidence from tiers 1–4
   let onlyPrior = true;
   VIBE_TIERS.forEach((t, i) => {
@@ -52,7 +59,7 @@ export function rateVibe(name: string, items: VibeItem[]): VibeRating {
 
   if (strength < 0.06) {
     const c = { score: 0.05, label: "Low" as const, reasons: ["not enough to go on"] };
-    return { name, label: "Unclear", score: 0, confidence: c, basis };
+    return { name, label: "Unclear", score: 0, confidence: c, basis, factors };
   }
   // Direction in −1…1, damped when the evidence is thin so a single faint hint can't make anyone a "total".
   const dir = (signed / strength) * Math.min(1, strength / 0.5);
@@ -66,5 +73,5 @@ export function rateVibe(name: string, items: VibeItem[]): VibeRating {
   if (onlyPrior) score = Math.min(score, 0.12);
   score = Math.round(Math.max(0.03, Math.min(0.97, score)) * 100) / 100;
   const confidence: Confidence = { score, label: confidenceLabel(score), reasons: [] };
-  return { name, label, score: Math.round(dir * 100) / 100, confidence, basis };
+  return { name, label, score: Math.round(dir * 100) / 100, confidence, basis, factors };
 }
