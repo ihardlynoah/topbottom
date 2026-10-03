@@ -191,6 +191,11 @@ lower ones (`src/vibe.ts`). Confidence rises with how much evidence there is and
 when only faint hints (about 40%) or only the tag counts (about 12%) exist. A single faint hint never makes anyone
 a “total”.
 
+**“His clit” as a penis.** In some dom/sub fics a man’s penis is called his clit. When the tags say it’s that kind of work
+(Master/Slave, Dom/sub, BDSM, humiliation, chastity, cock cages, feminization, “gender words just go anywhere”…), every
+category is M/M, and nothing says anyone has a vulva (no intersex, omega, trans, pussy, cuntboy… tag), “his clit” and “Teo’s clit”
+are read as cocks. Otherwise a clit stays a clit.
+
 **Vaginal sex** is reported separately: only whether it happens and between whom. Anal vs vaginal is decided
 by the words in the sentence (“his cunt”, “her ass”, “front hole”), not by gender, since trans men and intersex characters
 (and omegas, in some omegaverses) may have vaginas and some women have penises; anatomy (by gender, or what the text says a character has)

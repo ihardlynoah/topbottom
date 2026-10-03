@@ -448,10 +448,19 @@ export interface PatternOptions {
 
 export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOptions = {}): Analysis {
   const hasUncertainNotes = text.includes(UNCERTAIN_NOTE_START);
-  const analysisText = text.replace(
+  const analysisText0 = text.replace(
     new RegExp(`${escapeMarker(UNCERTAIN_NOTE_START)}[\\s\\S]*?${escapeMarker(UNCERTAIN_NOTE_END)}`, "g"),
     "",
   ).replace(/\[\[AO3_[A-Z_]+\]\]/g, "");
+  // In some dom/sub fics a man's penis is his "clit" (or "clitty"). Where the tags say it's that kind of fic, there are no women
+  // and nothing says anyone has a vulva, "his clit" is read as his cock.
+  const clitIsCock =
+    /master\/slave|dom\/sub|\bd\/s\b|bdsm|humiliat|chastity|cock cage|cock-cage|feminiz|sissy|gender words|degrad|dehumani|free use|slave|submission|dominance/i.test(meta.freeforms.join(" | ")) &&
+    !/intersex|omega|trans(?:gender|\b)|vagina|cuntboy|cunt boy|pussy|mpreg|hermaphrodit|futa|bodyswap|genderswap|gender ?bender/i.test(meta.freeforms.join(" | ")) &&
+    meta.categories.length > 0 && meta.categories.every((c) => c === "M/M");
+  const analysisText = clitIsCock
+    ? analysisText0.replace(/\b(his|their|[A-Z][\w-]*['’]s)(\s+(?:[a-z-]+\s+){0,2}?)clit(?:ty|oris)?\b/g, "$1$2cock")
+    : analysisText0;
   const paras = splitParagraphs(analysisText);
   const doubleQuotes = (analysisText.match(/[“"]/g) ?? []).length;
   const singleQuotes = doubleQuotes < 4 && (analysisText.match(/(^|\s)‘/g) ?? []).length >= 4;
