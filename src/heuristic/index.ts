@@ -12,7 +12,7 @@ import { ANAL_CTX, type Cat, VULVA_CTX, type CompiledPattern, DIALOGUE, type Dia
 import { EPITHET, learnEpithets } from "./epithets";
 import { readTags } from "./tags";
 import { checkTags } from "./tagcheck";
-import { type TextingMap, detectTexts, looksLikeChat, summarizeTexts } from "./texting";
+import { type TextingMap, detectTexts, looksLikeChat, looksLikeMessage, summarizeTexts } from "./texting";
 import { detectPov, POV_SENTENCE } from "./pov";
 import { ORAL_KINDS, oralKindOf } from "../roles";
 import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
@@ -45,12 +45,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     ? analysisText0.replace(/\b(his|their|[A-Z][\w-]*['’]s)(\s+(?:[a-z-]+\s+){0,2}?)clit(?:ty|oris)?\b/g, "$1$2cock")
     : analysisText0;
   // Arrow-style texts ("> hi" sent, "Hello <" received) are one line each and carry no end punctuation: keep each on its own paragraph.
-  let paras = splitParagraphs(analysisText.replace(/^([ \t]*>[ \t]*\S.*|.*\S[ \t]+<[ \t]*)$/gm, "\n$1\n"));
+  let paras = splitParagraphs(analysisText.replace(/^([ \t]*>[ \t]*\S.*|.*\S[ \t]*<[ \t]*)$/gm, "\n$1\n"));
   // Text messages shown as chat lines ("Shane: Why?") become dialogue with a speaker tag, so the rest of the engine reads them.
   let texting: TextingMap = { messages: [], rewritten: new Map() };
   if (looksLikeChat(paras)) {
     const pre = paras.map((p) => maskQuotes(p, false).masked);
-    texting = detectTexts(paras, buildCast(meta, pre.join("\n"), paras.join("\n")));
+    const preCast = buildCast(meta, pre.join("\n"), paras.join("\n"));
+    // Whose phone it is comes from the point of view at that spot; a contact name above a thread isn't a POV heading.
+    const povFirst = detectPov(paras.map((p, i) => (p.trim().length <= 28 && !/[.!?:,;]$/.test(p.trim()) && !looksLikeMessage(p) && looksLikeMessage(paras[i + 1] ?? "") ? "" : p)), (p) => CHAPTER_RE.test(p), preCast, meta.freeforms);
+    texting = detectTexts(paras, preCast, (i) => povFirst.at[i]);
     if (texting.rewritten.size) paras = paras.map((p, i) => texting.rewritten.get(i) ?? p);
   }
   const doubleQuotes = (analysisText.match(/[“"]/g) ?? []).length;

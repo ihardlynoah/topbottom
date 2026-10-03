@@ -27,7 +27,7 @@ const NOT_LABELS = new Set("Note Notes Warning Warnings Chapter Summary Author A
 const PHONE_CUE = /\b(?:phone|text|texts|texted|texting|message|messages|messaged|buzz\w*|vibrat\w*|chim\w*|ping\w*|screen|typed|typing|reply|replied|sent|sext\w*|dm|dms|group chat|imessage|whatsapp|notification)\b/i;
 
 /** A reply to a message: "Name: …" lines, labelled by who sent them. */
-export function detectTexts(paras: string[], cast: Cast): TextingMap {
+export function detectTexts(paras: string[], cast: Cast, ownerAt?: (para: number) => Character | undefined): TextingMap {
   const messages: TextMessage[] = [];
   const rewritten = new Map<number, string>();
   if (!cast.chars.length) return { messages, rewritten };
@@ -75,9 +75,9 @@ export function detectTexts(paras: string[], cast: Cast): TextingMap {
     });
   }
 
-  // ── arrow style: "> hi" is a message the viewpoint character sends, "Hello <" (or "< Hello") one they receive ──
+  // ── arrow style: "> hi" comes in from the other person, "Hello <" (or "< Hello") is the viewpoint character's reply ──
   const ARROW_OUT = /^>\s*(\S.*)$/;
-  const ARROW_IN = /^(?:<\s*(?![3])(\S.*)|(\S.*?)\s+<)$/;
+  const ARROW_IN = /^(?:<\s*(?![3])(\S.*)|(\S.*?)\s*<)$/;
   const arrowOf = (p: string): { out: boolean; text: string } | undefined => {
     const t = p.trim();
     if (t.length > 300 || /^>>|<<|^<\/?[a-z]/i.test(t)) return undefined;
@@ -99,9 +99,15 @@ export function detectTexts(paras: string[], cast: Cast): TextingMap {
     const first = run[0].para;
     const around = paras.slice(Math.max(0, first - 3), run[run.length - 1].para + 2);
     const cue = around.some((p) => TIMESTAMP.test(p.trim()) || (PHONE_CUE.test(p) && !arrowOf(p)));
-    if (!(run.length >= 3 || (run.length >= 2 && cue) || (cue && run.some((a) => a.out) && run.some((a) => !a.out)))) continue;
-    // The "I" of the arrows is the narrator, or else whoever was named last before the exchange.
-    let owner: Character | undefined = cast.narrator;
+    if (!(run.length >= 3 || (run.length >= 2 && cue) || cue)) continue;
+    // A contact name above the thread ("Aerion Targaryen", "A 👑") says whose messages the ">" lines are; it is not a heading.
+    const headPara = first - 1 >= 0 ? paras[first - 1].trim() : "";
+    const isHeader = headPara.length > 0 && headPara.length <= 28 && !/[.!?:,;]$/.test(headPara) && !looksLikeMessage(headPara);
+    const headerChar = isHeader ? cast.byAlias.get(headPara) ?? cast.byAlias.get(headPara.split(" ")[0]) : undefined;
+    if (isHeader) rewritten.set(first - 1, "[chat]");
+    // In these threads ">" is the message that comes in from the other person and "<" the viewpoint character's own reply.
+    // The viewpoint character is the narrator, the point of view at that paragraph, or else whoever was named last.
+    let owner: Character | undefined = headerChar ? partnerOf(headerChar) : cast.narrator ?? ownerAt?.(first);
     if (!owner) {
       const re = new RegExp(`\\b(${cast.aliasPattern || "(?!)"})\\b`, "g");
       for (let i = first - 1; i >= Math.max(0, first - 4) && !owner; i--) {
@@ -109,8 +115,18 @@ export function detectTexts(paras: string[], cast: Cast): TextingMap {
         owner = hits[hits.length - 1];
       }
     }
+    // A thread with someone outside the pair ("sending a desperate plea to Roland, who responded within seconds") is not theirs.
+    if (owner) {
+      const lead = [paras[first - 1], paras[first - 2]].find((x): x is string => !!x && !looksLikeMessage(x) && x.trim() !== "[chat]") ?? "";
+      const partner = partnerOf(owner);
+      const mentions = (c: Character | undefined) => !!c && new RegExp(`\\b(?:${c.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`).test(lead);
+      const stranger = /\b(?:text(?:ed|ing)?|messag(?:ed|ing)|DM(?:ed)?|replied to|responded to|(?:send|sent|sending|sends)\b[^.!?]{0,40}?\bto)\s+([A-Z][a-z]+)\b/.exec(lead)?.[1];
+      const known = stranger ? cast.byAlias.get(stranger) : undefined;
+      const outsider = stranger && known !== owner && known !== partner && !(partner && mentions(partner));
+      if (outsider) continue;
+    }
     for (const a of run) {
-      const sender = owner && (a.out ? owner : partnerOf(owner));
+      const sender = owner && (a.out ? partnerOf(owner) : owner);
       const receiver = sender && partnerOf(sender);
       messages.push({ para: a.para, sender, receiver, text: a.text, how: "chat" });
       if (sender) {
@@ -149,7 +165,7 @@ export function detectTexts(paras: string[], cast: Cast): TextingMap {
 
 /** Cheap pre-check: are there enough "Name: message" lines to be worth looking for a chat? */
 export function looksLikeChat(paras: string[]): boolean {
-  if (paras.filter((p) => /^\s*>\s*\S/.test(p) && p.length < 300).length >= 1 && paras.some((p) => /^\s*(?:<\s*\S|\S.*\s<\s*$)/.test(p))) return true;
+  if (paras.filter((p) => /^\s*>\s*\S/.test(p) && p.length < 300).length >= 1 && paras.some((p) => /^\s*(?:<\s*[^\s3]|\S.*<\s*$)/.test(p))) return true;
   let n = 0;
   for (const p of paras) if (p.length < 400 && CHAT_LINE.test(p.trim())) n++;
   if (n >= 3) return true;
@@ -182,4 +198,10 @@ export function summarizeTexts(messages: TextMessage[], where: (pi: number) => s
     ? `${messages.length} text message${messages.length === 1 ? "" : "s"}${list.length ? ` (${list.slice(0, 3).map((p) => `${p.from} → ${p.to} ×${p.count}`).join(", ")})` : ""}${sexual ? `, ${sexual} sexual` : ""}`
     : "No text messages recognized.";
   return { occurs: messages.length > 0, summary, total: messages.length, chat, narrated: messages.length - chat, sexual, pairs: list, examples };
+}
+
+/** One line of a text thread: "> sent", "received <", "Name: message", "[photo]", "Typing…". */
+export function looksLikeMessage(p: string): boolean {
+  const t = p.trim();
+  return /^>\s*\S/.test(t) || /\S\s*<$/.test(t) || (t.length < 400 && CHAT_LINE.test(t)) || /^\[(?:photo|image|video|gif|voice message|sticker)\]$/i.test(t);
 }
