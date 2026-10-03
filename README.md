@@ -356,6 +356,20 @@ AO3_DIR=ao3-samples npx vitest run tests/gold-eval.test.ts                      
   and the labels disagree; after relabelling run `WRITE_RELIABILITY=1 npx vitest run tests/reliability.test.ts`. Fixing a
   pattern makes its old labels stale, so relabel its samples from a fresh audit (`AUDIT_SAMPLES=8`, which also writes
   `PATTERN_AUDIT.json` with a key per row). Mistake reports name the pattern behind each flagged line.
+- **Context model.** `src/heuristic/learned.ts` turns each hit's surroundings (how sexual the stretch is, whether both people are
+  a declared pair, whether the actor is named, sentence length, fights, babies, "what if" words, left-out subjects) and the
+  pattern's own record into a trust multiplier for that hit, replacing the flat per-pattern number. It is trained from
+  `tests/labels/*.json` by `AO3_DIR=ao3-samples npx vitest run tests/learn.test.ts` (add `WRITE_LEARNED=1` to write the model);
+  the report in `LEARN_REPORT.md` gives held-out log loss and AUC against the pattern record alone, and the model is switched on only if
+  it wins. On the first training: log loss 0.161 to 0.141, AUC 0.66 to 0.77.
+- **Review queue.** `AO3_DIR=ao3-samples npx vitest run tests/review-queue.test.ts` picks the unlabelled hits the model trusts
+  least (at most three per pattern) plus a few it trusts most, with the paragraph around each, into `REVIEW_QUEUE.json`.
+  `node scripts/build-review-page.mjs REVIEW_QUEUE.json page.html` makes the page (Wrong / Fine / Not sure per row, saved as you
+  click) and `node scripts/import-review-answers.mjs none <saved answers dir> tests/labels/review-DATE.json` turns the answers
+  into labels. Then rerun `WRITE_RELIABILITY=1 npx vitest run tests/reliability.test.ts` and the training test.
+- **Metamorphic tests.** `tests/metamorphic.test.ts` runs a table of act sentences as written, with the names swapped (roles
+  must flip), in present tense, with a pronoun for the subject, negated, and as a dream or a wish (no scene may come out). A
+  sentence that fails goes in its KNOWN list, so a new break fails the test and so does an unnoticed fix.
 - **Gold labels.** `tests/gold/*.json` hold hand-checked readings of real fics (six now: hockey, rugby, werewolf, Star Wars, 9-1-1 and an omegaverse Stranger Things AU): verdicts per pairing and act, which scenes are
   real and who tops (as paragraph ranges), acts whose scene list is complete (any extra scene is a false positive), known
   false positives, who the point of view is by section, and who sent which text. They store paragraph numbers and a hash of

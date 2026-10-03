@@ -1,0 +1,146 @@
+<title>/*TITLE*/</title>
+<style>
+:root{--bg:#f6f5f3;--surface:#ffffff;--ink:#1d2127;--muted:#5d6670;--line:#d9dde1;--accent:#2a5d8f;--good:#1f7a4d;--goodbg:#e2f3e9;--bad:#b3392f;--badbg:#f9e4e1;--unsure:#8a6a14;--unsurebg:#f6edcf;--mark:#fff1a8;--markink:#1d2127;--display:"Newsreader",Georgia,serif;--body:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181c;--surface:#1d2127;--ink:#e8eaec;--muted:#a0a8b0;--line:#323941;--accent:#7fb0e0;--good:#6fcf9b;--goodbg:#1b3a2b;--bad:#f0877d;--badbg:#42221f;--unsure:#e2c26a;--unsurebg:#3b3318;--mark:#5c4f12;--markink:#f5f1dc;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15181c;--surface:#1d2127;--ink:#e8eaec;--muted:#a0a8b0;--line:#323941;--accent:#7fb0e0;--good:#6fcf9b;--goodbg:#1b3a2b;--bad:#f0877d;--badbg:#42221f;--unsure:#e2c26a;--unsurebg:#3b3318;--mark:#5c4f12;--markink:#f5f1dc;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:24px 80px}
+.wrap{max-width:820px;margin:0 auto}
+h1{font-family:var(--display);font-weight:500;font-size:2rem;margin:0 0 6px;text-wrap:balance}
+.lede{color:var(--muted);margin:0 0 18px;max-width:65ch}
+.key{display:grid;gap:8px;margin:0 0 18px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.key div{display:flex;gap:10px;align-items:baseline}.key b{min-width:76px}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--bg);padding-block:10px;border-bottom:1px solid var(--line);display:flex;gap:10px 14px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.prog{flex:1 1 220px;min-width:0}.prog .t{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+.meter{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:4px;display:flex}
+.meter i{display:block;height:100%}.m-c{background:var(--good)}.m-i{background:var(--bad)}.m-u{background:var(--unsure)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.f{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:5px 10px;border-radius:5px;font-size:13px}
+.f[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:14px}
+.card[data-v="wrong"]{border-left:4px solid var(--good)}.card[data-v="fine"]{border-left:4px solid var(--bad)}.card[data-v="unsure"]{border-left:4px solid var(--unsure)}
+.head{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:baseline;margin-bottom:8px}
+.num{font-family:var(--display);font-size:1.4rem;font-variant-numeric:tabular-nums}
+.pat{font-family:var(--mono);font-size:13px;background:var(--bg);border:1px solid var(--line);padding:1px 6px;border-radius:4px;overflow-wrap:anywhere}
+.fic{color:var(--muted);font-size:13px}
+.claim{margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:5px}.claim p{margin:0}.claim .q{font-size:15px}.claim .how{margin-top:4px;font-size:13px;color:var(--muted)}.claim .how b{color:var(--ink)}
+.ctx{font-family:var(--display);font-size:16px;line-height:1.6;margin:0 0 10px}
+.ctx p{margin:0 0 6px}.ctx .dim{color:var(--muted)}
+mark{background:var(--mark);color:var(--markink);padding:0 2px;border-radius:2px}
+.mine{font-size:14px;padding:8px 10px;background:var(--bg);border-radius:5px;margin:0 0 12px}.mine b{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-right:4px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.b{flex:1 1 150px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 10px;border-radius:6px;text-align:left}
+.b small{display:block;color:var(--muted);font-size:12px}
+.b:hover{border-color:var(--accent)}
+.b[aria-pressed="true"].c{background:var(--goodbg);border-color:var(--good)}
+.b[aria-pressed="true"].i{background:var(--badbg);border-color:var(--bad)}
+.b[aria-pressed="true"].u{background:var(--unsurebg);border-color:var(--unsure)}
+.b.u{flex:0 1 110px}
+textarea{width:100%;box-sizing:border-box;margin-top:10px;font:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);min-height:38px;resize:vertical}
+.out{margin-top:24px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.out button{border:1px solid var(--accent);background:var(--accent);color:var(--bg);padding:7px 14px;border-radius:5px}
+.status{font-size:13px;color:var(--muted);margin-left:8px}
+.empty{color:var(--muted);padding:24px 0;text-align:center}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+<div class="wrap">
+<h1>/*TITLE*/</h1>
+<p class="lede">/*LEDE*/ For each one, read the paragraph and say whether the analyzer’s reading is actually wrong. The flagged sentence is highlighted.</p>
+<div class="key">
+<div><b>Wrong</b><span>The analyzer’s reading of this line is a mistake.</span></div>
+<div><b>Fine</b><span>The analyzer’s reading is right; the earlier review was too harsh.</span></div>
+</div>
+<div class="bar">
+<div class="prog"><div class="t" id="ptext">Loading…</div><div class="meter"><i class="m-c" id="mc"></i><i class="m-i" id="mi"></i><i class="m-u" id="mu"></i></div></div>
+<div class="filters" id="filters"></div>
+</div>
+<div id="list"></div>
+<div class="out"><button id="copy" type="button">Copy my answers</button><span class="status" id="cstatus"></span>
+<p style="margin:10px 0 0;color:var(--muted);font-size:13px">Answers save as you click. Claude can read them directly, so copying is optional.</p></div>
+</div>
+<script>
+const ROWS = /*ROWS*/;
+const state = {}; let db = null; let filter = "all";
+const $ = (id) => document.getElementById(id);
+const LS = "wrongrows-v1";
+try { Object.assign(state, JSON.parse(localStorage.getItem(LS) || "{}")); } catch (e) {}
+function persistLocal() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function ctxPara(text) {
+  const p = el("p"); const m = /^([\s\S]*?)【([\s\S]*?)】([\s\S]*)$/.exec(text);
+  if (!m) { p.textContent = text; return p; }
+  p.append(document.createTextNode(m[1]), Object.assign(el("mark"), { textContent: m[2] }), document.createTextNode(m[3])); return p;
+}
+function build() {
+  const list = $("list"); list.textContent = "";
+  for (const r of ROWS) {
+    const card = el("section", "card"); card.id = "r" + r.n; card.dataset.n = r.n;
+    const head = el("div", "head");
+    head.append(el("span", "num", "#" + r.n), el("code", "pat", r.pattern), el("span", "fic", r.fic));
+    const rd = el("div", "claim"); const q = el("p", "q"); q.append(el("b", null, "The analyzer is saying: "), document.createTextNode(r.claim + "."));
+    const how = el("p", "how"); how.append(el("b", null, "Wrong"), document.createTextNode(" if the text doesn’t show this, or shows it with different people or the other way round. "), el("b", null, "Fine"), document.createTextNode(" if it does."));
+    rd.append(q, how);
+    const ctx = el("div", "ctx");
+    const b = ctxPara(r.before); b.className = "dim"; const a = ctxPara(r.after); a.className = "dim";
+    ctx.append(b, ctxPara(r.para), a);
+    const mine = el("p", "mine");
+    if (r.read) mine.append(el("b", null, "Claude thinks: " + ({ mistake: "wrong", fine: "fine", unsure: "not sure" })[r.verdict]), document.createTextNode(" " + r.read));
+    else if (r.note) mine.append(el("b", null, "Engine"), document.createTextNode(" " + r.note));
+    else mine.hidden = true;
+    const btns = el("div", "btns");
+    const defs = [["wrong", "c", "Wrong", "the analyzer got it wrong"], ["fine", "i", "Fine", "the analyzer got it right"], ["unsure", "u", "Not sure", ""]];
+    for (const [v, k, t, s] of defs) {
+      const bt = el("button", "b " + k); bt.type = "button"; bt.dataset.v = v; bt.append(document.createTextNode(t));
+      if (s) bt.append(el("small", null, s));
+      bt.addEventListener("click", () => choose(r.n, v)); btns.append(bt);
+    }
+    const note = el("textarea"); note.id = "note" + r.n; note.placeholder = "Note (optional)"; note.rows = 1;
+    note.addEventListener("change", () => save(r.n, { note: note.value }));
+    card.append(head, rd, ctx, mine, btns, note); list.append(card);
+  }
+}
+function paint() {
+  let c = 0, i = 0, u = 0;
+  for (const r of ROWS) {
+    const s = state[r.n] || {}; const card = $("r" + r.n); if (!card) continue;
+    card.dataset.v = s.v || "";
+    card.querySelectorAll(".b").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === s.v)));
+    const note = $("note" + r.n); if (note && document.activeElement !== note && note.value !== (s.note || "")) note.value = s.note || "";
+    if (s.v === "wrong") c++; else if (s.v === "fine") i++; else if (s.v === "unsure") u++;
+    card.hidden = !(filter === "all" || (filter === "todo" ? !s.v : s.v === filter));
+  }
+  const n = ROWS.length;
+  $("ptext").textContent = `${c + i + u} of ${n} answered · ${c} wrong · ${i} fine · ${u} not sure`;
+  $("mc").style.width = (c / n * 100) + "%"; $("mi").style.width = (i / n * 100) + "%"; $("mu").style.width = (u / n * 100) + "%";
+  document.querySelectorAll(".f").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === filter)));
+  let none = $("none"); const any = ROWS.some((r) => !$("r" + r.n).hidden);
+  if (!any) { if (!none) { none = el("div", "empty", "Nothing in this view."); none.id = "none"; $("list").append(none); } } else if (none) none.remove();
+}
+function choose(n, v) { const cur = state[n] && state[n].v; save(n, { v: cur === v ? "" : v }); }
+function save(n, patch) {
+  state[n] = Object.assign({}, state[n], patch); persistLocal(); paint();
+  if (db) { const row = ROWS.find((r) => r.n === n); db.doc("reviews/r" + n).set({ n, key: row && row.key ? row.key : "", v: state[n].v || "", note: state[n].note || "" }).catch(() => {}); }
+}
+function filters() {
+  const f = $("filters");
+  for (const [k, t] of [["all", "All"], ["todo", "Unanswered"], ["wrong", "Wrong"], ["fine", "Fine"], ["unsure", "Not sure"]]) {
+    const b = el("button", "f", t); b.type = "button"; b.dataset.f = k; b.addEventListener("click", () => { filter = k; paint(); }); f.append(b);
+  }
+}
+$("copy").addEventListener("click", async () => {
+  const out = ROWS.map((r) => { const s = state[r.n] || {}; return `#${r.n} ${r.pattern}: ${s.v || "unanswered"}${s.note ? " — " + s.note : ""}`; }).join("\n");
+  try { await navigator.clipboard.writeText(out); $("cstatus").textContent = "Copied."; }
+  catch (e) { const t = el("textarea"); t.value = out; t.rows = 10; $("copy").parentNode.append(t); t.select(); $("cstatus").textContent = "Select and copy the text below."; }
+});
+build(); filters(); paint();
+(async () => {
+  try {
+    db = await claude.use("db"); if (!db) return;
+    db.collection("reviews").onSnapshot((snap) => {
+      snap.docs.forEach((d) => { const x = d.data(); if (x && x.n) state[x.n] = { v: x.v || "", note: x.note || "" }; });
+      persistLocal(); paint();
+    });
+  } catch (e) {}
+})();
+</script>

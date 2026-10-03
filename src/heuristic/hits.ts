@@ -21,6 +21,8 @@ export interface ActHit {
   context?: string;
   /** The pattern that produced it (for the audit report). */
   via?: string;
+  /** Context features (learned.ts), kept for the audit and the model's training. */
+  feat?: number[];
 }
 
 export interface DesireHit {
@@ -43,6 +45,8 @@ export interface DesireHit {
   basis?: Basis;
   /** The pattern that produced it (for the audit report). */
   via?: string;
+  /** Context features (learned.ts), kept for the audit and the model's training. */
+  feat?: number[];
 }
 
 // ───────────── text helpers ─────────────

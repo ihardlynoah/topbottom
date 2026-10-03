@@ -21,6 +21,7 @@ import { CHAPTER_RE, Quote, maskQuotes, sentenceSpans } from "./quotes";
 import { ANAL_NEAR_RE, ANIMAL_NEAR, DANGER, DESIRE, DESIRE_LEAD, DESIRE_TAIL, FANTASY, FANTASY_PARA, HABIT_AUX, HYPO_AUX, HYPO_MATCH, HYPO_SENT, HYPO_WINDOW, IDIOM_ASS, IDIOM_SAFE, NEG, ORAL_LINE_RE, ORAL_NEAR_RE, REFLEXIVE, SAY, SCENE_BREAK, SEX_STRICT, STRONG_FANTASY, contextAround } from "./markers";
 import { AddressBook } from "./address";
 import { reliabilityOf } from "./reliability";
+import { featuresOf, trustOf } from "./learned";
 import { Ctx, groupValue, pronoun, resolvePair, stripPoss } from "./resolve";
 import { PairTags, buildAct, buildDynamic, buildManual, buildSolo, buildVaginal, buildVibes, plural, soloIsAnal, tagsFor } from "./builders";
 
@@ -28,6 +29,8 @@ import { PairTags, buildAct, buildDynamic, buildManual, buildSolo, buildVaginal,
 
 export interface AuditHit {
   via: string;
+  /** Context features of the hit (see learned.ts), where the engine computed them. */
+  f?: number[];
   kind: string;
   cat: string;
   act: string;
@@ -401,6 +404,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "…as Dunk's hands kneaded his arse as he pressed his tongue…": the hands' owner carries on as "he".
     const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and|but|then|yet|so))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+([^;—]*?)\\b(?:as|while|when)\\s*$`).exec(prefix);
     if (handsOf && !new RegExp(`\\b(?:${NAMES})\\b|\\b(?:he|she|they)\\b`, "i").test(handsOf[2])) return cast.byAlias.get(handsOf[1]);
+    // "Cas didn't wait for Dean to say anything else, he just pushed inside": the he after the comma is the main clause's
+    // subject, not the name inside "for Dean to…".
+    {
+      const mainThenObj = new RegExp(`(?:^|[.!?]\\s+)(${NAMES})\\s+(?:[\\w'’-]+\\s+){1,5}?(?:for|to|at|with|until)\\s+(${NAMES})\\b[^.!?;,]*,\\s*$`).exec(prefix);
+      if (mainThenObj && /^\s*(?:he|she)\b/i.test(suffix)) {
+        const first = cast.byAlias.get(mainThenObj[1]), second = cast.byAlias.get(mainThenObj[2]);
+        if (first && second && first !== second) return first;
+      }
+    }
     // "Dean hardly had any warning before he was pushing inside him": the "he" is the other one.
     const warned = new RegExp(`(${NAMES})\\s+(?:(?:hardly|barely|scarcely|never|still)\\s+)?(?:had|has|got|gets|received)\\s+(?:hardly|barely|scarcely|little|no|any|not much|not any|almost no)\\s+(?:\\w+\\s+)?warning\\s+before\\s*$`).exec(prefix);
     if (warned && /^\s*(?:he|she|they)\b/i.test(suffix)) { const w = cast.byAlias.get(warned[1]); const o = w && ctx.partnerOf(w); if (o) return o; }
@@ -714,6 +726,25 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "He wished to fuck the count would at least let him know": a name followed by a finite verb starts a new clause, so it isn't the object.
     if (/^fuck/.test(pat.id) && /^\s+(?:would|could|should|might|will|can|had|was|were|did|does|is|are)\b/i.test(sent.slice(m.index! + m[0].length)) && !/^(?:him|her|them|me|you|it)$/i.test(bTok ?? "")) return;
+    // "Dustin babbled and Mrs. Henderson looks at him like…": a left-out subject belongs to the one now named, and someone
+    // who isn't in the cast can't be credited as the person before.
+    if (pat.elided && new RegExp(`(?:^|(?:[,;]|\\b(?:and|but|while|as|then|yet|so))\\s+)(?:(?:Mr|Mrs|Ms|Miss|Dr)\\.?\\s+)?([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?:,[^,.;]{2,50},)?\\s*$`).test(sent.slice(0, m.index!))) {
+      const named = new RegExp(`(?:^|(?:[,;]|\\b(?:and|but|while|as|then|yet|so))\\s+)(?:(?:Mr|Mrs|Ms|Miss|Dr)\\.?\\s+)?([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?:,[^,.;]{2,50},)?\\s*$`).exec(sent.slice(0, m.index!))![1];
+      if (!cast.byAlias.get(named) && !cast.byAlias.get(named.split(" ")[0]) && !/^(?:Then|Now|Still|Instead|Maybe|Perhaps|God|Please|Fuck|Jesus|Christ|Just|Again|Next|Later|Soon|Once|Yes|No|Oh|Okay|Ok|Fine|Good|Hell|Shit|Damn)$/.test(named) && !/ly$/.test(named)) return;
+    }
+    // "…looks at him like she wants to pull him into a hug and feed him soup": the left-out subject is the "she" before it, and
+    // nobody in this cast is a she.
+    if (pat.elided) {
+      const pr = [...sent.slice(0, m.index!).matchAll(/\b(?:she|he)\b(?!['’])/gi)].pop();
+      if (pr && !/[.!?]\s+\S/.test(sent.slice(pr.index! + 3, m.index!))) {
+        const g: Gender = /^she$/i.test(pr[0]) ? "f" : "m";
+        if (!cast.chars.some((c) => Ctx.compatible(c, g))) return;
+      }
+    }
+    // "Steve never sucked Eddie off, taking him deep": a participle carries on the negated verb before it.
+    if (pat.elided && /^\W*(?:\w+ly\s+)?\w+ing\b/.test(m[0]) && (/^\s*,/.test(m[0]) || /,\s*$/.test(sent.slice(0, m.index!))) && /\b(?:never|refus(?:ed|es|e|ing) to)\b/i.test(sent.slice(0, m.index!))) return;
+    // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
+    if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
     const subjTok = pat.subj === "t" ? tTok : bTok;
     // "When Alex manages…, one of his digits slips lower": a possessive pronoun works the same way.
@@ -825,7 +856,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     let { basis } = resolved;
     let act = pat.act;
     let cat = pat.cat;
-    let weight = pat.weight * reliabilityOf(pat.id) * (basis === "named" ? 1 : basis === "pronoun" ? 0.75 : 0.5);
+    const actor = pat.subj === "t" ? top : bottom;
+    const feat = featuresOf({
+      sent, paras, pi, basis: basis ?? "inferred", elided: !!pat.elided,
+      pairBoth: cast.pairings.some((pr) => pr.includes(top) && pr.includes(bottom)),
+      actorNamed: ctx.sentMentions.some((x) => x.c === actor),
+      anyNamed: ctx.sentMentions.length > 0,
+    });
+    let weight = pat.weight * trustOf(pat.id, feat) * (basis === "named" ? 1 : basis === "pronoun" ? 0.75 : 0.5);
     const matchText = m[0];
     const after = sent.slice(m.index! + matchText.length, m.index! + matchText.length + 70);
 
@@ -1038,7 +1076,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "…when a second finger began pushing into him": fingers named in the sentence (and no cock) mean fingering.
     // Fingers busy elsewhere ("his fingers tangling in Alex's curls") don't make it fingering.
     const fingerSent = sent.replace(/\b(?:fingers?|fingertips?|digits?|knuckles?)\b[^,.;]{0,40}?\b(?:hair|curls|locks|sheets?|pillows?|shoulders?|back|neck|jaw|cheeks?|face|scalp|nape|arms?|biceps?|hands?|chest|headboard|blankets?)\b/gi, "");
-    if (cat === "anal" && pat.id !== "worked-open-pushed-in" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + fingerSent) && !PENIS_CTX.test(sent)) act = "fingering";
+    // "opened him up with two fingers, then fucked him": the fingers belong to the clause before; the fucking is a new clause.
+    const fingersBeforeOnly = FINGER_CTX.test(sent.slice(0, m.index!)) && !FINGER_CTX.test(matchText + " " + sent.slice(m.index! + matchText.length)) &&
+      /[,;]|\b(?:then|and then)\b/.test(sent.slice(Math.max(0, m.index! - 14), m.index!) + matchText.slice(0, 12)) && /\b(?:fuck|pound|rail|bang|plow|plough|screw|breed|took|take)\w*/i.test(matchText);
+    if (cat === "anal" && pat.id !== "worked-open-pushed-in" && act.startsWith("anal sex") && !PENIS_CTX.test(matchText) && FINGER_CTX.test(matchText + " " + fingerSent) && !PENIS_CTX.test(sent) && !fingersBeforeOnly) act = "fingering";
     if (pat.id === "prostate" && FINGER_CTX.test(sent) && !PENIS_CTX.test(sent)) act = "fingering";
 
     // Hints, not acts: checking out an ass, grabbing it, staring at a bulge...
@@ -1091,6 +1132,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const other = actor === top ? bottom : top;
       desires.push({
         via: pat.id,
+        feat,
         cat,
         act,
         who: actor,
@@ -1193,7 +1235,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const doubleNeg = /\b(?:not|n['’]t|never|without)\s+(?:to\s+)?(?:\w+\s+){0,2}?(?:suppress|resist|fight|hold back|stifle|restrain|deny|ignore|squash|stop|hide|push down|swallow|fight off)\w*\s+(?:\w+\s+){0,2}(?:urge|desire|need|want|impulse|temptation|craving)/i.test(window);
     // "Not without taking Eddie's dick out of his mouth": not … without cancels out.
     const notWithout = /\bnot\s+without\s+(?:\w+\s+){0,2}$/i.test(window);
-    const negated = !ifNot && !doubleNeg && !notWithout && (NEG.test(aux) || NEG.test(negWindow));
+    // "Eddie's cock never slid between his lips": a never inside the match, between the subject and the verb.
+    const negated = !ifNot && !doubleNeg && !notWithout && (NEG.test(aux) || NEG.test(negWindow) || NEG.test(negWindow.slice(-14) + matchText.slice(0, 8)) || /\b(?:never|refus(?:ed|es|e|ing) to|declin(?:ed|es|e|ing) to)\b/i.test(matchText));
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
     else if (DESIRE_LEAD.test(sent) || DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
@@ -1249,7 +1292,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
           acts.push({ via: pat.id, cat, act, top: c, bottom, weight: weight * 0.9, basis: "named", para: pi, sentence: original, context: contextAround(paras[pi] ?? "", original) });
         }
       }
-      acts.push({ via: pat.id, cat, act, top, bottom, weight: retro ? weight * 0.4 : weight, basis, para: pi, sentence: original, holeGuess, shaky: retro ? "“what it was like to…” looks back on an earlier time and can describe either partner" : shaky, context: contextAround(paras[pi] ?? "", original) });
+      acts.push({ via: pat.id, feat, cat, act, top, bottom, weight: retro ? weight * 0.4 : weight, basis, para: pi, sentence: original, holeGuess, shaky: retro ? "“what it was like to…” looks back on an earlier time and can describe either partner" : shaky, context: contextAround(paras[pi] ?? "", original) });
       ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;
       return;
@@ -1264,6 +1307,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (negated && /\bno\s+(?:fucking\s+|damn\s+)?(?:way|chance)\b|\bnot\s+a\s+chance\b|\bas\s+if\b|\bthere\s+(?:was|is)\s+no\s+(?:possible\s+)?(?:way|chance)\b/i.test(prefix.slice(-90))) return;
     desires.push({
       via: pat.id,
+      feat,
       cat,
       act,
       who: exp,
@@ -1488,8 +1532,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     texts: [...texting.messages, ...narratedTexts].map((m) => ({ para: m.para, from: m.sender?.name, to: m.receiver?.name })),
   });
   if (opts.audit) {
-    for (const h of acts) opts.audit({ via: h.via ?? "?", kind: "act", cat: h.cat, act: h.act, para: h.para, sentence: h.sentence, a: h.top.name, b: h.bottom.name });
-    for (const h of desires) opts.audit({ via: h.via ?? "?", kind: h.kind, cat: h.cat, act: h.act, para: h.para, sentence: h.sentence, a: h.who.name, b: h.partner?.name });
+    for (const h of acts) opts.audit({ via: h.via ?? "?", f: h.feat, kind: "act", cat: h.cat, act: h.act, para: h.para, sentence: h.sentence, a: h.top.name, b: h.bottom.name });
+    for (const h of desires) opts.audit({ via: h.via ?? "?", f: h.feat, kind: h.kind, cat: h.cat, act: h.act, para: h.para, sentence: h.sentence, a: h.who.name, b: h.partner?.name });
   }
   const textingResult = summarizeTexts([...texting.messages, ...narratedTexts], where);
   return {
