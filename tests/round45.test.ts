@@ -296,3 +296,28 @@ describe("solo acts: plans and struggles are not acts", () => {
     expect(analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].solo!.occurs).toBe(false);
   });
 });
+
+describe("everyday dynamics between the pair: caretaking, leading by the hand, carrying", () => {
+  const ST = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const f = (line: string) => analyzeWithPatterns(sb + line, ST, { quiet: true }).pairings[0].vibe!.flatMap((v) => v.factors!.map((x) => ({ ...x, who: v.name }))).filter((x) => (x.source ?? "").includes(line.slice(0, 22)));
+  it.each([
+    ["Eddie tucked a blanket around Steve and told him to sleep.", "Eddie"],
+    ["Steve handed Eddie the bag of ice without a word.", "Steve"],
+    ["Eddie stroked Steve’s hair until his breathing evened out.", "Eddie"],
+    ["Eddie took Steve’s hand and led him toward the door.", "Eddie"],
+    ["Eddie wrapped his arms around Steve’s waist and lifted him out of the van.", "Eddie"],
+    ["Eddie stepped between Steve and Hopper.", "Eddie"],
+  ])("%s", (line, who) => {
+    const hits = f(line);
+    expect(hits.some((x) => x.who.startsWith(who) && x.role === "top"), line).toBe(true);
+    expect(hits.some((x) => !x.who.startsWith(who) && x.role === "bottom" && x.fromOther !== true && false)).toBe(false);
+  });
+  it.each([
+    "Steve led the kids toward the car and told them to stay low.",
+    "Steve handed Billy the bag of ice and walked away.",
+    "Eddie led the band through the final song.",
+  ])("not a cue between the pair: %s", (line) => {
+    expect(f(line).length, line).toBe(0);
+  });
+});

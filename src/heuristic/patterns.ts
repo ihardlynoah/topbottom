@@ -1739,7 +1739,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.5,
     signal: { kind: "behavior", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:lift(?:ed|s|ing)|carr(?:ied|ies|ying)|hoist(?:ed|s|ing)|scoop(?:ed|s|ing)|swept)\\s+{B}\\s+(?:up\\s+)?(?:into|onto|off|over|against|in|to)\\b`,
+    src: `\\b{T}\\s+{aux}(?:lift(?:ed|s|ing)|carr(?:ied|ies|ying)|hoist(?:ed|s|ing)|scoop(?:ed|s|ing)|swept|heav(?:ed|es|ing))\\s+{B}\\s+(?:up\\s+)?(?:into|onto|off|over|against|in|to|out\\s+of|up\\s+(?:the|to)|down)\\b`,
   },
   {
     id: "dom-protect",
@@ -1748,7 +1748,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.5,
     signal: { kind: "behavior", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:shield\\w*|protect\\w*|stepp?ed\\s+in\\s+front\\s+of|stood\\s+in\\s+front\\s+of)\\s+{B}\\b`,
+    src: `\\b{T}\\s+{aux}(?:shield\\w*|protect\\w*|stepp?ed\\s+in\\s+front\\s+of|stood\\s+in\\s+front\\s+of|(?:stepp?ed|moved|put\\s+(?:himself|herself|themselves))\\s+between)\\s+{B}\\b`,
   },
   {
     id: "dom-lead",
@@ -2745,6 +2745,51 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     signal: { kind: "masturbation", actorRole: "bottom" },
     src: `\\b{B}\\s+{aux}(?:got|get|gets|getting|brought|bring|brings|bringing|made|make|makes|making|worked|work|works|working)\\s+${SELF}\\s+(?:off|to\\s+(?:orgasm|climax|completion|the edge)|come|cum)\\b`,
+  },
+  // ───────────── everyday dynamics between the pair (tier 6, light): caretaking, leading by the hand ─────────────
+  {
+    // "tucked a blanket around Steve", "wrapped his jacket around Steve", "draped the towel over Steve"
+    id: "care-wrap",
+    cat: "vibe",
+    kw: "blanket|jacket|coat|sweater|hoodie|towel|scarf|quilt|cardigan|shirt",
+    act: "looking after someone",
+    subj: "t",
+    weight: 0.4,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:tuck|drap|wrap|pull|pulled|put|spread|laid|lay|threw|tossed)\\w*\\s+(?:a|the|his|her|their|my|your|an|that|this)\\s+(?:\\w+\\s+){0,2}?(?:blanket|jacket|coat|sweater|hoodie|towel|scarf|quilt|cardigan|comforter)\\s+(?:around|over|across)\\s+{B}\\b`,
+  },
+  {
+    // "handed Eddie the bag of ice", "brought Steve a glass of water", "fed Steve soup"
+    id: "care-bring",
+    cat: "vibe",
+    kw: "ice|water|food|soup|coffee|tea|bandage|aspirin|painkiller|pills|first aid|peas|towel|plate|sandwich|burger|breakfast|lunch|dinner",
+    act: "looking after someone",
+    subj: "t",
+    weight: 0.4,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:hand(?:ed|s)?|brought|bring(?:s)?|fetch(?:ed|es)?|got|poured|fed|feed(?:s)?|made|cooked|handed)\\s+{B}\\s+(?:a|an|the|some|his|her|their)?\\s*(?:[\\w-]+\\s+){0,2}?(?:ice|water|food|soup|coffee|tea|bandages?|aspirin|painkillers?|pills|first[- ]aid|peas|towel|plate|sandwich|burger|breakfast|lunch|dinner|bag of ice|glass)\\b`,
+  },
+  {
+    // "rubbed Steve's hands to warm them up", "stroked Steve's hair", "smoothed Steve's hair back"
+    id: "care-soothe",
+    cat: "vibe",
+    kw: "hair|back|hands|shoulders|arm|forehead",
+    act: "comforting someone",
+    subj: "t",
+    weight: 0.4,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:rubb?|strok|smooth|carress|caress|pat|massag|squeez|ran\\s+(?:his|her|their)\\s+(?:fingers|hand|knuckles))\\w*\\s+(?:\\w+\\s+)?(?:(?:over|through|along|across|down|on)\\s+)?{B:poss}\\s+(?:\\w+\\s+)?(?:back|hair|hands?|shoulders?|arm|forearm|forehead|cheek|head)\\b(?!\\s+(?:and|as|while)\\s+(?:kissed|moan|gasp))`,
+  },
+  {
+    // "took Steve's hand and led him", "tugged Steve toward the escalators", "dragging him to the other side of the dance floor"
+    id: "lead-by-hand",
+    cat: "vibe",
+    kw: "led|lead|tugg|dragg|steer|guid|pulled|gestur",
+    act: "leading someone",
+    subj: "t",
+    weight: 0.4,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:(?:took|grabbed|caught)\\s+{B:poss}\\s+(?:hand|arm|wrist|sleeve)\\s*(?:,\\s*)?(?:and\\s+)?(?:led|pulled|tugged|dragged|steered|guided)|(?:led|steered|guided|tugged|ushered|herded|marched)\\s+{B}\\s+(?:by\\s+the\\s+(?:hand|arm|wrist|sleeve)|toward|towards|to|out|inside|through|into|over|along|down|up|away)|gestur\\w*\\s+for\\s+{B}\\s+to\\s+follow)\\b`,
   },
 ];
 
