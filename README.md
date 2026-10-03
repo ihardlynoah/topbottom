@@ -136,6 +136,12 @@ word count is estimated and the main characters are guessed from frequently capi
    dildo” or “fucked his own ass” (or wearing a plug) counts fully, while “pushed the dildo into his ass” with no
    one else in the sentence counts a little over half as much. A long solo scene counts about twice, not once per
    sentence, and “got himself fucked” or “made himself come” are not solo toy use.
+   **Solo acts** get their own card, per person: masturbation (“jerked himself off”, “stroked his own cock”,
+   “masturbated”, “got himself off”, “thrust up into his own fist”), self-fingering and toys on oneself. Masturbation
+   is never counted toward top or bottom. Self-fingering and toys keep counting as anal-bottom evidence for someone
+   with an ass; for a woman (or anyone with a vulva) they count that way only when the sentence says ass or anal,
+   otherwise they are solo and vaginal. A wish or plan (“wanted to touch himself”, “if he jerked off”) and a partner
+   being touched (“jerked Eddie off”) are not solo acts.
    Oral phrasings include a cock taken out of the mouth, a throat squeezing around a cock, a cock forced down the
    throat, fighting the urge to gag, tasting precum at the back of the throat, a grip in the hair with hips pushed
    forward, the back of the tongue around the head, and an open mouth against a zipper. “Not without taking …” cancels

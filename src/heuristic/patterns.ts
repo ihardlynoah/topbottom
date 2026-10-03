@@ -40,7 +40,7 @@ export interface PatternDef {
   femaleTarget?: "flip" | "drop";
   /** Not an act: a hint about who'd top (ogling an ass, grabbing it, staring at a bulge). */
   /** A hint, not an act. `actor` says whose behaviour it is when that isn't the subject ("shoved his fingers into Peter's mouth"). */
-  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
+  signal?: { kind: "ogling" | "touch" | "prep" | "fingers" | "solo" | "masturbation" | "behavior" | "stated" | "body" | "aftercare" | "position" | "petname"; actorRole: "top" | "bottom"; actor?: "t" | "b" };
 }
 
 export interface CompiledPattern extends PatternDef {
@@ -2685,6 +2685,66 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     src: `\\b{T}\\s+{aux}(?:grabb?|grip|fist|tangl|tugg?|pull|clutch|held|hold)\\w*\\s+{B:poss}\\s+hair\\s+(?:and\\s+)?(?:\\w+ly\\s+)?(?:push|thrust|roll|jerk|snap|pump|drove|drive|rock)\\w*\\s+(?:his|her|their)\\s+hips\\s+(?:\\w+\\s+){0,3}?(?:forward|in|up)\\b`,
+  },
+  // ───────────── solo acts: masturbation (shown on their own card, never counted toward top/bottom) ─────────────
+  {
+    // "masturbated", "jerked off", "wanked", "jacked off to the thought"
+    id: "mast-word",
+    cat: "vibe",
+    kw: "masturbat|wank|jack|jerk|beat|fap",
+    act: "masturbation",
+    subj: "b",
+    weight: 0.9,
+    signal: { kind: "masturbation", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:masturbat(?:e|es|ed|ing)|wank(?:s|ed|ing)?(?!\\s+(?:him|her|them))|(?:jack|jerk|beat)(?:s|ed|ing)?\\s+off|fap(?:s|ped|ping)?)(?!\\s+(?:him|her|them|[A-Z]))`,
+  },
+  {
+    // "jerked himself off", "touched himself", "stroked himself", "pleasured himself"
+    id: "mast-himself",
+    cat: "vibe",
+    kw: "himself|herself|themself|themselves",
+    act: "masturbation",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "masturbation", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:jerk|jack|stroke|strok|pump|wank|fist|tug|touch|rub|pleasur|play|squeez|grip|palm|fondl|caress|tease|grind|ground|rock|thrust)\\w*\\s+${SELF}(?:\\s+off)?(?![\\w-])(?!\\s+(?:up|open|wide|loose|on|onto|against|into|with\\s+(?:a|the|his|her|their|my|your)\\s+(?:dildo|toy|vibrator|plug|fingers?))\\b)`,
+  },
+  {
+    // "stroked his own cock", "rubbed her own clit", "squeezed his own nipples"
+    id: "mast-own",
+    cat: "vibe",
+    kw: "own",
+    act: "masturbation",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    signal: { kind: "masturbation", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:strok|jerk|pump|fist|tug|squeez|grip|palm|rubb?|work|fondl|touch|play(?:ed|s|ing)?\\s+with|pleasur|circl|flick|teas)\\w*\\s+(?:at\\s+|on\\s+)?(?:his|her|their)\\s+own\\s+(?:[\\w-]+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection|clit|clitoris|pussy|cunt|folds|nipples?)\\b`,
+  },
+  {
+    // "thrust up into his own fist"
+    id: "mast-own-fist",
+    cat: "vibe",
+    kw: "own",
+    act: "masturbation",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "masturbation", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:thrust|fuck|pump|rock|buck|roll|snap)\\w*\\s+(?:\\w+\\s+)?(?:up\\s+)?into\\s+(?:his|her|their)\\s+own\\s+(?:fist|hand|grip)`,
+  },
+  {
+    // "got himself off", "made himself come", "brought himself to orgasm"
+    id: "mast-got-off",
+    cat: "vibe",
+    kw: "himself|herself|themself|themselves",
+    act: "masturbation",
+    subj: "b",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "masturbation", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:got|get|gets|getting|brought|bring|brings|bringing|made|make|makes|making|worked|work|works|working)\\s+${SELF}\\s+(?:off|to\\s+(?:orgasm|climax|completion|the edge)|come|cum)\\b`,
   },
 ];
 

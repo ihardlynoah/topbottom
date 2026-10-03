@@ -224,3 +224,75 @@ describe("solo toy use: ‘himself’ / ‘his own’ counts for more than an in
     }
   });
 });
+
+describe("solo acts have their own category", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const solo = (line: string, m: Ao3Meta = SB, base = sb) => analyzeWithPatterns(base + line, m, { quiet: true }).pairings[0].solo!;
+  it.each([
+    ["Steve jerked himself off in the shower, biting back a moan.", "Steve", "Masturbation"],
+    ["Eddie stroked his own cock slowly, staring at the ceiling.", "Eddie", "Masturbation"],
+    ["Steve masturbated twice before Eddie got home.", "Steve", "Masturbation"],
+    ["Eddie touched himself through his jeans, hips rocking, thinking of Steve.", "Eddie", "Masturbation"],
+    ["Steve thrust up into his own fist, gasping.", "Steve", "Masturbation"],
+    ["Eddie got himself off in the dark with a muffled groan.", "Eddie", "Masturbation"],
+    ["Steve fucked himself with the dildo, moaning into the pillow.", "Steve", "Toy on self"],
+    ["Eddie fingered himself open, slick and quick, whimpering.", "Eddie", "Self-fingering"],
+  ])("%s", (line, who, label) => {
+    const r = solo(line);
+    expect(r.occurs, line).toBe(true);
+    const p = r.people.find((x) => x.name.startsWith(who))!;
+    expect(p.acts.map((a) => a.act), line).toContain(label);
+    expect(r.people.find((x) => !x.name.startsWith(who))!.total).toBe(0);
+  });
+  it.each([
+    "Steve jerked Eddie off slowly, kissing his neck.",
+    "Eddie wanted to touch himself, but Steve held his wrists.",
+    "Steve touched himself on the chest and said he was fine.",
+    "If Steve masturbated now he would never hear the end of it.",
+  ])("not solo: %s", (line) => {
+    expect(solo(line).occurs, line).toBe(false);
+  });
+  it("masturbation is not a top or bottom cue", () => {
+    const p = analyzeWithPatterns(sb + Array(5).fill("Steve jerked himself off, gasping.").join(" "), SB, { quiet: true }).pairings[0];
+    expect(p.solo!.people[0].total).toBeGreaterThan(0);
+    expect(p.vibe!.flatMap((v) => v.factors!).filter((f) => /jerked himself/.test(f.source ?? "")).length).toBe(0);
+  });
+  it("self-fingering and toys still count as anal bottoming for a man, and also appear as solo", () => {
+    const p = analyzeWithPatterns(sb + "Steve fucked himself with the dildo, moaning into the pillow.", SB, { quiet: true }).pairings[0];
+    expect(p.solo!.people[0].acts.map((a) => a.act)).toContain("Toy on self");
+    expect(p.vibe!.flatMap((v) => v.factors!.map((f) => ({ ...f, who: v.name }))).some((f) => f.who.startsWith("Steve") && f.role === "bottom" && /dildo/.test(f.source ?? ""))).toBe(true);
+  });
+  it("for a woman, self-fingering is solo but not anal bottoming unless the words say ass", () => {
+    const FF = { ...emptyMeta(), rating: "Explicit", categories: ["F/F"], fandoms: ["Original Work"], relationships: ["Anna/Beth"], characters: ["Anna", "Beth"] } as Ao3Meta;
+    const base = baseOf("Anna", "Beth");
+    const vag = analyzeWithPatterns(base + "Anna fingered herself, her pussy slick, moaning Beth’s name.", FF, { quiet: true }).pairings[0];
+    expect(vag.solo!.occurs).toBe(true);
+    expect(vag.vibe!.flatMap((v) => v.factors!).filter((f) => /fingered herself/.test(f.source ?? "")).length).toBe(0);
+    const anal = analyzeWithPatterns(base + "Anna pushed a finger into her own ass, moaning Beth’s name.", FF, { quiet: true }).pairings[0];
+    expect(anal.solo!.occurs).toBe(true);
+  });
+});
+
+describe("report wording for a solo act", () => {
+  it("says it was shown as a solo act, not as pointing toward someone", async () => {
+    const { buildReport } = await import("../src/report");
+    const r = buildReport({
+      source: "patterns", summaries: [], missed: [], general: "",
+      flags: [{ id: "x", kind: "hint", pairing: "Steve/Eddie", card: "solo", top: "Steve", bottom: "", act: "Masturbation", evidence: "Steve jerked himself off.", reasons: ["not_sex"], note: "" }],
+    });
+    expect(r).toMatch(/solo act by \*\*Steve\*\* · Masturbation/);
+    expect(r).not.toMatch(/points toward/);
+  });
+});
+
+describe("solo acts: plans and struggles are not acts", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  it.each([
+    "Steve was going to jerk off in the bathroom before coming back to bed.",
+    "Eddie found it difficult to keep from reaching down to touch himself.",
+  ])("%s", (line) => {
+    expect(analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].solo!.occurs).toBe(false);
+  });
+});

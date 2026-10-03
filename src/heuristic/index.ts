@@ -13,6 +13,8 @@ import {
   type Instance,
   type PairingResult,
   type Role,
+  type SoloAct,
+  type SoloResult,
   type VaginalResult,
   type VibeRating,
   confidenceLabel,
@@ -1367,6 +1369,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const prefix = sent.slice(0, m.index);
       if (NEG.test(m.groups?.aux ?? "") || NEG.test(prefix.slice(-40))) return;
       if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
+      // A wish, a plan or an attempt isn't a solo act: "wanted to touch himself", "if he jerked off", "tried not to masturbate".
+      if (pat.signal.kind === "masturbation" && (HYPO_AUX.test(m.groups?.aux ?? "") || /\b(?:want\w*|wish\w*|imagin\w*|fantasi[sz]\w*|thought\s+about|think\w*\s+about|if|unless|would|could|might|should|gonna|going\s+to|tempted|temptation|urge|tried|trying|try|needed|need|about\s+to|stop\w*|refus\w*|without|keep\s+from|kept\s+from|resist\w*|difficult|struggl\w*|held\s+back|hold\s+back)\b[^.!?]{0,40}$/i.test(prefix.slice(-60) + " " + (m.groups?.aux ?? "") + " " + m[0].slice(0, 25)))) return;
+      // “Cas touched himself” is solo, but “Cas touched Dean, who was jerking himself off” has two people in it: only the subject counts.
+
       // "licking a couple fingers and pushing them in together": wetting his own fingers to open someone up, not being sucked on.
       if (pat.id === "suck-fingers" && /^[^.!?]{0,60}?\b(?:push|press|slid|slip|work|insert|sink|guid|ease)\w*\s+(?:them|it)\s+(?:in|into|inside)\b/i.test(after)) return;
       if (pat.signal.kind === "fingers" && /\bwhistl\w*/i.test(sent)) return;
@@ -1644,7 +1650,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const results: (PairingResult & { weight: number; key: string })[] = [];
   for (const key of keys) {
     const pActs = acts.filter((a) => pairKey(a.top, a.bottom) === key);
-    const pDes = desires.filter((d) => d.partner && pairKey(d.who, d.partner) === key);
+    const allPairDes = desires.filter((d) => d.partner && pairKey(d.who, d.partner) === key);
+    // Solo acts get their own card. Self-fingering and toys on oneself still count toward anal bottom evidence, but only for
+    // someone with an ass in play: a woman fingering herself is vaginal unless the sentence says ass.
+    const soloDes = allPairDes.filter((d) => d.kind === "solo" || d.kind === "masturbation");
+    const pDes = allPairDes.filter((d) => d.kind !== "masturbation" && !(d.kind === "solo" && !soloIsAnal(d)));
     const tagged = pairOrder.get(key);
     const members = tagged ?? (pActs[0] ? [pActs[0].top, pActs[0].bottom] : pDes[0] ? [pDes[0].who, pDes[0].partner!] : undefined);
     if (!members) continue;
@@ -1676,7 +1686,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (!tagged && members[0].name.includes(" ") && members[1].name.includes(" ") && last(members[0].name) === last(members[1].name) && pActs.filter((a) => a.basis === "named").length < 4) continue;
     }
     const vibe = buildVibes(pair, pActs, pDes, pairTags, meta, where);
-    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, vibe, weight, key });
+    const solo = buildSolo(pair, soloDes, where);
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, solo, vibe, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
 
@@ -1742,6 +1753,46 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     main_pairing: romantic[0] ?? results[0]?.pairing ?? "",
     pairings: results.map(({ weight: _w, key: _k, ...p }) => p),
     notes: notes.join(" "),
+  };
+}
+
+// ───────────── solo acts ─────────────
+
+/** Whether a self-fingering or toy sentence is about an ass: always for someone with no vulva, only when the words say so for someone with one. */
+function soloIsAnal(d: { who: Character; sentence: string }): boolean {
+  if (ANAL_CTX.test(d.sentence)) return true;
+  const vulvaHolder = d.who.vulva === true || (d.who.gender === "f" && d.who.penis !== true);
+  if (VULVA_CTX.test(d.sentence)) return false;
+  return !vulvaHolder;
+}
+
+function soloLabel(d: { act: string; kind: string; sentence: string }): string {
+  if (d.kind === "masturbation") return "Masturbation";
+  if (/toy|dildo|plug|vibrator|ride|rode/i.test(d.act) || SOLO_TOY.test(d.sentence)) return "Toy on self";
+  return "Self-fingering";
+}
+
+function buildSolo(pair: [Character, Character], hits: DesireHit[], where: (pi: number) => string): SoloResult {
+  const seen = new Set<string>();
+  const instances: SoloAct[] = [];
+  for (const d of hits) {
+    if (!d.wants || !pair.includes(d.who)) continue;
+    const key = `${d.who.name}\u0000${d.para}\u0000${d.sentence}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    instances.push({ who: d.who.name, act: soloLabel(d), evidence: truncate(d.sentence), where: where(d.para) });
+  }
+  const people = pair.map((c) => {
+    const mine = instances.filter((i) => i.who === c.name);
+    const acts = [...new Set(mine.map((i) => i.act))].map((act) => ({ act, count: mine.filter((i) => i.act === act).length }));
+    return { name: c.name, total: mine.length, acts };
+  });
+  const listed = people.filter((p) => p.total).map((p) => `${p.name}: ${p.acts.map((a) => `${a.act.toLowerCase()} ×${a.count}`).join(", ")}`);
+  return {
+    occurs: instances.length > 0,
+    summary: listed.length ? listed.join("; ") : "No solo acts recognized.",
+    people,
+    instances,
   };
 }
 
