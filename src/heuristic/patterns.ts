@@ -2875,7 +2875,7 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /\b(?:want|need|wanna)\s+(?:you\s+)?to\s+(?:fuck|be inside|be in|breed|knot|fill|take|peg)\s+me\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /\b(?:want|need)\s+you\s+(?:inside|in)\s+me\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+)(?:fill|breed|knot|pound|peg|wreck)\s+me\b/ },
-  { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?ride\\s+(?:you|your (?:cock|dick))\\b`) },
+  { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?ride\\s+(?:you|your (?:cock|dick)|(?:his|her|their|that|this|the|a|[a-z]+['’]s)\\s+(?:[a-z-]+\\s+)?(?:cock|dick|prick))\\b`) },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /\b(?:you|u) (?:can|could|should|get to|gotta|have to|wanna|want to) top\b|\blet you top\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|just\s+|now,?\s+)get (?:in|inside|in side) me\b|\bget in me\b/ },
   { cat: "anal", act: "anal sex", role: "bottom", kind: "identity", re: /\bi(?:'m|’m| am) (?:a |such a |more of a |usually a |kind of a |kinda a |total |power |a total |a power )?bottom\b/ },

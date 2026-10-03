@@ -353,3 +353,24 @@ describe("handjobs and frottage get their own card", () => {
     expect(i?.bottom).toMatch(/Steve/);
   });
 });
+
+describe("‘I want to ride his dick’ is a bottom wish whoever ‘his’ is", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const wishes = (line: string) => analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].anal.desires.filter((d) => d.kind === "said" && d.wants && d.role === "bottom" && d.who.startsWith("Steve"));
+  it.each([
+    "“I want to ride his dick like a cowboy,” Steve said.",
+    "“I wanna ride that dick,” Steve said, grinning at Eddie.",
+    "“I want to ride Eddie’s dick,” Steve told Robin.",
+  ])("%s", (line) => {
+    expect(wishes(line).length, line).toBeGreaterThan(0);
+  });
+  it("counts toward Steve’s bottom vibe", () => {
+    const p = analyzeWithPatterns(sb + "“I want to ride his dick like a cowboy,” Steve said.", SB, { quiet: true }).pairings[0];
+    const f = p.vibe!.find((v) => v.name.startsWith("Steve"))!.factors!.filter((x) => x.role === "bottom" && /ride his dick/.test(x.source ?? ""));
+    expect(f.length).toBeGreaterThan(0);
+  });
+  it("a refusal isn’t a wish", () => {
+    expect(wishes("“I would never ride his dick,” Steve said.").length).toBe(0);
+  });
+});
