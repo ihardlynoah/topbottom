@@ -133,7 +133,7 @@ const NEG = /\b(?:not|never|no longer|no way|refused to|instead of|rather than|w
 const FANTASY =
   /\b(?:imagin\w*|fantasi[sz]\w*|daydream\w*|(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|pictur(?:e|ed|ing|es)|thought about|thinking about|thinks about|think about|(?:the )?thought of|wonder(?:ed|ing|s)? (?:what|how|if)|in (?:his|her|their|my) (?:head|mind)|mind['’]s eye|fantasy|fantasies|porn|(?:the|a|this|that) vision (?:of|he|she|they|I|that|which))\b/i;
 const DESIRE =
-  /\b(?:(?:urge|itch|temptation|impulse|compulsion)s?(?:\s+to)?(?![\w-])|tempted(?:\s+to)?(?![\w-])|want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|(?<!\b(?:take|takes|took|taking|taken|so|too|as|how|that|very|any|a|not|no|for|in|on|at|of)\s)long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|['’]d (?:like|rather|prefer)|would (?:like|prefer|rather)|desires? (?:of|to|for)|offer(?:ed|s|ing)? to|plan(?:s|ned|ning)? to|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you|[a-z][\w'’-]*) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
+  /\b(?:(?:urge|itch|temptation|impulse|compulsion)s?(?:\s+to)?(?![\w-])|tempted(?:\s+to)?(?![\w-])|want\w*|wanna|need(?:ed|s|ing)? to|need(?:ed)? (?:him|her|them|you|me)|(?<!\b(?:take|takes|took|taking|taken|so|too|as|how|that|very|any|a|not|no|for|in|on|at|of)\s)long(?:ed|ing|s)? (?:to|for)|crav\w*|ach(?:ed|ing|es) (?:to|for)|wish\w*|desperate (?:to|for)|dying to|would love|['’]d love|['’]d\s+(?:(?:very|really|quite|so|much|just|absolutely|certainly|definitely|dearly|especially)\s+)*(?:like|rather|prefer)|would\s+(?:(?:very|really|quite|so|much|just|absolutely|certainly|definitely|dearly|especially)\s+)*(?:like|prefer|rather)|desires? (?:of|to|for)|offer(?:ed|s|ing)? to|plan(?:s|ned|ning)? to|beg(?:ged|s|ging)?|yearn\w*|hop(?:ed|ing|es) (?:to|that)|ask(?:ed|s|ing)? (?:him|her|them|me|you|[a-z][\w'’-]*) to|plead\w* (?:for|with)|itch(?:ed|ing)? to|(?:the )?(?:prospect|possibility|chance|thought|promise|idea)(?=\s+of\b|\s*$)|(?:whin|whimper|moan|beg|plead|pray|wish|hop)\w*\s+for(?:\s+[\w'’]+)?(?:\s+to\b|\s*$))/i;
 /** "…see himself asking [Damen to fuck him]": the request word sits just before the match, which starts at the name. */
 /** A sentence with its subject left out that opens on the wanting: "Wants to take Eddie to the back of his throat while Steve chokes on his cock." */
 const DESIRE_LEAD = /^\W*(?:wants?|needs?|longs?|aches?|craves?|wishes?|yearns?)\s+(?:to|for)\b/i;
@@ -982,6 +982,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         subjChar = elidedSubject(before, sent.slice(m.index!));
       }
       if (!subjChar) return;
+    }
+    // "Dean could feel his cock pulse in his mouth": what someone feels, tastes or sees belongs to the other person.
+    if (!pat.elided && !subjChar && pat.subj === "t" && /^(?:his|her|their)$/i.test(tTok ?? "")) {
+      const pm = new RegExp(`(?:^|[\\s,;])(${NAMES}|[Hh]e|[Ss]he|[Tt]hey)\\s+(?:could\\s+|can\\s+|would\\s+|did\\s+)?(?:feel|felt|feels|taste|tasted|tastes|sense|sensed|senses|see|saw|sees|watch\\w*|hear|heard|hears)\\s+$`).exec(sent.slice(0, m.index));
+      if (pm) {
+        const perceiver = resolveToken(pm[1], sent.slice(m.index!));
+        const other = perceiver && ctx.partnerOf(perceiver);
+        if (other) subjChar = other;
+      }
     }
     // "Dracula … sat next to Jack pulling him into his lap": a name right after a preposition is that preposition's object;
     // the -ing verb that follows belongs to the sentence's subject.
