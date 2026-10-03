@@ -209,6 +209,10 @@ word count is estimated and the main characters are guessed from frequently capi
    flagged sentence with its surrounding passage, the scene confidence and reasons, and your explanation) to paste
    into Claude to find which pattern misfired. Nothing is sent anywhere; the report holds the passages you flag, so
    read it before sharing.
+   In a work tagged as alternating POV, each dated or timed section heading ("June 2011– Las Vegas", "Three weeks later–
+   Detroit") starts a new stretch told from the first of the pair named in its narration (not in a quoted line, a chat line or
+   a speech tag), and the camera also switches inside a section when the narration moves to the other one and the next few
+   paragraphs report only their experience. A chat line like "Ilya: who is this" is never read as a heading.
 
 ## Vibe rating
 

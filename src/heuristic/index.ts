@@ -180,7 +180,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   const bodyCtxCache = new Map<number, boolean>();
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
-  const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast);
+  const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast, /\bpov\b[^|]*\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b|\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b[^|]*\bpovs?\b|\b(?:two|multiple|dual) povs?\b/i.test(meta.freeforms.join(" | ")));
   // An omegaverse work: alpha/beta/omega in the tags, or the words all through the text. Only there do bared throats,
   // scenting and the alpha voice mean dominance and submission.
   const isAbo = (() => {
@@ -1147,7 +1147,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // "Dracula rode him": with no cock, lap or "on" in the sentence it says nothing about who is inside whom.
       const shaky = /^riding/.test(pat.id) && /^(?:him|her|them|it)$/i.test(tTok ?? "") && !/\b(?:cock|dick|prick|length|shaft|lap|dildo|strap|on|onto|astride|straddl\w*)\b/i.test(sent.slice(m.index!).replace(/^\S+\s+\S+\s+/, ""))
         ? "“rode him” can describe either partner" : holeGuess === "ambiguous" ? "the sentence doesn't say which hole" : undefined;
-      acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original, holeGuess, shaky, context: contextAround(paras[pi] ?? "", original) });
+      // "Now he knew what it was like to fuck Ilya Rozanov": a look back that, after being the bottom, means "have sex with".
+      const retro = /\bwhat it (?:was|is|felt|had been|'d been)\s+like\s+to\b/i.test(sent);
+      acts.push({ cat, act, top, bottom, weight: retro ? weight * 0.4 : weight, basis, para: pi, sentence: original, holeGuess, shaky: retro ? "“what it was like to…” looks back on an earlier time and can describe either partner" : shaky, context: contextAround(paras[pi] ?? "", original) });
       ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;
       return;

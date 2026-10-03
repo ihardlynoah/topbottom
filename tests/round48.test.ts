@@ -23,3 +23,12 @@ describe("false positives from a real fic", () => {
     expect(p.anal.desires.some((d) => d.kind === "touch")).toBe(false);
   });
 });
+
+describe("a look back at an earlier night", () => {
+  it("‘now he knew what it was like to fuck X’ after being the bottom does not make him a top", () => {
+    const text = "Ilya thrust into Shane slowly, his cock buried deep inside Shane, and Shane moaned. Ilya fucked Shane hard until Shane came.\n\nLater, in the shower, Shane smiled. Now he knew what it was like to fuck Ilya Rozanov.";
+    const p = analyzeWithPatterns(lead + text, M, { quiet: true }).pairings[0];
+    expect(p.anal.verdict).toBe("one_way");
+    expect(p.anal.top).toMatch(/Ilya/);
+  });
+});
