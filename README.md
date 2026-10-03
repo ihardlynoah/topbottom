@@ -348,6 +348,14 @@ AO3_DIR=ao3-samples npx vitest run tests/gold-eval.test.ts                      
 - **Pattern audit.** For every pattern, how many acts and hints it produced, in how many fics, and a fixed-hash sample of the
   sentences it matched. A pattern that is matching the wrong thing (a room "slipped inside", a wave of nausea "swallowed
   down") shows up here without waiting for a bug report. Patterns with no hits at all are listed too.
+- **Pattern reliability.** `tests/labels/*.json` hold hand-checked labels (ok / wrong / unclear) for the audit's samples, keyed by
+  pattern and a hash of the sentence, never the sentence itself. `tests/reliability.test.ts` turns them into
+  `src/heuristic/reliability.ts`: for each pattern, the share of its labelled hits that were read correctly (smoothed toward
+  90% so a handful of samples can't condemn a pattern, floored at 0.4). The engine multiplies each hit's weight by that
+  number, so a pattern that is often wrong counts for less without anyone hand-tightening it. The test fails when the table
+  and the labels disagree; after relabelling run `WRITE_RELIABILITY=1 npx vitest run tests/reliability.test.ts`. Fixing a
+  pattern makes its old labels stale, so relabel its samples from a fresh audit (`AUDIT_SAMPLES=8`, which also writes
+  `PATTERN_AUDIT.json` with a key per row). Mistake reports name the pattern behind each flagged line.
 - **Gold labels.** `tests/gold/*.json` hold hand-checked readings of real fics: verdicts per pairing and act, which scenes are
   real and who tops (as paragraph ranges), acts whose scene list is complete (any extra scene is a false positive), known
   false positives, who the point of view is by section, and who sent which text. They store paragraph numbers and a hash of
