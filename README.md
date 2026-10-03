@@ -310,6 +310,14 @@ counterpart), except for blushing, which is only one side. Labels run Follows, L
 Leads. The same expandable factors and “What's wrong with this?” forms work here, and a Dom/Sub tag is checked against
 this axis (with the tag itself left out) in “Tags vs text”.
 
+**Terms of address.** Fics build their own vocabulary of address ("sir", "baby", "your highness", "half man", "Scotty"). The engine
+notes the forms of address in lines whose speaker is certain (tagged) and learns a term once it has been used for the same
+person three times. Two things follow. A term used for one of the pair almost every time tells who an untagged line is for, so
+the other one said it ("Fuck me, half man" after three tagged "half man"s from Steve is Steve; an ABO fic's untagged "Alpha,
+please, fuck me" is the omega). And lopsided use feeds the everyday-dynamic axis: a title (sir, master, your highness, daddy)
+used at least three times as often one way as the other is a yielding cue for the sayer, and a pet name (baby, princess,
+sweetheart) used that lopsidedly is a caring, leading cue. Terms both of them use cancel out.
+
 ## Running locally
 
 ```sh
