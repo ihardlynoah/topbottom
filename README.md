@@ -128,6 +128,9 @@ word count is estimated and the main characters are guessed from frequently capi
    describe either partner). A shaky scene that goes against nearly every firm scene in the pair loses more. Scene
    confidence scales how much the scene counts toward the verdict, the per-person odds and the vibe rating, and a
    scene under 40% sure can’t on its own make someone a switch.
+   **See what a rating rests on:** each line of a vibe card (“Sex acts: top ×99…”) expands into every piece of
+   evidence behind it, with its role, weight, where it was found and the text it came from (a sentence, or the AO3
+   tag). Tick any of them to send them with the error report; ticking one starts a report item for that rating.
 8. **Report a mistake**: under each scene, hint line and vibe rating, “Report a mistake” opens a short form: tick what’s wrong (wrong
    character flagged as topping or bottoming, roles reversed, wrong act, not a sex act, solo act shown as a scene
    with the partner, a wish rather than an event, wrong people; for a vibe rating, leaning too far toward top or
@@ -153,7 +156,7 @@ important first:
      who also gives way), “Pillow Prince/Princess X” and “Size Queen X” (lean bottom), “Dominant X”/“Dom!X”
      (leans top) and “Submissive X”/“Sub X” (leans bottom) at a lower weight than Top/Bottom since a dynamic isn't a
      position, and pair-wide tags (“Switching”, “Dom/sub”, “Praise Kink”, “Daddy Kink”, “Power Dynamics”) which
-     count a little for whoever gives the praise, orders or care in the text.
+     count a little for whoever gives the praise, pet names or care in the text.
 3. **Groping and similar behaviour** (grabbing an ass, fingering, lining up, spreading legs), and **how the body
    shows it afterwards**, which is a strong bottom signal even without a named scene: a sore ass, walking funny or
    sitting down gingerly after a night with sex around it, come leaking out of a hole, a hole clenching around
@@ -169,7 +172,10 @@ important first:
    up against someone afterwards → bottom; “let me clean you up”, “I've got you” → top; “hold me” → bottom), and
    *pet names* (“good boy” said to someone → top; “please, daddy/sir” → bottom), which only count when the
    scene around them is sexual. When the work is tagged with a dynamic (“Dom/sub”, “Praise Kink”…), these also count
-   a little at tier 2. These only feed the vibe, never the anal/oral cards.
+   a little at tier 2 (pet names and aftercare only; ordinary pinning or protecting doesn't get the boost). *Cuddling positions* count too: resting or sleeping with your head on someone's chest and
+   being the little spoon (“his back against Cas's chest”) read bottom; being the one whose chest it is and being the
+   big spoon (“spooned him from behind”, “was the big spoon”) read top. Position and aftercare are two-sided, so the
+   other person gets the opposite reading at a lower weight. These only feed the vibe, never the anal/oral cards.
 7. **AO3 tag counts**: a very faint prior from how often AO3 tags the character as a top or bottom, for ~230
    popular characters (`src/heuristic/ao3-prior-data.ts`, from the community Top Tops / Top Bottoms / Most
    Versatile sheets). It is only used for characters in a fandom the work is tagged with, nudges per-person

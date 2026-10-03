@@ -1472,7 +1472,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // A work with relationship tags and a pair nobody tagged: a couple of pronoun-only or inferred readings are far more
     // likely a misread "he" in the main couple's scene than a second couple, so it needs named scenes or more of them.
     if (!tagged && cast.pairings.length && pActs.every((a) => a.cat !== "vaginal") && pActs.filter((a) => a.basis === "named").length < 2 && pActs.length < 4) continue;
-    const vibe = buildVibes(pair, pActs, pDes, pairTags, meta);
+    const vibe = buildVibes(pair, pActs, pDes, pairTags, meta, where);
     results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, vibe, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
@@ -1609,40 +1609,45 @@ function tagsFor(info: TagInfo, pair: [Character, Character], isMain: boolean): 
  * stating what they are or prefer (and AO3 role tags), groping and similar, desires/plans/fantasies, other hints, dominant
  * or submissive behaviour, then AO3 tag counts for the character.
  */
-function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit[], tags: PairTags, meta: Ao3Meta): VibeRating[] {
+function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit[], tags: PairTags, meta: Ao3Meta, where: (pi: number) => string): VibeRating[] {
   const other = (c: Character) => (pair[0] === c ? pair[1] : pair[0]);
   const items = new Map<Character, VibeItem[]>(pair.map((c) => [c, []]));
-  const add = (c: Character, tier: VibeItem["tier"], role: Role, weight: number) => items.get(c)?.push({ tier, role, weight });
+  type Src = Pick<VibeItem, "what" | "source" | "where" | "fromOther">;
+  const add = (c: Character, tier: VibeItem["tier"], role: Role, weight: number, src: Src = {}) => items.get(c)?.push({ tier, role, weight, ...src });
+  const theirs = (src: Src): Src => ({ ...src, fromOther: true });
   const flip = (r: Role): Role => (r === "top" ? "bottom" : "top");
 
   // 1. Sex acts: penetration, strap-ons and fingering (oral isn't about topping).
   for (const a of acts) {
     if (a.cat !== "anal" && !(a.cat === "vaginal" && !/scissor/i.test(a.act))) continue;
     const w = (a.basis === "named" ? 1 : a.basis === "pronoun" ? 0.8 : 0.6) * (/fingering/i.test(a.act) ? 0.15 : 0.5) * (a.shaky ? 0.4 : 1);
-    add(a.top, 1, "top", w);
-    add(a.bottom, 1, "bottom", w);
+    const src = { what: `${a.act} (${a.basis === "named" ? "named" : a.basis === "pronoun" ? "via pronouns" : "inferred"}${a.shaky ? `; ${a.shaky}` : ""})`, source: a.sentence, where: where(a.para) };
+    add(a.top, 1, "top", w, src);
+    add(a.bottom, 1, "bottom", w, theirs(src));
   }
   // 2. Saying what they are or prefer, and AO3 role tags.
   for (const r of tags.roles) {
     if (!items.has(r.char)) continue;
+    const src = { what: `AO3 tag “${r.tag}”`, source: r.tag };
     if (r.role === "switch") {
-      add(r.char, 2, "top", 0.6);
-      add(r.char, 2, "bottom", 0.6);
+      add(r.char, 2, "top", 0.6, src);
+      add(r.char, 2, "bottom", 0.6, src);
     } else {
-      add(r.char, 2, r.role, r.style === "pillow" ? 0.9 : 1);
-      add(other(r.char), 2, flip(r.role), 0.5);
+      add(r.char, 2, r.role, r.style === "pillow" ? 0.9 : 1, src);
+      add(other(r.char), 2, flip(r.role), 0.5, theirs(src));
       // A power bottom runs the show; a service top is there to please.
-      if (r.style === "power") add(r.char, 6, "top", 0.5);
-      if (r.style === "service") add(r.char, 6, "bottom", 0.4);
+      if (r.style === "power") add(r.char, 6, "top", 0.5, { ...src, what: `${src.what} (a power bottom takes charge)` });
+      if (r.style === "service") add(r.char, 6, "bottom", 0.4, { ...src, what: `${src.what} (a service top gives way)` });
     }
   }
   // "Dominant Dean", "Submissive Cas": a dynamic, which leans that way but isn't the same as topping.
   for (const d of tags.dynamics) {
     if (!items.has(d.char)) continue;
-    add(d.char, 2, d.lean, 0.6);
-    add(other(d.char), 2, flip(d.lean), 0.3);
+    const src = { what: `AO3 tag “${d.tag}”`, source: d.tag };
+    add(d.char, 2, d.lean, 0.6, src);
+    add(other(d.char), 2, flip(d.lean), 0.3, theirs(src));
   }
-  for (const c of pair) if (tags.switching.length) { add(c, 2, "top", 0.4); add(c, 2, "bottom", 0.4); }
+  for (const c of pair) if (tags.switching.length) { const src = { what: `AO3 tag “${tags.switching[0]}”`, source: tags.switching[0] }; add(c, 2, "top", 0.4, src); add(c, 2, "bottom", 0.4, src); }
   const TIER_OF: Partial<Record<Desire["kind"], [VibeItem["tier"], number]>> = {
     identity: [2, 1],
     touch: [3, 0.4], fingering: [3, 0.4], prep: [3, 0.4],
@@ -1653,24 +1658,27 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     stated: [2, 0.8], body: [3, 0.8], position: [6, 0.4], aftercare: [6, 0.3], petname: [6, 0.25],
   };
   for (const d of des) {
+    const dsrc: Src = { what: `${d.act} (${d.kind}${d.wants ? "" : ", not wanted"})`, source: d.sentence, where: where(d.para) };
     if (usesToyOnSelf(d) && d.wants && items.has(d.who)) {
-      add(d.who, 1, "bottom", 0.35);
+      add(d.who, 1, "bottom", 0.35, dsrc);
       continue;
     }
     const hit = TIER_OF[d.kind];
     if (!hit || !items.has(d.who)) continue;
     if (d.cat === "oral") continue;
     const [tier, w] = hit;
-    add(d.who, tier, d.wants ? d.role : flip(d.role), (d.wants ? w : w * 0.5) * (d.kind === "stated" || d.kind === "body" ? Math.min(1, d.weight + 0.2) : 1));
+    add(d.who, tier, d.wants ? d.role : flip(d.role), (d.wants ? w : w * 0.5) * (d.kind === "stated" || d.kind === "body" ? Math.min(1, d.weight + 0.2) : 1), dsrc);
+    // Position and aftercare are two-sided: the one resting on a chest or held close means the other is the chest or the arms.
+    if (d.wants && (d.kind === "position" || d.kind === "aftercare")) add(other(d.who), tier, flip(d.role), w * 0.7, theirs(dsrc));
     // A tag that names the pair's dynamic ("Dom/sub", "Praise Kink") backs up who gives the orders, the praise or the care.
-    if (tags.dynamicTags.length && d.wants && (d.kind === "petname" || d.kind === "aftercare" || d.kind === "position" || d.kind === "behavior")) add(d.who, 2, d.role, w * 0.5);
+    if (tags.dynamicTags.length && d.wants && (d.kind === "petname" || d.kind === "aftercare")) add(d.who, 2, d.role, w * 0.5, { ...dsrc, what: `${dsrc.what}; backed up by a dynamic tag (${tags.dynamicTags[0]})` });
   }
   // 7. How AO3 tags the character overall.
   for (const [name, pr] of tagPriors(meta, pair)) {
     const c = pair.find((x) => x.name === name);
     if (!c) continue;
     const lean = (pr.pTop - 0.5) * 2;
-    add(c, 7, lean > 0 ? "top" : "bottom", Math.abs(lean) * 0.6);
+    add(c, 7, lean > 0 ? "top" : "bottom", Math.abs(lean) * 0.6, { what: `AO3 tag counts for ${name}: ${Math.round(pr.pTop * 100)}% of tagged roles are top`, source: "community Top Tops / Top Bottoms / Most Versatile sheets" });
   }
   return pair.map((c) => rateVibe(c.name, items.get(c) ?? []));
 }

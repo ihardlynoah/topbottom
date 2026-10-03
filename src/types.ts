@@ -72,6 +72,21 @@ export interface VaginalResult {
 }
 
 /** One character's overall top/bottom "vibe" in a pairing. */
+/** One piece of evidence behind a vibe rating, with the text it came from. */
+export interface VibeFactor {
+  tier: number;
+  tierName: string;
+  role: Role;
+  weight: number;
+  /** What was found ("anal sex", "tag: Power Bottom Dean", "good boy"). */
+  what: string;
+  /** The sentence, line or tag it came from. */
+  source?: string;
+  where?: string;
+  /** True when it counts for this person because of what the other person did or was ("held close" credits the one holding). */
+  fromOther?: boolean;
+}
+
 export interface VibeRating {
   name: string;
   label: "Total top" | "Vers top" | "Vers" | "Vers bottom" | "Total bottom" | "Unclear";
@@ -80,6 +95,8 @@ export interface VibeRating {
   confidence: Confidence;
   /** What it rests on, strongest evidence first. */
   basis: string[];
+  /** Every piece of evidence, with its source text, highest tier first. */
+  factors?: VibeFactor[];
 }
 
 export interface PairingResult {

@@ -328,3 +328,11 @@ footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: 
 .report-list { padding-left: 18px; font-size: 0.9rem; }
 .report-actions { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
 .report-preview { white-space: pre-wrap; max-height: 320px; overflow: auto; font-size: 0.8rem; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+
+/* ---- vibe factors ---- */
+.vibe-basis details.factors > summary { cursor: pointer; }
+.factor-list { list-style: none; padding-left: 4px; margin: 6px 0; max-height: 280px; overflow: auto; font-size: 0.85rem; }
+.factor-list li { margin-bottom: 8px; }
+.factor-top strong { color: var(--accent); }
+.factor-bottom strong { color: var(--switch); }
+.vibe-flag { margin-top: 8px; }
