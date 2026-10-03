@@ -72,6 +72,8 @@ interface DesireHit {
   weight: number;
   para: number;
   sentence: string;
+  /** A solo act worded with “himself” / “his own”: certainly the actor’s own body, no partner in it. */
+  reflexive?: boolean;
 }
 
 // ───────────── text helpers ─────────────
@@ -151,6 +153,9 @@ function contextAround(para: string, sentence: string): string {
   return (from > 0 ? "…" : "") + para.slice(from, to).trim() + (to < para.length ? "…" : "");
 }
 const SOLO_TOY = /\b(?:dildos?|vibrators?|vibes?|butt\s*plugs?|plugs?|anal beads|beads|toys?|wand)\b/i;
+const REFLEXIVE = /\b(?:himself|herself|themselves|themself|myself|(?:his|her|their|my)\s+own)\b/i;
+/** How much a toy used on yourself counts: certain when worded “himself” / “his own” or when a plug is worn, less when only inferred from there being no one else in the sentence. */
+const selfToyStrength = (d: { reflexive?: boolean; act: string }) => (d.reflexive || d.act === "wearing a plug" ? 1 : 0.55);
 const usesToyOnSelf = (d: { kind: string; act: string; sentence: string }) => (d.kind === "solo" || d.act === "wearing a plug") && SOLO_TOY.test(d.sentence);
 const DESIRE_TAIL = /\b(?:(?:ask|beg|plead|urg|offer)(?:ed|s|ing)?(?:\s+[\w'’-]+)?|desires?(?:\s+of)?(?:\s+\w+ly)?)\s*$/i;
 const HYPO_WINDOW = /\b(?:unless|capable of|able to|would have|meant to|intended to|(?:['’]ll|will)\s+(?:just\s+)?have to|gonna have to|(?:is|are|was|were|am|['’]s|['’]re|['’]m)\s+(?:just\s+)?(?:going|about)\s+to|gonna|if|someday|some day|one day|next time|maybe|perhaps|might|what it would be like|what it'd be like|would be (?:one|a|an|the|so|too|more|less|better|worse|easier|harder)|would have been|would (?:feel|look|sound|taste)|imagine\w*|supposing|so (?:he|she|they|I|we) (?:can|could|might|may|will|would))\b/i;
@@ -1201,7 +1206,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (/\b(?:his|her|their)\s+own\s+(?:[\w-]+\s+){0,2}?(?:ass|arse|asshole|hole|entrance|rim|cunt|pussy)\b/i.test(matchText) && (cat === "anal" || pat.id.startsWith("self-")) && !/\b(?:cock|dick|prick|length)\b/i.test(matchText.slice(0, matchText.search(/\b(?:his|her|their)\s+own\b/i)))) {
       const other = ctx.partnerOf(top);
       if (other && !NEG.test(sent.slice(0, m.index).slice(-40))) {
-        desires.push({ cat: "anal", act: /\b(?:dildo|vibrator|vibe|plug|beads|toy)\b/i.test(matchText) ? "using a toy on himself" : "fingering himself", who: top, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
+        desires.push({ cat: "anal", act: /\b(?:dildo|vibrator|vibe|plug|beads|toy)\b/i.test(matchText) ? "using a toy on himself" : "fingering himself", who: top, partner: other, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original, reflexive: true });
       }
       return;
     }
@@ -1242,7 +1247,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (act === "rimming" && pat.id !== "tongue-probing" && !/\b(?:ass|arse|hole|rim|crack|cheeks|entrance|pucker)\b/i.test(sent) && /\b(?:sucking|gagg\w*|throat|cock|dick|prick|blowjob)\b/i.test(para)) return;
     // "Dean pushed the dildo into his ass" with no one else in the sentence: his own ass, so he is bottoming, not topping.
     if (cat === "anal" && !pat.signal && /\b(?:dildo|vibrator|vibe|butt\s*plug|plug|beads|toy)\b/i.test(matchText) && /^(?:his|her|their)$/i.test(bTok ?? "") && !new RegExp(`\\b(?:${cast.chars.filter((c) => c !== top).flatMap((c) => c.aliases).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") || "$^"})\\b`).test(sent)) {
-      desires.push({ cat: "anal", act: "using a toy on himself", who: top, partner: bottom, role: "bottom", wants: true, kind: "solo", weight: 0.8, para: pi, sentence: original });
+      desires.push({ cat: "anal", act: "using a toy on himself", who: top, partner: bottom, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });
       return;
     }
     // "spreads his legs to wipe them": he is cleaning someone, not offering himself.
@@ -1391,6 +1396,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         weight,
         para: pi,
         sentence: original,
+        reflexive: pat.signal.kind === "solo" && REFLEXIVE.test(matchText) ? true : undefined,
       });
       return;
     }
@@ -1854,10 +1860,13 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     // Says what they are or prefer (tier 2), aftermath of sex (tier 3), position, aftercare and pet names (tier 6).
     stated: [2, 0.8], body: [3, 0.8], position: [6, 0.4], aftercare: [6, 0.3], petname: [6, 0.25],
   };
+  const selfToyVibe = new Map<string, number>();
   for (const d of des) {
     const dsrc: Src = { what: `${d.act} (${d.kind}${d.wants ? "" : ", not wanted"}${d.guessed ? "; speaker guessed from the narration" : ""})`, source: d.sentence, where: where(d.para) };
     if (usesToyOnSelf(d) && d.wants && items.has(d.who)) {
-      add(d.who, 1, "bottom", 0.35, dsrc);
+      const seen = (selfToyVibe.get(`${d.who.name}|${d.para}`) ?? 0) + 1;
+      selfToyVibe.set(`${d.who.name}|${d.para}`, seen);
+      if (seen <= 2) add(d.who, 1, "bottom", 0.5 * selfToyStrength(d) * (seen === 1 ? 1 : 0.5), dsrc);
       continue;
     }
     const hit = TIER_OF[d.kind];
@@ -2181,10 +2190,15 @@ function buildAct(
     const w = e.weight * (e.strong ? 1 : 0.75);
     ev.push({ who: e.char.name, role: "top", weight: w, kind: "scene" }, { who: e.partner.name, role: "bottom", weight: w, kind: "scene" });
   }
+  const selfToyCount = new Map<string, number>();
   for (const d of sig) {
     // A toy used on oneself is bottoming, about as telling as a scene.
     if (usesToyOnSelf(d) && d.wants) {
-      ev.push({ who: d.who.name, role: "bottom", weight: 0.6, kind: "scene" });
+      // “Fucked himself on the dildo” is as telling as a short scene; “pushed the dildo into his ass” with no one else
+      // named is the same act but a little less sure. A long solo scene counts at most about twice.
+      const seen = (selfToyCount.get(`${d.who.name}|${d.para}`) ?? 0) + 1;
+      selfToyCount.set(`${d.who.name}|${d.para}`, seen);
+      if (seen <= 2) ev.push({ who: d.who.name, role: "bottom", weight: 0.8 * selfToyStrength(d) * (seen === 1 ? 1 : 0.5), kind: "scene" });
       continue;
     }
     const t = desireTop(d);

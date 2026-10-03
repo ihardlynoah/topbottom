@@ -193,3 +193,34 @@ describe("Tricks of the Trade sweep: pronouns, speakers and idioms", () => {
     expect(a.pairings.map((p) => p.pairing).join(" ")).not.toMatch(/brief/i);
   });
 });
+
+describe("solo toy use: ‘himself’ / ‘his own’ counts for more than an inferred ‘his’", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const bottomOdds = (line: string) => {
+    const p = analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0];
+    return p.anal.people!.find((x) => x.name.startsWith("Steve"))!.bottom;
+  };
+  const vibeBottom = (line: string) => {
+    const p = analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0];
+    return p.vibe!.find((v) => v.name.startsWith("Steve"))!.factors!.filter((f) => f.role === "bottom" && (f.source ?? "").includes(line.slice(0, 20))).reduce((n, f) => n + f.weight, 0);
+  };
+  const explicit = "Steve fucked himself with the dildo, moaning into the pillow.";
+  const own = "Steve fucked his own ass with the dildo, moaning into the pillow.";
+  const implicit = "Steve pushed the dildo into his ass, moaning into the pillow.";
+  it("‘himself’ and ‘his own’ weigh more than the bare ‘his’", () => {
+    expect(vibeBottom(explicit)).toBeGreaterThan(vibeBottom(implicit));
+    expect(vibeBottom(own)).toBeGreaterThan(vibeBottom(implicit));
+    expect(vibeBottom(implicit)).toBeGreaterThan(0);
+    expect(bottomOdds(explicit)).toBeGreaterThanOrEqual(bottomOdds(implicit));
+  });
+  it("a long solo scene counts about twice, not once per sentence", () => {
+    const many = Array(6).fill(explicit).join(" ");
+    expect(vibeBottom(many)).toBeLessThan(vibeBottom(explicit) * 3.1);
+  });
+  it("‘got himself fucked’ and ‘made himself come’ are not solo toy use", () => {
+    for (const l of ["Eddie got himself fucked by Steve against the wall.", "Steve made himself come while Eddie watched."]) {
+      expect(vibeBottom(l), l).toBe(0);
+    }
+  });
+});

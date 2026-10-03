@@ -132,6 +132,10 @@ word count is estimated and the main characters are guessed from frequently capi
    the top seating a toy; “done this to himself” is solo prep; the slit of a cock isn’t cunnilingus. Weak dialogue
    cues (check-ins, aftercare, pet names) need an unambiguous sexual word within three paragraphs, or several loose
    ones, so comfort after a nightmare doesn’t count.
+   A toy used on yourself counts as bottoming, and how sure it is depends on the wording: “fucked himself with the
+   dildo” or “fucked his own ass” (or wearing a plug) counts fully, while “pushed the dildo into his ass” with no
+   one else in the sentence counts a little over half as much. A long solo scene counts about twice, not once per
+   sentence, and “got himself fucked” or “made himself come” are not solo toy use.
    Oral phrasings include a cock taken out of the mouth, a throat squeezing around a cock, a cock forced down the
    throat, fighting the urge to gag, tasting precum at the back of the throat, a grip in the hair with hips pushed
    forward, the back of the tongue around the head, and an open mouth against a zipper. “Not without taking …” cancels
