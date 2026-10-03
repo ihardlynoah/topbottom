@@ -57,6 +57,9 @@ export interface FlaggedScene {
   card: string;
   top: string;
   bottom: string;
+  /** What top / bottom mean on this card ("gets sucked" / "sucks cock"). */
+  topVerb?: string;
+  bottomVerb?: string;
   act: string;
   basis?: string;
   confidence?: number;
@@ -124,7 +127,7 @@ export function buildReport(r: ReportInput): string {
       const kind = f.kind ?? "scene";
       out.push(`### ${n + 1}. ${f.pairing} · ${kind === "vibe" ? "vibe rating" : kind === "hint" ? `${f.card} hint` : f.card}`);
       if (kind === "scene") {
-        out.push(`- Shown as: top/doing it **${f.top || "?"}**, bottom/receiving **${f.bottom || "?"}** · ${f.act}`);
+        out.push(`- Shown as: **${f.top || "?"}** ${f.topVerb ?? "tops"} (top), **${f.bottom || "?"}** ${f.bottomVerb ?? "bottoms"} (bottom) · ${f.act}`);
       } else if (kind === "hint") {
         out.push(`- Shown as: **${f.top || "?"}** points toward ${f.bottom || "?"} · ${f.act}`);
       } else {
