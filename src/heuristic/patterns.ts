@@ -49,6 +49,8 @@ export interface CompiledPattern extends PatternDef {
   re: RegExp;
   /** Cheap pre-check: the sentence must contain one of the pattern's verbs/nouns. */
   gate?: RegExp;
+  /** Patterns with the same gate share an id, so a sentence is tested against each distinct gate only once. */
+  gateId?: number;
   /** The subject isn't in the match; it's the nearest subject earlier in the sentence. */
   elided?: boolean;
 }
@@ -167,6 +169,25 @@ const CROTCH_KW = "crotch|groin|bulge|package|cock|dick|erection|hard|fly|zip|sw
 
 /** Gates for patterns that don't start with a verb list (subject is a body part, passive voice, etc.). */
 const MANUAL_GATES: Record<string, string> = {
+  // Patterns that begin with a possessive or a narrow phrase, where the gate can't be read off the verb group.
+  "spread-open-nudge": "spread",
+  "let-in": "let",
+  "hips-against-ass": "hips|pelvis|thighs|balls",
+  prostate: "prostate",
+  "cock-at-lips": "mouth|lips|throat|tongue|face|teeth|cheek",
+  "bobbed-head": "bob",
+  "bobs-slowly": "bob",
+  "looked-up-from-between": "between",
+  "head-down-took": "head",
+  "mouth-closed-around": "mouth|lips",
+  "snug-around": "around",
+  "self-own-fingers": "own",
+  "sub-melt": "soft|pliant|limp|boneless|pliable",
+  "sub-pinned": "pin|pushed|pressed|shoved|slammed|backed|manhandled|hauled",
+  "wearing-plug": "plug|vibrator|vibe|beads",
+  "hand-in-pants-poss": "hand",
+  "cum-in-throat": "cum|come|spunk|jizz",
+  "tongue-on-cock-area": "tongue|mouth|lips",
   sucked: "suck|blow|blew|throat|swallow|gag|chok|bob|worship|slurp|nurs",
   "hole-around": ASS_KW,
   inside: " in |inside",
@@ -224,6 +245,7 @@ export function compilePatterns(defs: PatternDef[], aliasPattern: string): Compi
   const anyPoss = `(?:${POSS_S}|[Hh]is|[Hh]er|[Tt]heir|[Mm]y|[Yy]our|the)`;
 
   const out: CompiledPattern[] = [];
+  const gateIds = new Map<string, number>();
   for (const def of defs) {
     counters.t = 0;
     counters.b = 0;
@@ -269,7 +291,12 @@ export function compilePatterns(defs: PatternDef[], aliasPattern: string): Compi
       : src;
     const gateWords = def.kw ?? MANUAL_GATES[def.id] ?? deriveGate(def.src);
     const gate = gateWords ? new RegExp(`(?:${gateWords})`, "i") : undefined;
-    out.push({ ...def, re: new RegExp(finalSrc, "g"), gate });
+    let gateId: number | undefined;
+    if (gate) {
+      gateId = gateIds.get(gate.source);
+      if (gateId === undefined) { gateId = gateIds.size; gateIds.set(gate.source, gateId); }
+    }
+    out.push({ ...def, re: new RegExp(finalSrc, "g"), gate, gateId });
 
     // Same pattern with the subject left out: "Draco climbed on top and rode him".
     const lead = def.subj === "t" ? "\\b{T}\\s+{aux}" : "\\b{B}\\s+{aux}";
@@ -277,7 +304,7 @@ export function compilePatterns(defs: PatternDef[], aliasPattern: string): Compi
       const rest = src.slice(src.indexOf("(?<aux>"));
       // Also gerunds after "in favor of", "about", "before", "while"... ("in favor of licking his rim").
       const elided = `(?:\\band|\\bthen|,|\\b(?:of|about|before|after|while|by|without|from|to|kept|started|began|continued|finished|enjoyed|loved|tried|resumed))\\s+(?:then\\s+|finally\\s+|\\w+ly\\s+)?${rest}`;
-      out.push({ ...def, id: `${def.id}~elided`, elided: true, weight: def.weight * 0.8, re: new RegExp(elided, "g"), gate });
+      out.push({ ...def, id: `${def.id}~elided`, elided: true, weight: def.weight * 0.8, re: new RegExp(elided, "g"), gate, gateId });
     }
   }
   return out;

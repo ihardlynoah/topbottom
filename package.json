@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "node scripts/eval.mjs",
+    "eval:compare": "node scripts/eval-compare.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
