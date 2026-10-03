@@ -44,5 +44,20 @@ describe.skipIf(!dir)("pattern audit", () => {
     }
     out.push("## Patterns with no hits", "", unused.sort().join(", ") || "(none)", "");
     writeFileSync(join(dir!, "PATTERN_AUDIT.md"), out.join("\n"));
+    // The same samples as rows with a key each, for labelling (see tests/labels/ and tests/reliability.test.ts).
+    const rows = entries.flatMap(([id, rs]) =>
+      [...rs].sort((x, y) => hash(id + x.hit.sentence) - hash(id + y.hit.sentence)).slice(0, SAMPLES).map((r) => ({
+        key: `${id}#${hash(r.hit.sentence).toString(16)}`,
+        via: id,
+        fic: r.fic,
+        kind: r.hit.kind,
+        a: r.hit.a,
+        b: r.hit.b,
+        act: r.hit.act,
+        sentence: r.hit.sentence.replace(/\s+/g, " ").slice(0, 220),
+        hits: rs.length,
+      })),
+    );
+    writeFileSync(join(dir!, "PATTERN_AUDIT.json"), JSON.stringify({ patterns: entries.length, hits: entries.reduce((n, e) => n + e[1].length, 0), rows }, null, 1));
   }, 1_500_000);
 });

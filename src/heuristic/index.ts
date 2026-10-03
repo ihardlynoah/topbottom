@@ -20,6 +20,7 @@ import { ActHit, Basis, DesireHit } from "./hits";
 import { CHAPTER_RE, Quote, maskQuotes, sentenceSpans } from "./quotes";
 import { ANAL_NEAR_RE, ANIMAL_NEAR, DANGER, DESIRE, DESIRE_LEAD, DESIRE_TAIL, FANTASY, FANTASY_PARA, HABIT_AUX, HYPO_AUX, HYPO_MATCH, HYPO_SENT, HYPO_WINDOW, IDIOM_ASS, IDIOM_SAFE, NEG, ORAL_LINE_RE, ORAL_NEAR_RE, REFLEXIVE, SAY, SCENE_BREAK, SEX_STRICT, STRONG_FANTASY, contextAround } from "./markers";
 import { AddressBook } from "./address";
+import { reliabilityOf } from "./reliability";
 import { Ctx, groupValue, pronoun, resolvePair, stripPoss } from "./resolve";
 import { PairTags, buildAct, buildDynamic, buildManual, buildSolo, buildVaginal, buildVibes, plural, soloIsAnal, tagsFor } from "./builders";
 
@@ -594,7 +595,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         role: d.role,
         wants: !negated,
         kind: d.kind,
-        weight: (d.weight ?? (d.kind === "ogling" ? 0.6 : 1)) * (around.explicit === false ? 0.5 : 1),
+        weight: (d.weight ?? (d.kind === "ogling" ? 0.6 : 1)) * reliabilityOf(`dialogue:${d.act}`) * (around.explicit === false ? 0.5 : 1),
         guessed: around.explicit === false ? true : undefined,
         para: pi,
         sentence: `“${line.trim()}”`,
@@ -823,7 +824,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     let { basis } = resolved;
     let act = pat.act;
     let cat = pat.cat;
-    let weight = pat.weight * (basis === "named" ? 1 : basis === "pronoun" ? 0.75 : 0.5);
+    let weight = pat.weight * reliabilityOf(pat.id) * (basis === "named" ? 1 : basis === "pronoun" ? 0.75 : 0.5);
     const matchText = m[0];
     const after = sent.slice(m.index! + matchText.length, m.index! + matchText.length + 70);
 

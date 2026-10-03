@@ -65,6 +65,8 @@ export interface FlaggedScene {
   confidence?: number;
   confidenceReasons?: string[];
   where?: string;
+  /** The internal pattern behind the line, so the right one can be fixed. */
+  pattern?: string;
   evidence: string;
   context?: string;
   reasons: FlagReason[];
@@ -145,6 +147,7 @@ export function buildReport(r: ReportInput): string {
       if (how.length) out.push(`- ${how.join(" · ")}`);
       if (f.confidenceReasons?.length) out.push(`- Why it scored that: ${f.confidenceReasons.join("; ")}`);
       for (const x of f.extra ?? []) out.push(`- ${x}`);
+      if (f.pattern) out.push(`- Pattern: ${f.pattern}`);
       if (f.evidence) out.push(`- Sentence: “${f.evidence}”`);
       if (f.context && f.context !== f.evidence) out.push(`- Around it: ${f.context.replace(/\s+/g, " ")}`);
       out.push(`- What is wrong: ${f.reasons.length ? f.reasons.map(reasonLabel).join("; ") : "(nothing ticked)"}`);

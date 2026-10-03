@@ -607,7 +607,7 @@ function renderDesires(desires: Desire[], kind: ActKind, pairing: string, source
       li.append(c);
     }
     li.append(el("div", "evidence", d.evidence));
-    flagControl(li, { id: `${source}|${pairing}|${kind}|hint|${n}`, kind: "hint", pairing, card: kind, top: d.who, bottom: `${d.wants ? "" : "NOT "}${d.role} (${d.kind})`, act: d.act, confidence: d.confidence, confidenceReasons: d.reasons, where: d.where, evidence: d.evidence });
+    flagControl(li, { id: `${source}|${pairing}|${kind}|hint|${n}`, kind: "hint", pairing, card: kind, top: d.who, bottom: `${d.wants ? "" : "NOT "}${d.role} (${d.kind})`, act: d.act, confidence: d.confidence, confidenceReasons: d.reasons, where: d.where, pattern: d.via, evidence: d.evidence });
     ul.append(li);
   });
   det.append(ul);
@@ -701,7 +701,7 @@ function renderAct(kind: ActKind, act: ActResult, pairing: string, source: strin
         li.append(c);
       }
       if (i.evidence) li.append(el("div", "evidence", i.evidence));
-      flagControl(li, { id: `${source}|${pairing}|${kind}|${n}`, kind: "scene", pairing, card: kind, top: i.top, bottom: i.bottom, topVerb: w.topVerb, bottomVerb: w.bottomVerb, act: i.act, basis: i.basis, confidence: i.confidence, confidenceReasons: i.reasons, where: i.where, evidence: i.evidence, context: i.context });
+      flagControl(li, { id: `${source}|${pairing}|${kind}|${n}`, kind: "scene", pairing, card: kind, top: i.top, bottom: i.bottom, topVerb: w.topVerb, bottomVerb: w.bottomVerb, act: i.act, basis: i.basis, confidence: i.confidence, confidenceReasons: i.reasons, where: i.where, pattern: i.via, evidence: i.evidence, context: i.context });
       ul.append(li);
     });
     det.append(ul);
