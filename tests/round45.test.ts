@@ -145,3 +145,51 @@ describe("Steve/Eddie sweep: oral phrasings in a bathroom scene", () => {
     expect(r.f.length).toBe(0);
   });
 });
+
+describe("Tricks of the Trade sweep: pronouns, speakers and idioms", () => {
+  const CD: Ao3Meta = { ...mk(["Castiel", "Dean Winchester"], "Supernatural"), freeforms: ["Dom Castiel", "Sub Dean"] };
+  const cb = baseOf("Cas", "Dean");
+  const run = (line: string) => analyzeWithPatterns(cb + line, CD, { quiet: true }).pairings[0];
+  const factors = (line: string, key: string) => run(line).vibe!.flatMap((v) => v.factors!.map((f) => ({ ...f, who: v.name }))).filter((f) => (f.source ?? "").includes(key));
+  it("‘beg him to fuck him’: the asker is the bottom", () => {
+    const f = factors("Dean wanted to beg him to just fuck him without it, but he knew he would be thankful tomorrow.", "beg him");
+    expect(f.filter((x) => x.who === "Dean Winchester" && x.role === "top").length).toBe(0);
+    expect(f.some((x) => x.who === "Dean Winchester" && x.role === "bottom")).toBe(true);
+  });
+  it("a participle after ‘Cas’s hand wandered again,’ belongs to Cas", () => {
+    const f = factors("Dean watched in amusement and Cas’s hand wandered again, cupping his ass under his cape.", "wandered again");
+    expect(f.filter((x) => x.who === "Dean Winchester" && x.role === "top").length).toBe(0);
+    expect(f.some((x) => x.who === "Castiel" && x.role === "top")).toBe(true);
+  });
+  it("‘as he pounded into him’ after ‘Cas’s hands … holding him down’ is Cas", () => {
+    const i = run("He tried to rut into the bed, but Cas’s hands moved to his hips, holding him down as he pounded into him.").anal.instances.find((x) => x.evidence.includes("pounded into him"));
+    expect(i?.top).toMatch(/Castiel/);
+  });
+  it("‘Dean had no warning before he was pushing inside him’ is Cas", () => {
+    const i = run("Cas moved back behind him and Dean hardly had any warning before he was pushing inside him.").anal.instances.find((x) => x.evidence.includes("warning before"));
+    expect(i?.top).toMatch(/Castiel/);
+  });
+  it("bottoming a toy out is the top’s act; solo prep with the partner away is not a scene", () => {
+    expect(run("Dean pushed up into the pressure and Cas chuckled as he bottomed the dildo out.").anal.instances.some((x) => x.evidence.includes("bottomed the dildo"))).toBe(false);
+    expect(run("It had been a long time since he’d done this to himself, but he persevered until he was stretched to fit three fingers.").anal.instances.some((x) => x.evidence.includes("done this to himself"))).toBe(false);
+  });
+  it("the slit of a cock is not cunnilingus", () => {
+    const p = run("He swirled his tongue over Dean’s slit, sucking along his shaft.");
+    expect(p.cunnilingus.instances.length).toBe(0);
+  });
+  it("a show someone else performs, a dance and a brother are not cues", () => {
+    expect(factors("The sub nodded. “Spread your legs for me. Let’s show off your cock.” The sub did as asked and Dean shifted in his seat.", "Spread your legs").length).toBe(0);
+    expect(factors("Dean took the lead, guiding Cas in a small box step.", "took the lead").length).toBe(0);
+    expect(factors("Cas clutched at his brother, tucking his head into his chest.", "his brother").length).toBe(0);
+  });
+  it("an action sentence just before an untagged line names its speaker", () => {
+    const f = factors("“Please,” he cried. Cas pulled his fingers free and moved up so Dean could see him. “You’re doing so well, you’re such a good boy.”", "such a good boy");
+    expect(f.filter((x) => x.who === "Dean Winchester" && x.role === "top").length).toBe(0);
+    expect(f.some((x) => x.who === "Castiel" && x.role === "top")).toBe(true);
+  });
+  it("‘brief Castiel/Meg Masters’ is a tag qualifier, not part of the name", () => {
+    const m = { ...CD, relationships: ["Castiel/Dean Winchester", "brief Castiel/Meg Masters"] };
+    const a = analyzeWithPatterns(cb + "Cas fucked Dean hard.", m, { quiet: true });
+    expect(a.pairings.map((p) => p.pairing).join(" ")).not.toMatch(/brief/i);
+  });
+});

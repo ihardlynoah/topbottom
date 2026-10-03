@@ -47,6 +47,8 @@ const NOT_NAMES = new Set(
   ),
 );
 
+const REL_QUALIFIER = /^(?:brief|briefly|past|background|implied|mentioned|minor|referenced|one-sided|unrequited|eventual|temporary|former|ex-|pre-)\s+/i;
+
 export function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -302,7 +304,8 @@ export function buildCast(meta: Ao3Meta, narration: string, fullText = narration
   const pairNames: string[][] = [];
   for (const rel of meta.relationships) {
     const sep = rel.includes("/") ? "/" : "&";
-    const names = rel.split(sep).map((n) => n.trim()).filter(Boolean).map(readName);
+    // "brief Castiel/Meg Masters", "past Steve/Bucky": a qualifier on the tag, not part of the name.
+    const names = rel.split(sep).map((n) => n.trim().replace(REL_QUALIFIER, "")).filter(Boolean).map(readName);
     if (sep === "/" && names.length >= 2) pairNames.push(names);
   }
   // "Eddie Diaz's Parents", "Tommy Kinard's Father", "Original Children of Hen Wilson/Karen Wilson" are groups or

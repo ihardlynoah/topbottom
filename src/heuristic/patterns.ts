@@ -2686,17 +2686,6 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     src: `\\b{T}\\s+{aux}(?:grabb?|grip|fist|tangl|tugg?|pull|clutch|held|hold)\\w*\\s+{B:poss}\\s+hair\\s+(?:and\\s+)?(?:\\w+ly\\s+)?(?:push|thrust|roll|jerk|snap|pump|drove|drive|rock)\\w*\\s+(?:his|her|their)\\s+hips\\s+(?:\\w+\\s+){0,3}?(?:forward|in|up)\\b`,
   },
-  {
-    // "a mess of spit and precum dripping from Steve's mouth"
-    id: "spit-precum-from-mouth",
-    cat: "oral",
-    kw: "dripp|drool|string|trail|smear",
-    act: "blowjob",
-    subj: "b",
-    weight: 0.5,
-    needsCtx: true,
-    src: `\\b(?:spit|saliva|drool|precum|pre-?come|cum|come)\\s+(?:and\\s+(?:spit|saliva|drool|precum|pre-?come|cum|come)\\s+)?(?:dripp|drool|string|trail|run|ran|dribbl|leak|smear)\\w*\\s+(?:\\w+\\s+){0,2}?(?:from|down|off|out of)\\s+{B:poss}\\s+(?:mouth|lips|chin)`,
-  },
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────

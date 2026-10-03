@@ -749,8 +749,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const underLong = new RegExp(`\\b(?:under|underneath|beneath)\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:tongue|mouth|lips|hands?|fingers|touch|ministrations|weight|body|attention)\\s*,?\\s*(?:as|while|when)\\s+(?:he|she)\\b([^.!?]*)$`).exec(prefix);
     if (underLong && !new RegExp(`\\b(?:${NAMES})\\b`).test(underLong[2])) return cast.byAlias.get(underLong[1]);
     // "…as Dunk's hands kneaded his arse as he pressed his tongue…": the hands' owner carries on as "he".
-    const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+[^,;—]*?\\b(?:as|while|when)\\s*$`).exec(prefix);
-    if (handsOf) return cast.byAlias.get(handsOf[1]);
+    const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and|but|then|yet|so))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+([^;—]*?)\\b(?:as|while|when)\\s*$`).exec(prefix);
+    if (handsOf && !new RegExp(`\\b(?:${NAMES})\\b|\\b(?:he|she|they)\\b`, "i").test(handsOf[2])) return cast.byAlias.get(handsOf[1]);
+    // "Dean hardly had any warning before he was pushing inside him": the "he" is the other one.
+    const warned = new RegExp(`(${NAMES})\\s+(?:(?:hardly|barely|scarcely|never|still)\\s+)?(?:had|has|got|gets|received)\\s+(?:hardly|barely|scarcely|little|no|any|not much|not any|almost no)\\s+(?:\\w+\\s+)?warning\\s+before\\s*$`).exec(prefix);
+    if (warned && /^\s*(?:he|she|they)\b/i.test(suffix)) { const w = cast.byAlias.get(warned[1]); const o = w && ctx.partnerOf(w); if (o) return o; }
+    // "Cas’s hand wandered again, cupping his ass": the participle belongs to the hand's owner.
+    const handPart = new RegExp(`(?:^|[,;.]|\\b(?:and|as|while|when))\\s*(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+(?:\\w+(?:\\s+|(?=[,;]|$))){1,3}?[,;]?\\s*(?:and\\s+)?$`).exec(prefix);
+    if (handPart && /^\W*[A-Za-z]+ing\b/.test(suffix)) return cast.byAlias.get(handPart[1]);
     // "—pressing him down, and Riddle with him—" is an aside, not the clause's subject.
     prefix = prefix.replace(/—[^—]*—/g, (x) => " ".repeat(x.length));
     const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
@@ -861,6 +867,25 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const tagOfPrev = !!b1 && (!before.slice(0, b1.index!).trim() || /\s{2,}$/.test(before.slice(0, b1.index!)) || /["”’]\s*$/.test(before.slice(0, b1.index!)));
     if (b1 && !tagOfPrev) { attribExplicit = true; return resolve(b1[1]); }
 
+    // “I’m going to take the plug out now.” Dean’s breath hitched…: the narration right after the line is the listener's
+    // reaction, so the speaker is the other one.
+    if (!mp.slice(0, q.start).trim()) {
+      const react = new RegExp(`^[,.!?—–\\s]*(${NAMES})(?:['’]s)?\\s+(?:(?:breath|heart|cock|dick|stomach|cheeks|knees|pulse|body|throat|skin)\\s+(?:\\w+\\s+)?(?:hitched|caught|stuttered|skipped|raced|twitched|throbbed|jerked|clenched|flushed|heated|weakened|trembled|shook|stalled)|(?:shivered|shuddered|swallowed|flushed|blushed|gulped|trembled|nodded))\\b`).exec(after);
+      const reactor = react ? cast.byAlias.get(stripPoss(react[1])) : undefined;
+      const other = reactor && ctx.partnerOf(reactor);
+      if (other) { attribExplicit = true; return other; }
+    }
+    // “Spread your legs for me.” The sub did as asked…: a scene someone else is performing, not the pair's.
+    if (/^\s*(?:The|His|Her|Their|A|An)\s+(?:sub|submissive|Dom|Domme|Master|Mistress|stranger|man|woman|bartender|waitress|server|couple|guy|girl|performer|performers|crowd|audience)\b/.test(mp.replace(/["“”‘’\[\]]\s*/g, " ").trim())) return undefined;
+    // “Please,” he cried. Cas pulled his fingers free and moved up. “You’re doing so well.”: after a tag for the
+    // previous line, the person whose action comes right before this line is the one speaking.
+    if (prevQ) {
+      const gapSents = mp.slice(prevQ.end, q.start).trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+      if (gapSents.length >= 2) {
+        const ent = firstEntity(gapSents[gapSents.length - 1]);
+        if (ent) { attribExplicit = true; return ent; }
+      }
+    }
     // Otherwise, whoever the narration in this paragraph is about.
     const narr = mp.replace(/["“”‘’\[\]]\s*/g, " ").trim();
     // "His friend listened, picking up the pace. '…'": the partner of the character whose point of view this is.
@@ -984,6 +1009,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const tTok = groupValue(m.groups, "t");
     const bTok = groupValue(m.groups, "b");
     let subjChar: Character | undefined;
+    // "Cas chuckled as he bottomed the dildo out": a top seating a toy, not a bottom.
+    if (/\bbottom(?:ed|ing|s)\s+(?:the\s+|a\s+|his\s+|her\s+)?(?:\w+\s+)?(?:dildo|toy|plug|vibrator|vibe|strap\S*|beads)\b/i.test(sent.slice(m.index!))) return;
+    // "he’d done this to himself … stretched to fit three fingers": solo prep, not a scene with the partner.
+    if (pat.cat === "anal" && /\b(?:stretch|finger|open)\w*/i.test(m[0]) && /\b(?:done|did|doing)\s+(?:this|that|it)\s+to\s+(?:himself|herself|themself)\b/i.test(sent)) return;
+    // "swirling his tongue over Dean’s slit, sucking along his shaft": the slit of a cock, not a vulva.
+    if (pat.cat === "oral" && /\bslit\b/i.test(m[0]) && oralKindOf(pat.act) === "cunnilingus" && /\b(?:cock|dick|shaft|balls|erection|length|prick)\b/i.test(sent)) return;
     if (pat.elided) {
       // ", the plug bumps against…": a determiner after the trigger starts a new subject, not a left-out one.
       if (/^\W*(?:(?:and|then|of|about|before|after|while|by|without|from|to)\s+)?(?:the|a|an|this|that|these|those|its)\s/i.test(m[0])) return;
@@ -1066,7 +1097,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.cat === "anal" && !pat.signal && /\bthrough\s+(?:[\w-]+\s+){0,3}?(?:clothes|clothing|clothed|jeans|pants|trousers|fabric|layers|boxers|underwear|slacks|denim)\b/i.test(sent.slice(m.index!))) return;
     // "pushes his hips back into the alpha": the one pushing back is the bottom, which the grinding-back cue reads.
     if (/^(?:push-into|rock-into|fuck|hips-|penis-into|spread)/.test(pat.id) && (/\b(?:hips|ass|body|butt)\s+back\s+(?:in|into|onto|against|toward|towards)\b/i.test(m[0]) || /\b(?:sink|sank|sinks|sunk|sinking|settle|settles|settled|melt|melts|melted|lean|leans|leaned|press|presses|pressed|pressing|push|pushes|pushed|pushing|arch|arches|arched|arching)\s+back\s+(?:in|into|against|onto)\b/i.test(m[0]))) return;
-    const resolved = resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
+    // "Dean wanted to beg him to just fuck him": the first "him" is the one asked, the second is the asker.
+    let asked: { top: Character; bottom: Character } | undefined;
+    if (pat.cat === "anal" && pat.subj === "t" && /^(?:him|her)$/i.test(tTok ?? "") && /^(?:him|her|me)$/i.test(bTok ?? "")) {
+      const ask = /\b(?:beg|ask|tell|order|plead|urge|coax|command|invite|get|make|let|help|want|need|expect|wish)\w*\s+(?:him|her)\s+to\s+(?:(?:just|please|finally|really|only)\s+)*\w+\s+(?:him|her|me)\s*$/i.exec(sent.slice(0, m.index! + m[0].length));
+      const asker = ask ? firstEntity(sent.slice(0, ask.index)) : undefined;
+      const askedChar = asker ? ctx.partnerOf(asker) : undefined;
+      if (asker && askedChar) asked = { top: askedChar, bottom: asker };
+    }
+    const resolved = asked ? { ...asked, basis: "pronoun" as Basis } : resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
     ctx.coSubjects.clear();
     if (!resolved) return;
     {
@@ -1330,6 +1369,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // Fights, torture and rescues: shoving, gripping, lifting and shielding aren't dominance when they come with danger
       // and no sexual words, and a plural "they" is a group, not the partner.
       if (cat === "vibe" && (pat.signal.kind === "behavior" || pat.signal.kind === "position")) {
+        // Dancing and family hugs aren't dominance: "took the lead, guiding Cas in a box step", "tucked his head into his brother's chest".
+        if (/\b(?:danc\w*|waltz\w*|box step|tango|foxtrot)\b|\b(?:brother|sister|father|mother|mom|son|daughter|uncle|aunt|grandma|grandpa)\b/i.test(original)) return;
         if (/^they$/i.test(tTok ?? "") || /^(?:the|a)\s+(?:man|guy|dude|stranger|bastard|cop|officer)$/i.test(tTok ?? "")) return;
         const recent = original + " " + (paras[pi] ?? "").slice(Math.max(0, (paras[pi] ?? "").indexOf(original) - 200), (paras[pi] ?? "").indexOf(original));
         if (DANGER.test(recent) && (recent.match(SEX_STRICT) ?? []).length === 0) return;
