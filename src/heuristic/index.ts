@@ -739,6 +739,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (wrong(tTok, r.top) || wrong(bTok, r.bottom)) return;
     }
     let { top, bottom } = resolved as { top: Character; bottom: Character };
+    // "His eyes were glued to Buck's cock", "his hand wrapped around Steve's cock": the possessive pronoun in front is not the
+    // person named after it.
+    if (pat.subj === "t" && /^(?:his|her|their)$/i.test(tTok ?? "") && bTok) {
+      const named = cast.byAlias.get(stripPoss(bTok));
+      if (named && named !== cast.secondPerson) {
+        bottom = named;
+        if (top === named) top = ctx.partnerOf(named) ?? top;
+      }
+    }
     // "the cock inside him starts grinding into him": the one it's inside is the bottom, and it isn't his own cock.
     if (pat.cat === "anal" && /^the$/i.test(tTok ?? "") && /\b(?:inside|in)\s+(?:him|her)\b/i.test(m[0])) {
       const sub = firstEntity(sent.slice(0, m.index)) ?? ctx.lastSubject;
@@ -749,7 +758,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.cat === "anal") {
       const own = new RegExp(`\\b(${NAMES})['’]s\\s+(?:[\\w-]+\\s+){0,2}?(?:cock|dick|prick|length|shaft)\\b`).exec(m[0]);
       const owner = own ? cast.byAlias.get(own[1]) : undefined;
-      if (owner && owner !== top && owner === bottom && pat.subj === "t") [top, bottom] = [bottom, top];
+      if (owner && owner !== top && owner === bottom && pat.subj === "t" && !pat.signal) [top, bottom] = [bottom, top];
       // "Derek fucked my cock into Stiles" (or "Derek's cock … into Stiles" said of a third person's): whoever the cock belongs to
       // tops; the one moving it is only helping.
       if (pat.subj === "t" && /\b(?:in|into|inside)\s+\S/.test(m[0])) {
