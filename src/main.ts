@@ -6,7 +6,7 @@ import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, Instance, RoleOdds, SoloResult, VaginalResult, VibeFactor, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, Instance, ManualResult, RoleOdds, SoloResult, VaginalResult, VibeFactor, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -203,6 +203,7 @@ function cardSummaries(a: Analysis): string[] {
     }
     if (p.vaginal.instances.length) out.push(`${p.pairing} · vaginal: ${p.vaginal.instances.length} scene(s)`);
     if (p.solo?.occurs) out.push(`${p.pairing} · solo: ${p.solo.summary}`);
+    if (p.manual?.occurs) out.push(`${p.pairing} · handjobs & frottage: ${p.manual.summary}`);
     for (const v of p.vibe ?? []) out.push(`${p.pairing} · vibe ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
   }
   return out;
@@ -622,6 +623,29 @@ function renderVaginal(v: VaginalResult, pairing: string, source: string): HTMLE
   return card;
 }
 
+/** Handjobs and frottage between the pair. */
+function renderManual(v: ManualResult, pairing: string, source: string): HTMLElement {
+  const card = el("article", "card act verdict-one_way");
+  const head = el("div", "act-head");
+  head.append(el("h4", undefined, "Handjobs & frottage"), el("span", "badge one_way", `${v.instances.length} found`));
+  card.append(head, el("p", "summary", v.summary));
+  card.append(el("p", "hint", "Not ranked top or bottom: this shows who uses their hand on whom."));
+  const det = el("details", "instances");
+  det.append(el("summary", undefined, `${v.instances.length} moment${v.instances.length === 1 ? "" : "s"}`));
+  const ul = el("ul");
+  v.instances.forEach((i, n) => {
+    const li = el("li");
+    li.append(el("strong", undefined, i.mutual ? `${i.giver} & ${i.receiver}` : `${i.giver} → ${i.receiver}`), ` · ${i.act}`);
+    if (i.where) li.append(el("span", "where", ` · ${i.where}`));
+    if (i.evidence) li.append(el("div", "evidence", i.evidence));
+    flagControl(li, { id: `${source}|${pairing}|manual|${n}`, kind: "hint", pairing, card: "manual", top: i.giver, bottom: i.receiver, act: i.act, where: i.where, evidence: i.evidence });
+    ul.append(li);
+  });
+  det.append(ul);
+  card.append(det);
+  return card;
+}
+
 /** Solo acts: masturbation, self-fingering and toys on oneself, per person. */
 function renderSolo(v: SoloResult, pairing: string, source: string): HTMLElement {
   const card = el("article", "card act verdict-one_way");
@@ -780,6 +804,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) 
     if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus, p.pairing, a.source));
     if (p.vaginal.applicable) grid.append(renderVaginal(p.vaginal, p.pairing, a.source));
     if (p.solo?.occurs) grid.append(renderSolo(p.solo, p.pairing, a.source));
+    if (p.manual?.occurs) grid.append(renderManual(p.manual, p.pairing, a.source));
     block.append(grid);
     target.append(block);
   }

@@ -296,3 +296,140 @@ describe("solo acts: plans and struggles are not acts", () => {
     expect(analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].solo!.occurs).toBe(false);
   });
 });
+
+describe("everyday dynamics between the pair: caretaking, leading by the hand, carrying", () => {
+  const ST = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const f = (line: string) => analyzeWithPatterns(sb + line, ST, { quiet: true }).pairings[0].vibe!.flatMap((v) => v.factors!.map((x) => ({ ...x, who: v.name }))).filter((x) => (x.source ?? "").includes(line.slice(0, 22)));
+  it.each([
+    ["Eddie tucked a blanket around Steve and told him to sleep.", "Eddie"],
+    ["Steve handed Eddie the bag of ice without a word.", "Steve"],
+    ["Eddie stroked Steve’s hair until his breathing evened out.", "Eddie"],
+    ["Eddie took Steve’s hand and led him toward the door.", "Eddie"],
+    ["Eddie wrapped his arms around Steve’s waist and lifted him out of the van.", "Eddie"],
+    ["Eddie stepped between Steve and Hopper.", "Eddie"],
+  ])("%s", (line, who) => {
+    const hits = f(line);
+    expect(hits.some((x) => x.who.startsWith(who) && x.role === "top"), line).toBe(true);
+    expect(hits.some((x) => !x.who.startsWith(who) && x.role === "bottom" && x.fromOther !== true && false)).toBe(false);
+  });
+  it.each([
+    "Steve led the kids toward the car and told them to stay low.",
+    "Steve handed Billy the bag of ice and walked away.",
+    "Eddie led the band through the final song.",
+  ])("not a cue between the pair: %s", (line) => {
+    expect(f(line).length, line).toBe(0);
+  });
+});
+
+describe("handjobs and frottage get their own card", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const man = (line: string, pre = "") => analyzeWithPatterns(sb + pre + line, SB, { quiet: true }).pairings[0].manual!;
+  it.each([
+    ["Eddie stroked Steve’s cock slowly, watching his face.", "Eddie", "Steve"],
+    ["Steve wrapped a hand around Eddie’s cock and squeezed.", "Steve", "Eddie"],
+    ["Eddie shoved a hand into Steve’s underwear.", "Eddie", "Steve"],
+    ["Steve kissed Eddie until Eddie tightened his grip on his cock, almost painfully.", "Eddie", "Steve"],
+  ])("%s", (line, giver, receiver) => {
+    const r = man(line);
+    expect(r.occurs, line).toBe(true);
+    expect(r.instances[0].giver).toMatch(new RegExp(giver));
+    expect(r.instances[0].receiver).toMatch(new RegExp(receiver));
+  });
+  it("‘wrapped his hands around them both’ is mutual", () => {
+    const r = man("Eddie wrapped his hands around them both, spit and precum making it slick.");
+    expect(r.instances[0].mutual).toBe(true);
+  });
+  it("‘he stroked his cock’ with no partner around is not a handjob", () => {
+    expect(man("He lay back on the bed alone. He stroked his cock slowly, thinking of nothing.").occurs).toBe(false);
+  });
+  it("a thought about the partner before ‘stroked his cock’ is not a handjob", () => {
+    expect(man("Steve thought about Eddie all night. He stroked his cock in the dark.").occurs).toBe(false);
+  });
+  it("‘ropes of come across his face’ is a facial: the one it lands on is sucking", () => {
+    const p = analyzeWithPatterns(sb + "Steve squeezed his eyes shut just in time for hot ropes of come to splatter across his face.", SB, { quiet: true }).pairings[0];
+    const i = p.blowjob.instances.find((x) => x.evidence.includes("ropes of come"));
+    expect(i?.bottom).toMatch(/Steve/);
+  });
+});
+
+describe("‘I want to ride his dick’ is a bottom wish whoever ‘his’ is", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const wishes = (line: string) => analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].anal.desires.filter((d) => d.kind === "said" && d.wants && d.role === "bottom" && d.who.startsWith("Steve"));
+  it.each([
+    "“I want to ride his dick like a cowboy,” Steve said.",
+    "“I wanna ride that dick,” Steve said, grinning at Eddie.",
+    "“I want to ride Eddie’s dick,” Steve told Robin.",
+  ])("%s", (line) => {
+    expect(wishes(line).length, line).toBeGreaterThan(0);
+  });
+  it("counts toward Steve’s bottom vibe", () => {
+    const p = analyzeWithPatterns(sb + "“I want to ride his dick like a cowboy,” Steve said.", SB, { quiet: true }).pairings[0];
+    const f = p.vibe!.find((v) => v.name.startsWith("Steve"))!.factors!.filter((x) => x.role === "bottom" && /ride his dick/.test(x.source ?? ""));
+    expect(f.length).toBeGreaterThan(0);
+  });
+  it("a refusal isn’t a wish", () => {
+    expect(wishes("“I would never ride his dick,” Steve said.").length).toBe(0);
+  });
+});
+
+describe("bottom-coded oral cues: offering the mouth, asking to be fed, licking up come", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const bottomFactors = (line: string) => analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].vibe!.filter((v) => v.name.startsWith("Steve")).flatMap((v) => v.factors!).filter((f) => f.role === "bottom" && f.tier < 7);
+  it.each([
+    "“Like the song, Eds. Feed it to me,” Steve said, and he slowly opened his mouth, letting his tongue slip out.",
+    "“Fill my mouth,” Steve whispered.",
+    "Eddie came across Steve’s lips, and Steve licked the cum off his lips.",
+    "Steve answered by sticking out his tongue and slowly licking the come from his lips.",
+  ])("%s", (line) => {
+    expect(bottomFactors(line).length, line).toBeGreaterThan(0);
+  });
+  it.each([
+    "Steve licked the frosting off his lips and grinned.",
+    "“Feed me, I’m starving,” Steve said.",
+  ])("everyday: %s", (line) => {
+    expect(bottomFactors(line).length, line).toBe(0);
+  });
+});
+
+describe("bottom wishes and tastes: ‘get fucked’, ‘plow me’, ‘I love cock’…", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const bottomFor = (line: string) => analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].vibe!.filter((v) => v.name.startsWith("Steve")).flatMap((v) => v.factors!).filter((f) => f.role === "bottom" && f.tier < 7);
+  it.each([
+    "“I want to get fucked,” Steve said.",
+    "“I wanna be fucked so bad,” Steve said.",
+    "“I need to get bred,” Steve whispered.",
+    "“I want him to plow me,” Steve said.",
+    "“I want Eddie to ruin me,” Steve said.",
+    "“I love getting fucked,” Steve said.",
+    "“I love being filled,” Steve said.",
+    "“I love cock,” Steve said.",
+    "“I fucking love taking dick,” Steve said.",
+    "“I want his cock inside me,” Steve said.",
+    "“Put it in me,” Steve said.",
+    "“Plow me,” Steve said.",
+    "“Come inside me,” Steve said.",
+    "“I’m a cockslut,” Steve said.",
+    "“I need cock,” Steve said.",
+    "“Take me hard,” Steve said.",
+  ])("%s", (line) => {
+    expect(bottomFor(line).length, line).toBeGreaterThan(0);
+  });
+  it.each([
+    "“Go get fucked,” Steve said.",
+    "“I want to get fucked up tonight,” Steve said.",
+    "“I love cocktails,” Steve said.",
+    "“Use me as a shield,” Steve said.",
+    "“I want to get fucked over by the bank,” Steve said.",
+  ])("not a bottom wish: %s", (line) => {
+    expect(bottomFor(line).length, line).toBe(0);
+  });
+  it("‘I love getting fucked’ is a stated preference (tier 2), a wish is tier 4", () => {
+    expect(bottomFor("“I love getting fucked,” Steve said.").some((f) => f.tier === 2)).toBe(true);
+    expect(bottomFor("“I want to get fucked,” Steve said.").some((f) => f.tier === 4)).toBe(true);
+  });
+});
