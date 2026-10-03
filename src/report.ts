@@ -92,7 +92,7 @@ export interface ReportInput {
 
 export function buildReport(r: ReportInput): string {
   const out: string[] = [];
-  out.push("# Trust the Tags But Verify — mistake report");
+  out.push("# Trust (Tags) But Verify — mistake report");
   out.push("");
   out.push(
     "I ran a fanfic through the analyzer and some results look wrong. For each item below, work out why the " +
