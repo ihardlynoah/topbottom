@@ -504,7 +504,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "b",
     weight: 0.8,
-    src: `\\b{B}\\s+{aux}bottom(?:s|ed|ing)?\\b(?!\\s+(?:out|of|up|off|half|lip|drawer|step|line|shelf|teeth|tooth|row|left|right|corner|floor|button|bunk|edge|layer|end|part|side|door|rung|stair|stairs|sheet|dollar|price|feeder)\\b)(?:\\s+for\\s+{T})?`,
+    src: `\\b{B}\\s+{aux}bottom(?:s|ed|ing)?\\b(?!\\s+(?:out|of|up|off|half|lip|arm|arms|hand|hands|leg|legs|drawer|step|line|shelf|teeth|tooth|row|left|right|corner|floor|button|bunk|edge|layer|end|part|side|door|rung|stair|stairs|sheet|dollar|price|feeder)\\b)(?:\\s+for\\s+{T})?`,
   },
   {
     id: "topped",
@@ -512,7 +512,7 @@ export const PATTERNS: PatternDef[] = [
     act: "anal sex",
     subj: "t",
     weight: 0.8,
-    src: `\\b{T}\\s+{aux}top(?:s|ped|ping)?\\b(?!\\s+(?:up|off|of|with|the|it|that|this|out|his|her|their|my|your|a|an|to|and)\\b|\\s*-)(?:\\s+{B})?`,
+    src: `\\b{T}\\s+{aux}top(?:s|ped|ping)?\\b(?!\\s+(?:up|off|of|with|the|it|that|this|out|his|her|their|my|your|a|an|to|and|grades?|marks?|scores?|rankings?|charts?)\\b|\\s*-)(?:\\s+{B})?`,
   },
 
   // ───────────── ANAL: fingering ─────────────
@@ -1714,7 +1714,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.6,
     signal: { kind: "behavior", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:took|takes|taking|seiz(?:ed|es|ing))\\s+(?:control|charge|the lead|command)\\b`,
+    src: `\\b{T}\\s+{aux}(?:took|takes|taking|seiz(?:ed|es|ing))\\s+(?:control|charge|the lead|command)\\b(?!\\s+of\\s+(?!him\\b|her\\b|them\\b|the\\s+(?:kiss|pace|moment)\\b))`,
   },
   {
     id: "dom-grip",
@@ -1768,7 +1768,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.6,
     signal: { kind: "behavior", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:melt(?:ed|s|ing)|sag(?:ged|s)|went|goes|go)\\s+(?:soft|pliant|limp|boneless|still|pliable)\\b`,
+    src: `\\b{B}\\s+{aux}(?:melt(?:ed|s|ing)|sag(?:ged|s)|went|goes|go)\\s+(?:soft|pliant|limp|boneless|pliable)\\b`,
   },
   {
     id: "sub-yield",
@@ -1908,7 +1908,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.5,
     signal: { kind: "behavior", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:(?:cupp?ed|cups|held|holds|gripp?ed|grips|caught)\\s+{B:poss}\\s+(?:jaw|chin|face)\\s*,?\\s*(?:and\\s+)?(?:then\\s+)?)?(?:tilt|lift|angl|tip|jerk)\\w*\\s+(?:{B:poss}\\s+(?:chin|head|face)|{B:poss}\\s+(?:jaw))\\s+(?:up|back|toward|towards|to)\\b`,
+    src: `\\b{T}\\s+{aux}(?:(?:cupp?ed|cups|held|holds|gripp?ed|grips|caught)\\s+{B:poss}\\s+(?:jaw|chin|face)\\s*,?\\s*(?:and\\s+)?(?:then\\s+)?(?:tilt|lift|angl|tip|jerk)\\w*\\s+(?:(?:his|her|their|the)\\s+)?(?:chin|head|face|jaw)|(?:tilt|lift|angl|tip|jerk)\\w*\\s+[A-Z][\\w-]*['’]s\\s+(?:chin|head|face|jaw))\\s+(?:up|back|toward|towards|to)\\b`,
   },
   {
     // "slid a hand down the back of Steve's jeans and squeezed", "pushed a hand into his waistband"
@@ -2059,7 +2059,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.8,
     signal: { kind: "stated", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:\\w+\\s+){0,2}?(?:like[sd]?|love[sd]?|prefer(?:s|red)?|enjoy(?:s|ed)?|crave[sd]?)\\s+(?:being\\s+(?:fucked|filled|taken|stretched|bottomed|topped|bred|railed|pounded|used\\s+(?:and|like)|on\\s+the\\s+bottom|underneath)|getting\\s+(?:fucked|filled|taken|stretched|pounded|railed|bred|topped)|to\\s+be\\s+(?:fucked|filled|taken|topped|stretched|bred)|bottoming(?![\\w-])|to\\s+bottom(?![\\w-])|taking\\s+(?:it|cock|dick))(?![\\w-])`,
+    src: `\\b{B}\\s+{aux}(?:\\w+\\s+){0,2}?(?:like[sd]?|love[sd]?|prefer(?:s|red)?|enjoy(?:s|ed)?|crave[sd]?)\\s+(?:being\\s+(?:fucked|filled|taken(?!\\s+care)|stretched|bottomed|topped|bred|railed|pounded|used\\s+(?:and|like)|on\\s+the\\s+bottom|underneath)|getting\\s+(?:fucked|filled|taken|stretched|pounded|railed|bred|topped)|to\\s+be\\s+(?:fucked|filled|taken|topped|stretched|bred)|bottoming(?![\\w-])|to\\s+bottom(?![\\w-])|taking\\s+(?:it|cock|dick))(?![\\w-])`,
   },
   {
     // "He had always been the one who topped", "he's always been the type to take charge"
@@ -2214,7 +2214,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.45,
     signal: { kind: "position", actorRole: "bottom" },
-    src: `\\b{B:poss}\\s+(?:wrists?|hands|arms)\\s+(?:were|was|got|are|is)\\s+(?:pinn?ed|held|pressed|trapped|bound|tied|cuffed|restrained|clasped)\\s+(?:\\w+\\s+){0,2}?(?:above|over|against|to|down|behind)(?![\\w-])`,
+    src: `\\b{B:poss}\\s+(?:wrists?|hands|arms)\\s+(?:were|was|got|are|is)\\s+(?:pinn?ed|held|pressed|trapped|bound|tied|cuffed|restrained)\\s+(?:\\w+\\s+){0,2}?(?:above|over|against|to|down|behind)(?![\\w-])`,
   },
   {
     id: "aftercare-clean",
@@ -2247,7 +2247,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.35,
     needsCtx: true,
     signal: { kind: "aftercare", actorRole: "bottom", actor: "b" },
-    src: `\\b{T}\\s+{aux}(?:gather|tuck|cradl|hold|held|cuddl)\\w*\\s+{B}\\s+(?:\\w+\\s+){0,2}?(?:close|to\\s+(?:his|her|their)\\s+chest|against\\s+(?:his|her|their)\\s+chest|into\\s+(?:his|her|their)\\s+arms)(?![\\w-])`,
+    src: `\\b{T}\\s+{aux}(?:gather|tuck|cradl|hold|held|cuddl)\\w*\\s+{B}\\s+(?:\\w+\\s+){0,2}?(?:close|to\\s+(?:his|her|their)\\s+chest|against\\s+(?:his|her|their)\\s+chest|into\\s+(?:his|her|their)\\s+arms)(?![\\w-])(?!(?:\\s+[\\w,'’-]+){0,6}?\\s+(?:lick|suck|thrust|hump|fuck|eat|stroke|pound|grind)\\w*)`,
   },
   {
     id: "aftercare-nestle",
@@ -2494,7 +2494,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.4,
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:sink|sank|sinks|drop|dropped|drops|fall|fell|falls)\\w*\\s+(?:down\\s+)?(?:to|onto)\\s+(?:(?:his|her|their|my|your)\\s+knees|(?:the\\s+)?(?:cold\\s+|hard\\s+)?(?:floor|ground)(?=\\s+(?:in front of|before|between|at)\\b))`,
+    src: `\\b{B}\\s+{aux}(?:sink|sank|sinks|drop|dropped|drops)\\w*\\s+(?:down\\s+)?(?:to|onto)\\s+(?:(?:his|her|their|my|your)\\s+knees|(?:the\\s+)?(?:cold\\s+|hard\\s+)?(?:floor|ground)(?=\\s+(?:in front of|before|between|at)\\b))`,
   },
   {
     // "nuzzles against the line of Obi-Wan's cock"
@@ -2899,7 +2899,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     signal: { kind: "handjob", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:jerk|strok|pump|tugg?)\\w*\\s+{B}\\s+(?:off|slowly|loosely|lazily|tightly|firmly|faster|hard|gently|steadily)\\b`,
+    src: `\\b{T}\\s+{aux}(?:jerk|strok|pump|tugg?)\\w*\\s+{B}\\s+(?:off|slowly|loosely|lazily|tightly|firmly|faster|hard|gently|steadily)\\b(?!\\s+with\\s+(?:his|her|their)\\s+(?:hole|ass|body|mouth|throat))`,
   },
   {
     // "Eddie blushed", "Steve stammered": flustered, a yielding cue on the everyday-dynamic axis (needs the partner nearby)
@@ -2910,7 +2910,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.5,
     signal: { kind: "behavior", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:blush|flush|stammer|stutter|squeak|sputter|fumbl)\\w*`,
+    src: `\\b{B}\\s+{aux}(?:(?:blush|flush|stammer|stutter|squeak|sputter)\\w*|fumbl\\w*\\s+(?:for|over|with)\\s+(?:(?:his|her|their|the|a)\\s+)?(?:words?|word|right))`,
   },
   {
     // "his face went red", "her cheeks turned pink"
@@ -2982,7 +2982,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.3,
     signal: { kind: "behavior", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:lower|drop|avert|cast\\s+down|keep|kept|bow)\\w*\\s+(?:his|her|their)\\s+(?:eyes|gaze|head)\\b`,
+    src: `\\b{B}\\s+{aux}(?:lower|drop|avert|cast\\s+down)\\w*\\s+(?:his|her|their)\\s+(?:eyes|gaze)\\b`,
   },
   {
     // "built a nest": an omega's nesting

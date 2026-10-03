@@ -950,6 +950,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (cat === "oral" && /\bworship/i.test(matchText) && !PENIS_CTX.test(matchText)) return;
     // "the shadows are going to swallow him whole": only a cock (or a penis word nearby) makes it oral.
     if (pat.id.startsWith("swallowed-down") && /\bwhole\b/i.test(matchText) && !PENIS_CTX.test(sent)) return;
+    // "he topped a lot like how he bottomed": a comparison, not an act.
+    if ((pat.id.startsWith("topped") || pat.id.startsWith("bottomed-for")) && /\b(?:how|like|than|as)\s+$/i.test(sent.slice(0, m.index))) return;
     // "Shane slipped inside and sat on the edge of the bed": entering a room, not penetration.
     if (pat.id.startsWith("pushed-in") && /^\s*,?\s*(?:and\s+)?(?:then\s+)?(?:sat|stood|closed|shut|locked|walked|went|looked|waited|crossed|leaned|turned|stepped|paused|dropped|collapsed|hung|stopped|froze|glanced|checked|set|put|placed|kicked|tossed|threw|flicked)\b/i.test(sent.slice(m.index! + m[0].length))) return;
     // "…tried to find his prostate" right after he fingered himself: the same solo act, not the partner's.
