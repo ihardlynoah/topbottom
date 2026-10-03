@@ -89,6 +89,7 @@ export function buildVaginal(hits: ActHit[], pair: [Character, Character], meta:
       bottom: best.bottom.name,
       act: acts.join(", "),
       where: where(scene.first),
+      para: best.para,
       evidence: truncate(best.sentence),
       basis: best.basis,
     });
@@ -425,6 +426,7 @@ export function buildAct(
       bottom: best.bottom.name,
       act: acts.join(", "),
       where: where(r.first),
+      para: best.para,
       evidence: truncate(best.sentence),
       basis: best.basis,
       confidence: Math.round(conf * 100) / 100,
@@ -445,6 +447,7 @@ export function buildAct(
       bottom: best.bottom.name,
       act: "fingering",
       where: where(scene.first),
+      para: best.para,
       evidence: truncate(best.sentence),
       basis: best.basis,
     });
