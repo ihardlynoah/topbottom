@@ -936,20 +936,47 @@ function renderVibe(
   return box;
 }
 
-function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) {
+/** How the vibe is shown: two ratings (sexual vibe + everyday dynamic) or the earlier single combined vibe. */
+type VibeMode = "two" | "single";
+const VIBE_MODE_KEY = "tbv.vibeMode";
+let vibeMode: VibeMode = (() => { try { return localStorage.getItem(VIBE_MODE_KEY) === "single" ? "single" : "two"; } catch { return "two"; } })();
+
+function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement, keepFlags = false) {
   target.replaceChildren();
-  // A new analysis replaces the reading the flags pointed at.
-  if (shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k);
+  // A new analysis replaces the reading the flags pointed at (switching the vibe display doesn't).
+  if (!keepFlags && shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k);
     for (const k of [...pickedFactors.keys()]) if (k.startsWith(`${a.source}|`)) pickedFactors.delete(k);
   }
   shown = { source: a.source, analysis: a };
   refreshReport();
   if (!a.pairings.length) target.append(el("p", "hint", "Couldn't identify the characters in this work."));
+  if (a.pairings.some((p) => p.vibe?.length)) {
+    const bar = el("div", "display-opts");
+    bar.append(el("span", "mini-label", "Vibe display"));
+    for (const [mode, label, tip] of [
+      ["two", "Two ratings", "Sexual vibe (tops/bottoms) and everyday dynamic (leads/follows), kept apart"],
+      ["single", "One combined vibe", "The earlier single rating, with taking charge, caring, pet names and yielding folded into the vibe"],
+    ] as const) {
+      const b = el("button", `seg${vibeMode === mode ? " on" : ""}`, label);
+      b.type = "button";
+      b.title = tip;
+      b.setAttribute("aria-pressed", String(vibeMode === mode));
+      b.addEventListener("click", () => {
+        if (vibeMode === mode) return;
+        vibeMode = mode;
+        try { localStorage.setItem(VIBE_MODE_KEY, mode); } catch { /* not saved in a private window */ }
+        renderAnalysis(a, target, notesEl, true);
+      });
+      bar.append(b);
+    }
+    target.append(bar);
+  }
   for (const p of a.pairings) {
     const block = el("div", "pairing-block");
     if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
-    if (p.vibe?.length) block.append(renderVibe(p.vibe, p.pairing, a.source));
-    if (p.dynamic?.length && p.dynamic.some((d) => d.label !== "Unclear")) block.append(renderVibe(p.dynamic, p.pairing, a.source, { key: "dynamic", title: "Everyday dynamic", ends: ["Follows", "Balanced", "Leads"], hint: "Who leads and who follows outside the sex: taking charge, caring, protecting, praising, yielding. Separate from who tops and bottoms." }));
+    if (vibeMode === "single" && p.vibeCombined?.length) block.append(renderVibe(p.vibeCombined, p.pairing, a.source, { key: "vibe", title: "Vibe (combined)", ends: ["Total bottom", "Vers", "Total top"], hint: "One rating: sex acts, stated roles and tags, desires and hints, and everyday behaviour such as taking charge, caring and yielding, all together." }));
+    else if (p.vibe?.length) block.append(renderVibe(p.vibe, p.pairing, a.source));
+    if (vibeMode === "two" && p.dynamic?.length && p.dynamic.some((d) => d.label !== "Unclear")) block.append(renderVibe(p.dynamic, p.pairing, a.source, { key: "dynamic", title: "Everyday dynamic", ends: ["Follows", "Balanced", "Leads"], hint: "Who leads and who follows outside the sex: taking charge, caring, protecting, praising, yielding. Separate from who tops and bottoms." }));
     const grid = el("div", "grid two");
     grid.append(renderAct("anal", p.anal, p.pairing, a.source), renderAct("blowjob", p.blowjob, p.pairing, a.source), renderAct("rimming", p.rimming, p.pairing, a.source));
     if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus, p.pairing, a.source));

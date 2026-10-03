@@ -355,3 +355,8 @@ footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: 
 .calib-table { border-collapse: collapse; margin: 8px 0; font-size: 0.85rem; }
 .calib-table th, .calib-table td { text-align: left; padding: 3px 12px 3px 0; border-bottom: 1px solid var(--border); }
 .calib-actions { font-size: 0.85rem; margin-top: 6px; }
+
+/* Vibe display switch */
+.display-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 12px; }
+.seg { font: inherit; font-size: 0.85rem; padding: 3px 10px; border: 1px solid var(--border); background: transparent; color: var(--text); border-radius: 999px; cursor: pointer; }
+.seg.on { background: var(--accent); border-color: var(--accent); color: var(--surface); }

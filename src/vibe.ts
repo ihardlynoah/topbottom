@@ -57,8 +57,11 @@ export function rateDynamic(name: string, items: VibeItem[]): DynamicRating {
   return rateScale(name, items, { tiers: DYNAMIC_TIERS, labels: DYNAMIC_LABELS, unclear: "Unclear", realTiers: 4, backgroundFrom: 5, dampAt: 0.3 }) as DynamicRating;
 }
 
-export function rateVibe(name: string, items: VibeItem[]): VibeRating {
-  return rateScale(name, items, { tiers: VIBE_TIERS, labels: LABELS, unclear: "Unclear", realTiers: 4, backgroundFrom: 7, dampAt: 0.5 }) as VibeRating;
+/** The single-vibe view folds behaviour into tier 6, so tier 6 is named for what is in it. */
+const COMBINED_TIERS = VIBE_TIERS.map((t, i) => (i === 5 ? { ...t, name: "Dominant or submissive behaviour, positions and cuddling" } : t));
+
+export function rateVibe(name: string, items: VibeItem[], combined = false): VibeRating {
+  return rateScale(name, items, { tiers: combined ? COMBINED_TIERS : VIBE_TIERS, labels: LABELS, unclear: "Unclear", realTiers: 4, backgroundFrom: 7, dampAt: 0.5 }) as VibeRating;
 }
 
 function rateScale<L extends string>(name: string, items: VibeItem[], scale: Scale<L>): Omit<VibeRating, "label"> & { label: L | "Unclear" } {

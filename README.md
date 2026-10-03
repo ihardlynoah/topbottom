@@ -264,6 +264,13 @@ paragraph and chapter context.
 
 Your API key stays in your browser and is sent only to `api.anthropic.com`.
 
+## Vibe display: two ratings or one
+
+A switch above the results chooses between **Two ratings** (the sexual vibe and the everyday dynamic, kept apart) and
+**One combined vibe**, the earlier single rating with taking charge, caring, pet names, power bottoms and yielding folded
+into tier 6 (“Dominant or submissive behaviour, positions and cuddling”). The choice is remembered in your browser, and
+switching it keeps any mistakes you've already flagged.
+
 ## Everyday dynamic (leads / follows)
 
 A second rating per person, shown next to the vibe, for who leads and who follows *outside* the sex. It is kept apart

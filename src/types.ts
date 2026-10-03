@@ -161,6 +161,8 @@ export interface PairingResult {
   manual?: ManualResult;
   /** Overall vibe for each partner, from every kind of evidence. */
   vibe?: VibeRating[];
+  /** The same vibe with everyday-dynamic cues folded in at tier 6, as before the two-axis display (the "single vibe" view). */
+  vibeCombined?: VibeRating[];
   /** Everyday power dynamic for each partner: caretaking, leading, protecting and yielding, apart from the sexual vibe. */
   dynamic?: DynamicRating[];
 }

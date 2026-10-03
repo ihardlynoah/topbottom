@@ -155,3 +155,21 @@ describe("calibration lines in the mistake report", () => {
     expect(buildReport(input)).not.toMatch(/How well the confidence/);
   });
 });
+
+describe("two axes or one combined vibe", () => {
+  const ST: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Stranger Things (TV 2016)"], relationships: ["Steve Harrington/Eddie Munson"], characters: ["Steve Harrington", "Eddie Munson"] };
+  const sb = (`Steve and Eddie were on the couch, talking. Steve laughed. Eddie smiled back. `).repeat(2) + "\n\n";
+  const CARE = "Eddie tucked a blanket around Steve and told him to sleep. Eddie stroked Steve’s hair until his breathing evened out. Eddie took Steve’s hand and led him toward the door. Eddie stepped between Steve and Hopper. Eddie handed Steve the bag of ice.";
+  const p = analyzeWithPatterns(sb + CARE, ST, { quiet: true }).pairings[0];
+  const eddie = (v: NonNullable<typeof p.vibe>) => v.find((x) => x.name.startsWith("Eddie"))!;
+  it("the two-axis vibe leaves everyday behaviour out and the combined vibe takes it in", () => {
+    expect(eddie(p.vibe!).factors!.some((f) => /blanket|stroked|led him|stepped between/.test(f.source ?? ""))).toBe(false);
+    const comb = eddie(p.vibeCombined!);
+    expect(comb.factors!.some((f) => /blanket|stroked|led him|stepped between/.test(f.source ?? "") && f.role === "top")).toBe(true);
+    expect(comb.basis.join(" ")).toMatch(/Dominant or submissive behaviour, positions and cuddling/);
+  });
+  it("the combined vibe is still there when nothing differs, and the dynamic axis is unchanged", () => {
+    expect(p.vibeCombined).toHaveLength(2);
+    expect(p.dynamic!.find((d) => d.name.startsWith("Eddie"))!.label).toMatch(/Lead/);
+  });
+});
