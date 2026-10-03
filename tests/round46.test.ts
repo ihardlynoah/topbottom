@@ -188,3 +188,26 @@ describe("POV from a line that opens on a main character’s name", () => {
     expect(who(`${intro}\n\n“Eddie, later tonight,” Steve said.\n\nSteve smiled at him across the room. He wanted to be fucked.`).join()).not.toMatch(/Eddie/);
   });
 });
+
+describe("POV in an alternating work with dated sections", () => {
+  const AP: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Hockey RPF"], relationships: ["Shane Hollander/Ilya Rozanov"], characters: ["Shane Hollander", "Ilya Rozanov"], freeforms: ["POV Alternating"] };
+  const intro = (`Shane and Ilya were on the couch, kissing. Shane kissed Ilya. Ilya kissed Shane back, moaning. `).repeat(2);
+  const wishes = (text: string, m: Ao3Meta = AP) => analyzeWithPatterns(text, m, { quiet: true }).pairings[0].anal.desires.filter((d) => d.kind === "wanted" && d.wants && d.role === "bottom").map((d) => d.who.split(" ")[0]);
+  const sec = (head: string, who: string, other: string) => `${head}\n\n${who} lost the award to ${other}. ${who} felt sick about it. ${who} wondered why it mattered. ${who} noticed the cameras. ${who} hoped nobody saw. ${other} smiled at him across the room. He wanted to be fucked.`;
+  it("each dated section is read from the character it opens on", () => {
+    expect(wishes(`${intro}\n\n${sec("June 2011– Las Vegas", "Ilya", "Shane")}\n\n${sec("September 2012– Montreal", "Shane", "Ilya")}`)).toEqual(["Ilya", "Shane"]);
+  });
+  it("without the alternating tag the section opener is not used", () => {
+    const m = { ...AP, freeforms: [] };
+    expect(wishes(`${intro}\n\n${sec("June 2011– Las Vegas", "Ilya", "Shane")}`, m)).not.toEqual(["Ilya"]);
+  });
+  it("the camera can switch inside a section when the narration moves to the other one", () => {
+    const filler = Array.from({ length: 8 }, (_, i) => `Ilya looked at the ceiling for the ${["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth"][i]} time and thought about nothing.`).join("\n\n");
+    const switched = "Shane felt restless. Shane wondered what Ilya was doing.\n\nShane watched the door. Shane hoped it would open.\n\nShane noticed the clock. Shane knew he should sleep. Ilya smiled at him across the room. He wanted to be fucked.";
+    expect(wishes(`${intro}\n\nJune 2011– Las Vegas\n\n${filler}\n\n${switched}`)).toEqual(["Shane"]);
+  });
+  it("a chat line that starts with a name is not a point-of-view marker", () => {
+    const text = `${intro}\n\nJune 2011– Las Vegas\n\nIlya lost the award. Ilya felt sick. Ilya wondered why.\n\nShane: who is this\n\nIlya smiled at him across the room. He wanted to be fucked.`;
+    expect(wishes(text)).toEqual(["Ilya"]);
+  });
+});

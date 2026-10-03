@@ -105,8 +105,9 @@ export function detectTexts(paras: string[], cast: Cast): TextingMap {
 /** Cheap pre-check: are there enough "Name: message" lines to be worth looking for a chat? */
 export function looksLikeChat(paras: string[]): boolean {
   let n = 0;
-  for (const p of paras) if (p.length < 400 && CHAT_LINE.test(p.trim()) && ++n >= 3) return true;
-  return false;
+  for (const p of paras) if (p.length < 400 && CHAT_LINE.test(p.trim())) n++;
+  if (n >= 3) return true;
+  return n >= 2 && paras.some((p) => TIMESTAMP.test(p.trim()) || (PHONE_CUE.test(p) && !CHAT_LINE.test(p.trim())));
 }
 
 const STRONG_SEXUAL = /\b(?:cock|dick|horny|jerk\w*|cum|cumming|coming for|nipples?|touch\w* (?:myself|yourself)|stroking|sucking|suck you|suck me|fuck (?:me|you (?:so|hard|until|senseless))|fucking (?:me|you)|let me (?:fuck|suck|ride|touch|taste|blow)|(?:want|wanna|going) to (?:fuck|ride|suck)|fuck(?:ed)? (?:me|you) (?:so|until|hard))\b/i;

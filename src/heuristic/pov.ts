@@ -17,7 +17,7 @@ export interface PovMap {
   source: "headings" | "feelings" | "none";
 }
 
-export function detectPov(paras: string[], isChapterHead: (p: string) => boolean, cast: Cast): PovMap {
+export function detectPov(paras: string[], isChapterHead: (p: string) => boolean, cast: Cast, alternating = false): PovMap {
   const at: (Character | undefined)[] = new Array(paras.length).fill(undefined);
   if (!cast.aliasPattern) return { at, source: "none" };
   const nameRe = new RegExp(`\\b(${cast.aliasPattern})\\b`, "g");
@@ -39,14 +39,55 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
     if (!c || c === cast.secondPerson) return undefined;
     const rest = m[2].trim();
     if (!/^[,:;–—(|~-]/.test(rest)) return undefined;
+    // "Ilya: who is this" is a chat line, not a heading: after a colon only a time or place may follow.
+    if (rest.startsWith(":") && !/\b(?:\d|later|night|morning|evening|afternoon|dawn|dusk|earlier|before|after|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(rest)) return undefined;
     if (/[.!?]\s+\S/.test(rest)) return undefined; // another sentence follows on the same line
     return c;
+  };
+  const pairChars = new Set(cast.pairings.flat());
+  const SPEECH = /^[\s,]*(?:asked|said|says|replied|answered|called|shouted|yelled|whispered|muttered|murmured|added|told|texted|sexted|typed|messaged|snapped|laughed|teased|continued|interrupted|offered|suggested|grumbled|groaned|sighed)\b/;
+  const opener = (from: number, to: number): Character | undefined => {
+    const head = paras[from] ?? "";
+    for (let i = from + (isChapterHead(head) || /[–—-]/.test(head) && head.length < 70 ? 1 : 0); i < Math.min(to, from + 6); i++) {
+      const raw = paras[i];
+      if (!raw || /^\W*\d{1,4}[/.:-]\d/.test(raw) || /”\s+[\w. ]+ texted\.$/.test(raw) || /^[A-Z][\w. ]{0,25}:\s/.test(raw)) continue;
+      const text = raw.replace(/[“"][^”"]*[”"]/g, " ");
+      for (const m of text.matchAll(nameRe)) {
+        const c = cast.byAlias.get(m[1]);
+        if (!c || !pairChars.has(c) || c === cast.secondPerson) continue;
+        if (SPEECH.test(text.slice(m.index! + m[0].length))) continue;
+        return c;
+      }
+    }
+    return undefined;
+  };
+  const firstPairName = (raw: string): Character | undefined => {
+    if (!raw || /^\W*\d{1,4}[/.:-]\d/.test(raw) || /”\s+[\w. ]+ texted\.$/.test(raw)) return undefined;
+    const text = raw.replace(/[“"][^”"]*[”"]/g, " ");
+    for (const m of text.matchAll(nameRe)) {
+      const c = cast.byAlias.get(m[1]);
+      if (!c || !pairChars.has(c) || c === cast.secondPerson) continue;
+      if (SPEECH.test(text.slice(m.index! + m[0].length))) continue;
+      return c;
+    }
+    return undefined;
+  };
+  const SENSE = `${INNER}|watched|saw|heard|looked|stared|glanced|could (?:see|feel|hear|tell)|had a hard time|had to|struck by|took a|rubbed|furrowed`;
+  /** How many sentences in these paragraphs report what this character feels, sees or does as the viewpoint. */
+  const experience = (c: Character, ps: string[]): number => {
+    const names = [...cast.byAlias.entries()].filter(([, v]) => v === c).map(([k]) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    if (!names.length) return 0;
+    const re = new RegExp(`(?:^|[.!?”"]\\s+)(?:${names.join("|")})\\s+(?:\\w+ly\\s+)?(?:${SENSE})\\b`, "g");
+    return ps.reduce((n, p) => n + (p.replace(/[“"][^”"]*[”"]/g, " ").match(re) ?? []).length, 0);
   };
   const povWord = /\bpov\b|point of view|\bperspective\b/i;
 
   // Segments: from one chapter heading to the next.
   const starts: number[] = [];
-  paras.forEach((p, i) => { if (p.length < 120 && isChapterHead(p)) starts.push(i); });
+  // A dated or timed section heading ("June 2011– Las Vegas", "Three weeks later– Detroit", "The same night– Boston") starts a
+  // new stretch too: in alternating-POV fics the camera changes at these, not only at chapter headings.
+  const SECTION = /^(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(?:19|20)\d\d|(?:(?:an?|one|two|three|four|five|six|seven|eight|nine|ten|several|few|\d+)\s+)?(?:\w+\s+)?(?:days?|weeks?|months?|years?|hours?)\s+later|(?:the\s+)?(?:same|next|following)\s+(?:night|day|morning|evening|afternoon)|that\s+(?:night|evening|morning))\s*[–—-]+\s*\S.{0,30}$/i;
+  paras.forEach((p, i) => { if (p.length < 120 && (isChapterHead(p) || (p.length < 70 && SECTION.test(p.trim())))) starts.push(i); });
   if (!starts.length || starts[0] !== 0) starts.unshift(0);
   let source: PovMap["source"] = "none";
 
@@ -61,11 +102,25 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
       const c = only(rest);
       if (c && (povWord.test(rest) || rest.replace(nameRe, "").replace(/['’]s|pov|\W+/gi, "").trim() === "")) pov = c;
     }
+    // 1b. In a work tagged as alternating POV, a section opens on its point-of-view character: the first one of the pair
+    // named in its narration (not in a quoted line, a chat line or a speech tag).
+    if (!pov && alternating && from < paras.length && (isChapterHead(head) || SECTION.test(head.trim()))) pov = opener(from, to);
     // 2. Name-only lines inside the chapter switch the POV from there on.
     let current = pov;
     let sawMarker = !!pov;
+    let lastSwitch = from;
     for (let i = from; i < to; i++) {
       const p = paras[i].trim();
+      // In an alternating-POV work the camera can change inside a section with nothing marking it. Switch when the
+      // narration moves to the other one of the pair and the next few paragraphs report their experience, not the current one's.
+      if (alternating && current && i - lastSwitch >= 8) {
+        const first = firstPairName(paras[i]);
+        if (first && first !== current) {
+          const ahead = paras.slice(i, i + 9);
+          const mine = experience(first, ahead);
+          if (mine >= 3 && mine >= 3 * experience(current, ahead)) { current = first; lastSwitch = i; sawMarker = true; }
+        }
+      }
       if (i > from && p.length > 0 && p.length <= 40) {
         const c = only(p);
         if (c && p.replace(nameRe, "").replace(/['’]s|pov|point of view|[\s:\-–—()\[\]|~*#]/gi, "") === "") { current = c; sawMarker = true; }
