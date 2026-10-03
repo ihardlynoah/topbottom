@@ -17,10 +17,7 @@ export interface PovMap {
   source: "headings" | "feelings" | "none";
 }
 
-export function detectPov(paras: string[], isChapterHead: (p: string) => boolean, cast: Cast, alternatingIn = false): PovMap {
-  // The opener and mid-section rules read close third person ("Shane felt…"). In first person the first name in a section is the
-  // one the narrator is talking to, so they would point at the wrong character.
-  const alternating = alternatingIn && !cast.narrator;
+export function detectPov(paras: string[], isChapterHead: (p: string) => boolean, cast: Cast, tags: string[] = []): PovMap {
   const at: (Character | undefined)[] = new Array(paras.length).fill(undefined);
   if (!cast.aliasPattern) return { at, source: "none" };
   const nameRe = new RegExp(`\\b(${cast.aliasPattern})\\b`, "g");
@@ -85,6 +82,25 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
     const re = new RegExp(`(?:^|[.!?”"]\\s+)(?:${names.join("|")})\\s+(?:\\w+ly\\s+)?(?:${SENSE})\\b`, "g");
     return ps.reduce((n, p) => n + (p.replace(/[“"][^”"]*[”"]/g, " ").match(re) ?? []).length, 0);
   };
+  // What the tags say about how the story is told. Third person is not always omniscient: "Third Person Limited" (or a POV
+  // tag naming one character) means the camera sits on a character; "Omniscient" means it doesn't.
+  const tagText = tags.join(" | ");
+  const omniscient = /\bomniscient\b/i.test(tagText);
+  const GENERIC = /^(?:first|second|third|alternating|multiple|outsider|switching|male|female|limited|close|deep|dual|two|changing|rotating|shifting|single|present|past)\b/i;
+  const tagged = new Set<Character>();
+  for (const f of tags) {
+    const m = /^POV:?\s+(.+)$/i.exec(f.trim()) ?? /^(.+?)\s+POV$/i.exec(f.trim());
+    if (!m || GENERIC.test(m[1].trim())) continue;
+    const c = only(m[1]);
+    if (c) tagged.add(c);
+  }
+  const limitedTag = /third[- ]person (?:limited|pov)|limited (?:third|pov|perspective)|close third|deep (?:third|pov)|tight pov|character[- ]limited/i.test(tagText);
+  const altTag = /\bpov\b[^|]*\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b|\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b[^|]*\bpovs?\b|\b(?:two|multiple|dual) povs?\b/i.test(tagText);
+  // The opener and mid-section rules read close third person ("Shane felt…"). In first person the first name in a section is
+  // the one the narrator is talking to, so they would point at the wrong character.
+  const alternating = (altTag || limitedTag || tagged.size > 1) && !cast.narrator && !omniscient;
+  const soleTagged = tagged.size === 1 && !cast.narrator && !omniscient && !altTag ? [...tagged][0] : undefined;
+  if (omniscient) return { at, source: "none" };
   const povWord = /\bpov\b|point of view|\bperspective\b/i;
 
   // Segments: from one chapter heading to the next.
@@ -110,6 +126,8 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
     // 1b. In a work tagged as alternating POV, a section opens on its point-of-view character: the first one of the pair
     // named in its narration (not in a quoted line, a chat line or a speech tag).
     if (!pov && alternating && from < paras.length && (isChapterHead(head) || SECTION.test(head.trim()))) pov = opener(from, to);
+    // 1c. A tag naming one POV character in a third-person work ("POV Steve Harrington") makes it that character's throughout.
+    if (!pov && soleTagged) pov = soleTagged;
     // 2. Name-only lines inside the chapter switch the POV from there on.
     let current = pov;
     let sawMarker = !!pov;

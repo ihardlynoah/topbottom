@@ -181,7 +181,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   const bodyCtxCache = new Map<number, boolean>();
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
-  const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast, /\bpov\b[^|]*\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b|\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b[^|]*\bpovs?\b|\b(?:two|multiple|dual) povs?\b/i.test(meta.freeforms.join(" | ")));
+  const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast, meta.freeforms);
   // An omegaverse work: alpha/beta/omega in the tags, or the words all through the text. Only there do bared throats,
   // scenting and the alpha voice mean dominance and submission.
   const isAbo = (() => {
