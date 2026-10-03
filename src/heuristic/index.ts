@@ -79,6 +79,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const cast = buildCast(meta, narration, paras.join("\n"));
   const tags = readTags(meta.freeforms, cast);
   const patterns = compilePatterns(PATTERNS, cast.aliasPattern);
+  const gateSeen = new Uint8Array(patterns.reduce((m, p) => Math.max(m, (p.gateId ?? -1) + 1), 0));
   const NAMES = cast.aliasPattern || "(?!)";
   const nameRe = new RegExp(`\\b(?:${NAMES})(?:['’]s)?\\b`, "g");
   const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES}|${EPITHET_TOKEN})(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
@@ -290,11 +291,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
       {
         const penisy = PENIS_CTX.test(sent);
+        gateSeen.fill(0);
         for (const pat of patterns) {
           if (pat.abo && !isAbo) continue;
-          if (pat.gate && !pat.gate.test(sent)) continue;
           if (pat.needsCtx && !sexy) continue;
           if (pat.needsPenis && !penisy) continue;
+          // Many patterns share a gate (and each has an elided twin): test the sentence against each distinct gate once.
+          if (pat.gate) {
+            const g = pat.gateId!;
+            if (gateSeen[g] === 0) gateSeen[g] = pat.gate.test(sent) ? 1 : 2;
+            if (gateSeen[g] === 2) continue;
+          }
           if (pat.needs && !pat.needs.test(sent)) continue;
           pat.re.lastIndex = 0;
           for (const m of sent.matchAll(pat.re)) {

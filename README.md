@@ -321,14 +321,22 @@ npm run build    # static site in dist/
 
 ## Checking the engine against real fics
 
-Three developer tools take a folder of AO3 `.html` downloads (`AO3_DIR`; the folder is never committed):
+Developer tools that take a folder of AO3 `.html` downloads (the folder is never committed):
 
 ```sh
-AO3_DIR=ao3-samples npx vitest run tests/ao3-eval.test.ts     --testTimeout=1500000   # writes REPORT.md: verdicts per fic; diff it between runs
+npm run eval -- ao3-samples                    # every fic, in parallel and cached; writes REPORT.md and eval.json
+node scripts/eval-compare.mjs old-folder new-folder [--all]   # structured diff of two runs; exits 1 if a verdict changed
 AO3_DIR=ao3-samples npx vitest run tests/pattern-audit.test.ts --testTimeout=1500000   # writes PATTERN_AUDIT.md
 AO3_DIR=ao3-samples npx vitest run tests/gold-eval.test.ts                             # writes GOLD_REPORT.md
 ```
 
+- **Sample eval.** `npm run eval` splits the fics across one vitest process per core (longest first, by how long each took last
+  time), runs each fic blind and with its tags, and writes one result file per fic in `<folder>/.eval/`. A fic whose result was
+  made by the same engine source and the same file is skipped, so a rerun with nothing changed takes a fraction of a second and
+  adding one fic costs only that fic (`--force` redoes everything, `--jobs N` and `--only a,b` limit it). `REPORT.md` has the same text
+  as before; `eval.json` has the verdicts, scene and hint counts and confidence per pairing for `eval-compare`, which prints verdict
+  changes and, with `--all`, every change in counts and confidence. On four cores the 43 samples take about two minutes (they took
+  about ten in one process). Running `tests/ao3-eval.test.ts` by hand still works (one process, no cache).
 - **Pattern audit.** For every pattern, how many acts and hints it produced, in how many fics, and a fixed-hash sample of the
   sentences it matched. A pattern that is matching the wrong thing (a room "slipped inside", a wave of nausea "swallowed
   down") shows up here without waiting for a bug report. Patterns with no hits at all are listed too.

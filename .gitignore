@@ -3,3 +3,4 @@ dist
 
 # Local AO3 evaluation downloads (not for committing)
 ao3-samples/
+.eval/
