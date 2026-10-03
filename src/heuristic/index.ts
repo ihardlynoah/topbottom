@@ -613,6 +613,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const bodyCtxCache = new Map<number, boolean>();
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
   const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast);
+  // An omegaverse work: alpha/beta/omega in the tags, or the words all through the text. Only there do bared throats,
+  // scenting and the alpha voice mean dominance and submission.
+  const isAbo = (() => {
+    const tagText = [...meta.freeforms, ...meta.fandoms, ...meta.relationships, ...meta.characters].join(" | ");
+    if (/omegaverse|alpha\/beta\/omega|a\/b\/o|\babo\b|\balpha\b|\bomega\b/i.test(tagText)) return true;
+    const all = paras.join(" ");
+    return (all.match(/\balphas?\b/gi) ?? []).length >= 8 && (all.match(/\bomegas?\b/gi) ?? []).length >= 4;
+  })();
   scan();
   if (ctx.learnFromVotes()) scan();
 
@@ -696,6 +704,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       {
         const penisy = PENIS_CTX.test(sent);
         for (const pat of patterns) {
+          if (pat.abo && !isAbo) continue;
           if (pat.gate && !pat.gate.test(sent)) continue;
           if (pat.needsCtx && !sexy) continue;
           if (pat.needsPenis && !penisy) continue;

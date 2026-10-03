@@ -97,6 +97,13 @@ export function readTags(freeforms: string[], cast: Cast): TagInfo {
       const dc = word && findChar(name);
       if (dc) info.dynamics.push({ char: dc, lean: /^(?:dom)/i.test(word) ? "top" : "bottom", tag });
     }
+    // Omegaverse: "Alpha Dean", "Omega!Cas", "Cas Is An Omega". Alphas lean toward leading, omegas toward following.
+    {
+      const am = tag.match(/^(alpha|omega)\s*!?\s+(.+)$/i) ?? tag.match(/^(.+?)\s+(?:is (?:an? )?)(alpha|omega)$/i);
+      const [word, name] = am ? (/^(?:alpha|omega)$/i.test(am[1]) ? [am[1], am[2]] : [am[2], am[1]]) : ["", ""];
+      const ac = word && findChar(name);
+      if (ac) info.dynamics.push({ char: ac, lean: /^alpha/i.test(word) ? "top" : "bottom", tag });
+    }
     if (/dom\/sub|dominant\/submissive|\bd\/s\b|praise kink|good boy|good girl|daddy kink|degradation|power (?:dynamics?|imbalance|play)|bdsm|pet names?|primal play|sir kink|master\/slave|service top|submissive|dominant|\bdom\b|\bsub\b/.test(t) && !info.dynamics.some((d) => d.tag === tag)) info.dynamicTags.push(tag);
 
     if (/\brim(?:ming|med|s)?\b|ass eating|eating ass/.test(t)) info.rimming.push(tag);

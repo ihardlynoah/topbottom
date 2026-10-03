@@ -266,6 +266,12 @@ Your API key stays in your browser and is sent only to `api.anthropic.com`.
 
 ## Vibe display: two ratings or one
 
+**Omegaverse.** In a work tagged alpha/beta/omega (or one that uses the words all through the text), nonsexual gestures count
+toward the everyday dynamic: baring the neck or scent gland, lowering the eyes, nesting and submitting to an alpha read as
+following; scenting, growling at someone, the alpha voice, gripping the scruff and a claiming bite read as leading.
+"Alpha Dean" / "Omega!Cas" character tags lean the character the same way. These feed the dynamic axis and the combined
+vibe, not the sexual top/bottom vibe.
+
 A switch above the results chooses between **Two ratings** (the sexual vibe and the everyday dynamic, kept apart) and
 **One combined vibe**, the earlier single rating with taking charge, caring, pet names, power bottoms and yielding folded
 into tier 6 (“Dominant or submissive behaviour, positions and cuddling”). The choice is remembered in your browser, and
