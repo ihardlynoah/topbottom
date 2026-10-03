@@ -35,7 +35,6 @@ const DETECTORS: Detector[] = [
   { name: "Choking / breath play", kind: "kink", tag: /choking|breath ?play|asphyx/i, text: /\bchok\w* (?:him|her|them)\b|\bhand around (?:his|her|their) throat\b|\bbreath ?play\b/i, min: 1, needsSex: true },
   { name: "Collar / leash", kind: "kink", tag: /collar|leash|pet play|petplay/i, text: /\bcollar\w*|\bleash\b/i, min: 1, needsSex: true },
   { name: "Dirty talk", kind: "kink", tag: /dirty talk/i, text: undefined, min: 0 },
-  { name: "Dom/sub dynamic", kind: "dynamic", tag: /\bdom\/sub\b|dominant\/submissive|\bd\/s\b|\bbdsm\b/i, text: undefined, min: 0 },
 ];
 
 const clip = (s: string) => (s.length > 190 ? `${s.slice(0, 187)}…` : s);
@@ -107,6 +106,37 @@ export function checkTags(
     if (share >= 0.65) add({ tag: r.tag, kind: "role", status: "supported", note: `${r.char.name} ${verb(r.role)} in ${r.role === "top" ? asTop.length : asBottom.length} of ${sceneLines.length} scene${sceneLines.length === 1 ? "" : "s"}.`, evidence: roleEv(r.role) });
     else if (share <= 0.35) add({ tag: r.tag, kind: "role", status: "contradicted", note: `The text shows ${r.char.name} ${verb(opposite)}, not ${verb(r.role)}.`, evidence: roleEv(opposite) });
     else add({ tag: r.tag, kind: "role", status: "supported", note: `${r.char.name} ${verb(r.role)} in some scenes but also ${verb(opposite)}, so the text shows versatility.`, evidence: roleEv(r.role) });
+  }
+
+  // ── Dom/Sub tags, against the everyday-dynamic axis counted from behaviour alone (the tag itself is left out) ──
+  const textLean = (pr: PairingResult, name: string) => {
+    const r = pr.dynamic?.find((d) => d.name === name);
+    const fs = (r?.factors ?? []).filter((f) => f.tier >= 2);
+    const T = fs.filter((f) => f.role === "top").reduce((n, f) => n + f.weight, 0);
+    const B = fs.filter((f) => f.role === "bottom").reduce((n, f) => n + f.weight, 0);
+    return { x: (T - B) / (T + B + 0.2), n: T + B, lines: fs.map((f) => ({ evidence: f.source ?? "", where: f.where ?? "", confidence: f.weight, role: f.role })) };
+  };
+  for (const d of tags.dynamics) {
+    const pr = results.find((p) => p.dynamic?.some((x) => x.name === d.char.name));
+    if (!pr) continue;
+    const { x, n, lines } = textLean(pr, d.char.name);
+    const want = d.lean === "top" ? 1 : -1;
+    const word = d.lean === "top" ? "leads" : "follows";
+    const ev = pull(lines.filter((l) => (l.role === "top") === (d.lean === "top")).filter((l) => l.evidence));
+    if (n < 0.3) add({ tag: d.tag, kind: "dynamic", status: "cant_tell", note: `Too little everyday behaviour between them to tell whether ${d.char.name} ${word}.`, evidence: [] });
+    else if (x * want >= 0.25) add({ tag: d.tag, kind: "dynamic", status: "supported", note: `${d.char.name} ${word} in everyday behaviour (caring, leading, yielding).`, evidence: ev });
+    else if (x * want <= -0.25) add({ tag: d.tag, kind: "dynamic", status: "contradicted", note: `Everyday behaviour shows ${d.char.name} ${d.lean === "top" ? "following" : "leading"}, not ${word}.`, evidence: pull(lines.filter((l) => (l.role === "top") !== (d.lean === "top")).filter((l) => l.evidence)) });
+    else add({ tag: d.tag, kind: "dynamic", status: "cant_tell", note: `Everyday behaviour is mixed for ${d.char.name}: some leading, some following.`, evidence: ev });
+  }
+  for (const raw of freeforms) {
+    const tag = raw.trim();
+    if (!/\bdom\/sub\b|dominant\/submissive|\bd\/s\b|\bbdsm\b|power (?:dynamics?|imbalance|play)/i.test(tag) || seen.has(tag + "dynamic")) continue;
+    const pr = results[0];
+    if (!pr?.dynamic || pr.dynamic.length < 2) continue;
+    const [a, b] = pr.dynamic.map((r) => textLean(pr, r.name));
+    const opposite = a.n + b.n >= 0.4 && ((a.x >= 0.25 && b.x <= -0.1) || (b.x >= 0.25 && a.x <= -0.1));
+    const lead = a.x >= b.x ? pr.dynamic[0].name : pr.dynamic[1].name;
+    add({ tag, kind: "dynamic", status: opposite ? "supported" : "cant_tell", note: opposite ? `One leads and the other follows in everyday behaviour (${lead} leads).` : "Everyday behaviour doesn't clearly split into one who leads and one who follows.", evidence: opposite ? pull([...a.lines, ...b.lines].filter((l) => l.evidence).slice(0, 12)) : [] });
   }
 
   // ── kinks and dynamics, from keywords in the text near sex ──

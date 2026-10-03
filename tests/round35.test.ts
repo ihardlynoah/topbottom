@@ -8,6 +8,8 @@ const run = (s: string, tags: string[] = []) => analyzeWithPatterns(base + s, me
 const hints = (s: string, tags: string[] = []) => { const p = run(s, tags); return [...p.anal.desires, ...p.blowjob.desires]; };
 const vibe = (s: string, who: string, tags: string[] = []) => run(s, tags).vibe!.find((v) => v.name.startsWith(who))!;
 const tier = (s: string, who: string, name: string, tags: string[] = []) => vibe(s, who, tags).basis.find((b) => b.startsWith(name));
+const dyn = (s: string, who: string, tags: string[] = []) => run(s, tags).dynamic!.find((v) => v.name.startsWith(who))!;
+const dynTier = (s: string, who: string, name: string, tags: string[] = []) => dyn(s, who, tags).basis.find((b) => b.startsWith(name));
 
 describe("a woman sodomizing a man is anal, not vaginal", () => {
   const m: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M", "F/M"], fandoms: ["Dracula (TV 2020)"], relationships: ["Dracula/Jack Seward", "Zoe Van Helsing/Jack Seward"], characters: ["Dracula", "Jack Seward", "Zoe Van Helsing"] };
@@ -65,8 +67,8 @@ describe("position, aftercare and pet names (tier 6)", () => {
     ["“Please, sir,” Dean begged, hips lifting.", "Dean"],
   ] as const) it(l, () => {
     const other = who === "Cas" ? "Dean" : "Cas";
-    const mine = tier(l, who, "Dominant or submissive")!;
-    const baseline = tier("", who, "Dominant or submissive") ?? "";
+    const mine = [tier(l, who, "Positions and cuddling"), dyn(l, who).basis.join("; ")].filter(Boolean).join("; ");
+    const baseline = [tier("", who, "Positions and cuddling"), dyn("", who).basis.join("; ")].filter(Boolean).join("; ");
     expect(mine).not.toEqual(baseline);
     void other;
   });
@@ -80,7 +82,7 @@ describe("AO3 role and dynamic tags (tier 2)", () => {
   it("'Power Bottom Dean Winchester' makes Dean a bottom who also takes charge", () => {
     const v = vibe("", "Dean", ["Power Bottom Dean Winchester"]);
     expect(v.basis.join()).toMatch(/Says what they are or prefer: bottom/);
-    expect(v.basis.join()).toMatch(/Dominant or submissive behaviour: top/);
+    expect(dyn("", "Dean", ["Power Bottom Dean Winchester"]).basis.join()).toMatch(/Stated dynamic \(tags and statements\): top/);
   });
   it("'Service Top Castiel' makes Cas a top who also gives way", () => {
     const v = vibe("", "Cas", ["Service Top Castiel"]);
@@ -93,8 +95,8 @@ describe("AO3 role and dynamic tags (tier 2)", () => {
   });
   it("'Pillow Prince Dean' leans bottom", () => expect(vibe("", "Dean", ["Pillow Prince Dean Winchester"]).basis.join()).toMatch(/Says what they are or prefer: bottom/));
   it("a Dom/sub tag backs up the one who gives the praise", () => {
-    const plain = tier("“Good boy,” Cas whispered.", "Cas", "Says what they are");
-    const tagged = tier("“Good boy,” Cas whispered.", "Cas", "Says what they are", ["Dom/sub", "Praise Kink"]);
+    const plain = dynTier("“Good boy,” Cas whispered.", "Cas", "Stated dynamic");
+    const tagged = dynTier("“Good boy,” Cas whispered.", "Cas", "Stated dynamic", ["Dom/sub", "Praise Kink"]);
     expect(plain).toBeUndefined();
     expect(tagged).toMatch(/top/);
   });
@@ -102,7 +104,7 @@ describe("AO3 role and dynamic tags (tier 2)", () => {
 
 describe("cuddling positions (tier 6)", () => {
   const b2 = ("Dean and Cas were in bed. Cas kissed Dean. Dean kissed Cas back. ").repeat(3);
-  const t6 = (l: string, who: string) => analyzeWithPatterns(b2 + l, meta(), { quiet: true }).pairings[0].vibe!.find((v) => v.name.startsWith(who))!.basis.find((x) => x.startsWith("Dominant or submissive")) ?? "";
+  const t6 = (l: string, who: string) => analyzeWithPatterns(b2 + l, meta(), { quiet: true }).pairings[0].vibe!.find((v) => v.name.startsWith(who))!.basis.find((x) => x.startsWith("Positions and cuddling")) ?? "";
   for (const [l, who, role] of [
     ["Afterwards Dean rested his head on Cas’s chest and listened to his heartbeat.", "Dean", "bottom"],
     ["Dean’s head was on Cas’s chest, and he was nearly asleep.", "Dean", "bottom"],

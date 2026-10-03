@@ -2899,6 +2899,28 @@ export const PATTERNS: PatternDef[] = [
     signal: { kind: "handjob", actorRole: "top" },
     src: `\\b{T}\\s+{aux}(?:jerk|strok|pump|tugg?)\\w*\\s+{B}\\s+(?:off|slowly|loosely|lazily|tightly|firmly|faster|hard|gently|steadily)\\b`,
   },
+  {
+    // "Eddie blushed", "Steve stammered": flustered, a yielding cue on the everyday-dynamic axis (needs the partner nearby)
+    id: "flustered-verb",
+    cat: "vibe",
+    kw: "blush|flush|stammer|stutter|squeak|sputter|fumbl",
+    act: "flustered or blushing",
+    subj: "b",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:blush|flush|stammer|stutter|squeak|sputter|fumbl)\\w*`,
+  },
+  {
+    // "his face went red", "her cheeks turned pink"
+    id: "flustered-face",
+    cat: "vibe",
+    kw: "red|pink|scarlet|hot|bright",
+    act: "flustered or blushing",
+    subj: "b",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B:poss}\\s+(?:face|cheeks|ears|neck)\\s+(?:went|turned|grew|burned|heated|flamed|got)\\s+(?:\\w+\\s+)?(?:red|pink|scarlet|hot|bright)`,
+  },
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────

@@ -125,7 +125,7 @@ export function buildReport(r: ReportInput): string {
     flags.forEach((f, n) => {
       out.push("");
       const kind = f.kind ?? "scene";
-      out.push(`### ${n + 1}. ${f.pairing} · ${kind === "vibe" ? "vibe rating" : kind === "hint" ? (f.card === "solo" ? "solo act" : f.card === "manual" ? "handjob / frottage" : f.card === "tagcheck" ? "tag check" : `${f.card} hint`) : f.card}`);
+      out.push(`### ${n + 1}. ${f.pairing} · ${kind === "vibe" ? (f.card === "dynamic" ? "everyday-dynamic rating" : "vibe rating") : kind === "hint" ? (f.card === "solo" ? "solo act" : f.card === "manual" ? "handjob / frottage" : f.card === "tagcheck" ? "tag check" : `${f.card} hint`) : f.card}`);
       if (kind === "scene") {
         out.push(`- Shown as: **${f.top || "?"}** ${f.topVerb ?? "tops"} (top), **${f.bottom || "?"}** ${f.bottomVerb ?? "bottoms"} (bottom) · ${f.act}`);
       } else if (kind === "hint" && f.card === "tagcheck") {

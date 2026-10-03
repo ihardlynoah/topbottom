@@ -6,7 +6,7 @@ import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
 import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, VaginalResult, VibeFactor, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, DynamicRating, Instance, ManualResult, RoleOdds, SoloResult, TagCheck, VaginalResult, VibeFactor, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -205,6 +205,7 @@ function cardSummaries(a: Analysis): string[] {
     if (p.solo?.occurs) out.push(`${p.pairing} · solo: ${p.solo.summary}`);
     if (p.manual?.occurs) out.push(`${p.pairing} · handjobs & frottage: ${p.manual.summary}`);
     for (const v of p.vibe ?? []) out.push(`${p.pairing} · vibe ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
+    for (const v of p.dynamic ?? []) if (v.label !== "Unclear") out.push(`${p.pairing} · everyday dynamic ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
   }
   return out;
 }
@@ -263,14 +264,14 @@ function refreshReport() {
 /** Vibe factors the reader ticked as worth showing Claude, by vibe id and factor number, with any problems they named. */
 interface PickedFactor { line: string; reasons: FlagReason[]; note: string }
 const pickedFactors = new Map<string, Map<number, PickedFactor>>();
-const vibeSpec = new Map<string, VibeRating>();
+const vibeSpec = new Map<string, VibeRating | DynamicRating>();
 
 function factorLine(f: VibeFactor): string {
   return `${f.role} · tier ${f.tier} (${f.tierName}) · weight ${f.weight}${f.fromOther ? " · from the other person's side" : ""} · ${f.what}${f.where ? ` · ${f.where}` : ""}${f.source ? ` — “${f.source}”` : ""}`;
 }
 
 /** The extra lines a vibe item carries: what it rests on, plus any factors the reader ticked and what they said was wrong with each. */
-function vibeExtra(id: string, v: VibeRating): string[] {
+function vibeExtra(id: string, v: VibeRating | DynamicRating): string[] {
   const picked = [...(pickedFactors.get(id)?.values() ?? [])];
   return [
     `Evidence: ${v.basis.join("; ") || "none"}`,
@@ -725,9 +726,15 @@ function renderSolo(v: SoloResult, pairing: string, source: string): HTMLElement
 }
 
 /** Overall vibe per partner: a five-step scale from total top to total bottom, with confidence and what it rests on. */
-function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLElement {
-  const box = el("section", "vibe");
-  box.append(el("h5", "vibe-title", "Vibe"));
+function renderVibe(
+  vibe: (VibeRating | DynamicRating)[],
+  pairing: string,
+  source: string,
+  opts: { key: string; title: string; ends: [string, string, string]; hint?: string } = { key: "vibe", title: "Vibe", ends: ["Total bottom", "Vers", "Total top"] },
+): HTMLElement {
+  const box = el("section", `vibe vibe-${opts.key}`);
+  box.append(el("h5", "vibe-title", opts.title));
+  if (opts.hint) box.append(el("p", "hint", opts.hint));
   const row = el("div", "vibe-row");
   for (const v of vibe) {
     const card = el("article", `card vibe-card vibe-${v.label.toLowerCase().replace(/\s+/g, "-")}`);
@@ -740,13 +747,13 @@ function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLEl
       marker.style.left = `${Math.round(((v.score + 1) / 2) * 100)}%`;
       scale.append(marker);
       const ends = el("div", "vibe-ends");
-      ends.append(el("span", undefined, "Total bottom"), el("span", undefined, "Vers"), el("span", undefined, "Total top"));
+      ends.append(el("span", undefined, opts.ends[0]), el("span", undefined, opts.ends[1]), el("span", undefined, opts.ends[2]));
       card.append(scale, ends);
     }
     card.append(el("p", "vibe-conf", `Confidence: ${v.confidence.label} · ${Math.round(v.confidence.score * 100)}%`));
-    const vid = `${source}|${pairing}|vibe|${v.name}`;
+    const vid = `${source}|${pairing}|${opts.key}|${v.name}`;
     vibeSpec.set(vid, v);
-    const vspec: FlagSpec = { id: vid, kind: "vibe", pairing, card: "vibe", top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: vibeExtra(vid, v), evidence: "" };
+    const vspec: FlagSpec = { id: vid, kind: "vibe", pairing, card: opts.key, top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: vibeExtra(vid, v), evidence: "" };
     // Tick a factor to send it with the report, and say what's wrong with it; either starts a report item for this rating.
     const setFactor = (idx: number, f: VibeFactor, on: boolean, reasons: FlagReason[] = [], note = "") => {
       const m = pickedFactors.get(vid) ?? new Map<number, PickedFactor>();
@@ -854,6 +861,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) 
     const block = el("div", "pairing-block");
     if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
     if (p.vibe?.length) block.append(renderVibe(p.vibe, p.pairing, a.source));
+    if (p.dynamic?.length && p.dynamic.some((d) => d.label !== "Unclear")) block.append(renderVibe(p.dynamic, p.pairing, a.source, { key: "dynamic", title: "Everyday dynamic", ends: ["Follows", "Balanced", "Leads"], hint: "Who leads and who follows outside the sex: taking charge, caring, protecting, praising, yielding. Separate from who tops and bottoms." }));
     const grid = el("div", "grid two");
     grid.append(renderAct("anal", p.anal, p.pairing, a.source), renderAct("blowjob", p.blowjob, p.pairing, a.source), renderAct("rimming", p.rimming, p.pairing, a.source));
     if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus, p.pairing, a.source));

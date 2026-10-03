@@ -217,19 +217,12 @@ important first:
    nothing, feeling full or empty. A leaking pipe, a sore throat and a long drive are not.
 4. **Desires, plans and fantasies** (“he wanted Draco to fuck him”, “fuck me,” he begged)
 5. **Other hints**, like ogling a bulge or an ass
-6. **Dominant or submissive behaviour**, in or out of bed: pinning someone, taking control of a kiss, gripping a
-   chin or wrists, giving orders, lifting or carrying, protecting someone, leading them by the hand (dominant);
-   going pliant, yielding, letting someone lead, being pinned, squirming under a touch, looking up through the
-   lashes (submissive). Also here, each a little weaker: *position and initiative* (pulling someone onto their lap,
-   pinning wrists → top; climbing into a lap, having your wrists held → bottom; asking “ready?”, “tell me if it
-   hurts” → top), *aftercare* (cleaning someone up or wrapping them in a blanket → top; being held close or curling
-   up against someone afterwards → bottom; “let me clean you up”, “I've got you” → top; “hold me” → bottom), and
-   *pet names* (“good boy” said to someone → top; “please, daddy/sir” → bottom), which only count when the
-   scene around them is sexual. When the work is tagged with a dynamic (“Dom/sub”, “Praise Kink”…), these also count
-   a little at tier 2 (pet names and aftercare only; ordinary pinning or protecting doesn't get the boost). *Cuddling positions* count too: resting or sleeping with your head on someone's chest and
-   being the little spoon (“his back against Cas's chest”) read bottom; being the one whose chest it is and being the
-   big spoon (“spooned him from behind”, “was the big spoon”) read top. Position and aftercare are two-sided, so the
-   other person gets the opposite reading at a lower weight. These only feed the vibe, never the anal/oral cards.
+6. **Positions and cuddling**: *position and initiative* (pulling someone onto their lap, pinning wrists → top; climbing
+   into a lap, having your wrists held → bottom; asking “ready?”, “tell me if it hurts” → top) and *cuddling positions*
+   (resting or sleeping with your head on someone's chest, being the little spoon → bottom; being the one whose chest it
+   is, being the big spoon → top). Position is two-sided, so the other person gets the opposite reading at a lower
+   weight. These only feed the vibe, never the anal/oral cards. Dominant or submissive behaviour is no longer part of
+   the vibe: it has its own axis, below.
 7. **AO3 tag counts**: a very faint prior from how often AO3 tags the character as a top or bottom, for ~230
    popular characters (`src/heuristic/ao3-prior-data.ts`, from the community Top Tops / Top Bottoms / Most
    Versatile sheets). It is only used for characters in a fandom the work is tagged with, nudges per-person
@@ -258,6 +251,21 @@ the story text and returns the same result shape, including desire/fantasy lines
 paragraph and chapter context.
 
 Your API key stays in your browser and is sent only to `api.anthropic.com`.
+
+## Everyday dynamic (leads / follows)
+
+A second rating per person, shown next to the vibe, for who leads and who follows *outside* the sex. It is kept apart
+from top/bottom on purpose: in a lot of fics one man cares for and protects the other but is the one who bottoms, or
+the other way round. Evidence comes in four tiers: **stated dynamic** (tags like “Dominant Cas”, “Submissive Dean”, “Power
+Bottom X”, and pet names or aftercare backed up by a “Dom/sub” or “Praise Kink” tag); **taking charge** (pinning, gripping a
+chin or wrists, lifting or carrying, giving orders, leading someone by the hand, taking control of a kiss); **caring,
+protecting and praising** (tucking a blanket around someone, handing them ice or food, stroking their hair, stepping
+between them and a threat, “I've got you”, “let me clean you up”, “good boy”); and **yielding** (going pliant, letting
+someone lead, being pinned, blushing or stammering with the other one right there). Doing something *to* the other person
+credits them with the opposite reading at a lower weight (the one led follows; the one held is the one holding's
+counterpart), except for blushing, which is only one side. Labels run Follows, Leans following, Balanced, Leans leading,
+Leads. The same expandable factors and “What's wrong with this?” forms work here, and a Dom/Sub tag is checked against
+this axis (with the tag itself left out) in “Tags vs text”.
 
 ## Running locally
 

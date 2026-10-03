@@ -52,3 +52,55 @@ describe("tags vs text", () => {
     expect(c.map((x) => x.tag)).toEqual(["Anal Sex"]);
   });
 });
+
+describe("the everyday-dynamic axis", () => {
+  const ST: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Stranger Things (TV 2016)"], relationships: ["Steve Harrington/Eddie Munson"], characters: ["Steve Harrington", "Eddie Munson"] };
+  const sb = (`Steve and Eddie were on the couch, talking. Steve laughed. Eddie smiled back. `).repeat(2) + "\n\n";
+  const dyn = (text: string, m: Ao3Meta = ST) => analyzeWithPatterns(sb + text, m, { quiet: true }).pairings[0];
+  const rate = (text: string, who: string, m: Ao3Meta = ST) => dyn(text, m).dynamic!.find((d) => d.name.startsWith(who))!;
+  const CARE = "Eddie tucked a blanket around Steve and told him to sleep. Eddie stroked Steve’s hair until his breathing evened out. Eddie took Steve’s hand and led him toward the door. Eddie stepped between Steve and Hopper.";
+  it("caring, leading and protecting make Eddie lead and Steve follow", () => {
+    expect(["Leads", "Leans leading"]).toContain(rate(CARE, "Eddie").label);
+    expect(["Follows", "Leans following"]).toContain(rate(CARE, "Steve").label);
+  });
+  it("those cues are not part of the sexual vibe any more", () => {
+    const v = dyn(CARE).vibe!.flatMap((x) => x.factors!).filter((f) => /blanket|stroked|led him|stepped between/.test(f.source ?? ""));
+    expect(v.length).toBe(0);
+  });
+  it("blushing counts only with the other one in the sentence or the one before", () => {
+    expect(rate("Steve grinned at Eddie. Eddie blushed.", "Eddie").factors!.some((f) => /flustered/.test(f.what))).toBe(true);
+    expect(rate("The weather turned cold. Eddie blushed.", "Eddie").factors!.some((f) => /flustered/.test(f.what))).toBe(false);
+  });
+  it("a Dom tag puts the character on the leading side before any behaviour", () => {
+    const m: Ao3Meta = { ...ST, freeforms: ["Dominant Eddie Munson", "Submissive Steve Harrington"] };
+    expect(["Leads", "Leans leading"]).toContain(rate("", "Eddie", m).label);
+    expect(["Follows", "Leans following"]).toContain(rate("", "Steve", m).label);
+  });
+  it("unrelated text leaves the axis unclear", () => {
+    expect(rate("The sun set over Hawkins.", "Eddie").label).toBe("Unclear");
+  });
+});
+
+describe("Dom/Sub tags are checked against everyday behaviour", () => {
+  const m = (tags: string[]): Ao3Meta => ({ ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Stranger Things (TV 2016)"], relationships: ["Steve Harrington/Eddie Munson"], characters: ["Steve Harrington", "Eddie Munson"], freeforms: tags });
+  const sb = (`Steve and Eddie were on the couch, talking. Steve laughed. Eddie smiled back. `).repeat(2) + "\n\n";
+  const CARE = "Eddie tucked a blanket around Steve and told him to sleep. Eddie stroked Steve’s hair until his breathing evened out. Eddie took Steve’s hand and led him toward the door. Eddie stepped between Steve and Hopper. Eddie handed Steve the bag of ice.";
+  const chk = (tags: string[], text: string) => analyzeWithPatterns(sb + text, m(tags), { quiet: true }).tagCheck ?? [];
+  it("supported when the behaviour agrees", () => {
+    const c = chk(["Dominant Eddie Munson", "Submissive Steve Harrington"], CARE);
+    expect(c.find((x) => x.tag === "Dominant Eddie Munson")?.status).toBe("supported");
+    expect(c.find((x) => x.tag === "Submissive Steve Harrington")?.status).toBe("supported");
+  });
+  it("contradicted when the behaviour points the other way", () => {
+    const c = chk(["Dominant Steve Harrington", "Submissive Eddie Munson"], CARE);
+    expect(c.find((x) => x.tag === "Dominant Steve Harrington")?.status).toBe("contradicted");
+  });
+  it("can’t tell with too little behaviour", () => {
+    const c = chk(["Dominant Eddie Munson"], "They watched TV.");
+    expect(c.find((x) => x.tag === "Dominant Eddie Munson")?.status).toBe("cant_tell");
+  });
+  it("a pair-wide Dom/sub tag is supported when one leads and the other follows", () => {
+    const c = chk(["Dom/sub"], CARE);
+    expect(c.find((x) => x.tag === "Dom/sub")?.status).toBe("supported");
+  });
+});

@@ -12,6 +12,7 @@ import {
   type Desire,
   type Instance,
   type PairingResult,
+  type DynamicRating,
   type ManualAct,
   type ManualResult,
   type Role,
@@ -21,7 +22,7 @@ import {
   type VibeRating,
   confidenceLabel,
 } from "../types";
-import { rateVibe, type VibeItem } from "../vibe";
+import { rateDynamic, rateVibe, type VibeItem } from "../vibe";
 import { tagPriors } from "./ao3-prior";
 import { type Cast, type Character, type Gender, buildCast } from "./characters";
 import {
@@ -1376,6 +1377,14 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (pat.signal.kind === "fingers" && /\bown\b/i.test(matchText)) return;
       // A wish, a plan or an attempt isn't a solo act: "wanted to touch himself", "if he jerked off", "tried not to masturbate".
       if ((pat.signal.kind === "masturbation" || pat.signal.kind === "handjob") && (HYPO_AUX.test(m.groups?.aux ?? "") || /\b(?:want\w*|wish\w*|imagin\w*|fantasi[sz]\w*|thought\s+about|think\w*\s+about|if|unless|would|could|might|should|gonna|going\s+to|tempted|temptation|urge|tried|trying|try|needed|need|about\s+to|stop\w*|refus\w*|without|keep\s+from|kept\s+from|resist\w*|difficult|struggl\w*|held\s+back|hold\s+back)\b[^.!?]{0,40}$/i.test(prefix.slice(-60) + " " + (m.groups?.aux ?? "") + " " + m[0].slice(0, 25)))) return;
+      // Blushing and stammering say something about the pair only when the other one is right there.
+      if (pat.id.startsWith("flustered")) {
+        const at = para.indexOf(sent);
+        const prevSent = (at > 0 ? para.slice(Math.max(0, at - 240), at) : "").trim().split(/(?<=[.!?”])\s+/).pop() ?? "";
+        const partner = ctx.partnerOf(bottom);
+        const re = partner ? new RegExp(`\\b${partner.name.split(" ")[0]}\\b|\\b(?:${partner.aliases.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i") : undefined;
+        if (!re || !(re.test(sent) || re.test(prevSent))) return;
+      }
       // “He stroked his cock” could be his own: a handjob needs the partner in the sentence or the one before, and the
       // one before mustn't be a thought about them.
       if (pat.signal.kind === "handjob" && /^(?:his|her|their)$/i.test(bTok ?? "") && !pat.id.includes("both") && pat.id !== "frottage") {
@@ -1705,9 +1714,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (!tagged && members[0].name.includes(" ") && members[1].name.includes(" ") && last(members[0].name) === last(members[1].name) && pActs.filter((a) => a.basis === "named").length < 4) continue;
     }
     const vibe = buildVibes(pair, pActs, pDes, pairTags, meta, where);
+    const dynamic = buildDynamic(pair, pDes, pairTags, where);
     const solo = buildSolo(pair, soloDes, where);
     const manual = buildManual(pair, manualDes, where);
-    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, solo, manual, vibe, weight, key });
+    results.push({ pairing: `${members[0].name}/${members[1].name}`, anal, oral, blowjob, rimming, cunnilingus, vaginal, solo, manual, vibe, dynamic, weight, key });
   }
   results.sort((a, b) => b.weight - a.weight);
 
@@ -1936,9 +1946,7 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     } else {
       add(r.char, 2, r.role, r.style === "pillow" ? 0.9 : 1, src);
       add(other(r.char), 2, flip(r.role), 0.5, theirs(src));
-      // A power bottom runs the show; a service top is there to please.
-      if (r.style === "power") add(r.char, 6, "top", 0.5, { ...src, what: `${src.what} (a power bottom takes charge)` });
-      if (r.style === "service") add(r.char, 6, "bottom", 0.4, { ...src, what: `${src.what} (a service top gives way)` });
+      // (A power bottom's taking charge and a service top's giving way are scored on the everyday-dynamic axis.)
     }
   }
   // "Dominant Dean", "Submissive Cas": a dynamic, which leans that way but isn't the same as topping.
@@ -1954,9 +1962,9 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     touch: [3, 0.4], fingering: [3, 0.4], prep: [3, 0.4],
     said: [4, 0.6], wanted: [4, 0.8], fantasy: [4, 0.6], hypothetical: [4, 0.4], history: [4, 0.5],
     ogling: [5, 0.4], fingers: [5, 0.4], solo: [5, 0.4],
-    behavior: [6, 0.4],
-    // Says what they are or prefer (tier 2), aftermath of sex (tier 3), position, aftercare and pet names (tier 6).
-    stated: [2, 0.8], body: [3, 0.8], position: [6, 0.4], aftercare: [6, 0.3], petname: [6, 0.25],
+    // Says what they are or prefer (tier 2), aftermath of sex (tier 3), position (tier 6). Taking charge, caring, pet
+    // names and yielding are scored on the everyday-dynamic axis (buildDynamic), not here.
+    stated: [2, 0.8], body: [3, 0.8], position: [6, 0.4],
   };
   const selfToyVibe = new Map<string, number>();
   for (const d of des) {
@@ -1972,10 +1980,8 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     if (d.cat === "oral") continue;
     const [tier, w] = hit;
     add(d.who, tier, d.wants ? d.role : flip(d.role), (d.wants ? w : w * 0.5) * (d.kind === "stated" || d.kind === "body" ? Math.min(1, d.weight + 0.2) : 1), dsrc);
-    // Position and aftercare are two-sided: the one resting on a chest or held close means the other is the chest or the arms.
-    if (d.wants && (d.kind === "position" || d.kind === "aftercare")) add(other(d.who), tier, flip(d.role), w * 0.7, theirs(dsrc));
-    // A tag that names the pair's dynamic ("Dom/sub", "Praise Kink") backs up who gives the orders, the praise or the care.
-    if (tags.dynamicTags.length && d.wants && (d.kind === "petname" || d.kind === "aftercare")) add(d.who, 2, d.role, w * 0.5, { ...dsrc, what: `${dsrc.what}; backed up by a dynamic tag (${tags.dynamicTags[0]})` });
+    // Position is two-sided: the one resting on a chest means the other is the chest.
+    if (d.wants && d.kind === "position") add(other(d.who), tier, flip(d.role), w * 0.7, theirs(dsrc));
   }
   // 7. How AO3 tags the character overall.
   for (const [name, pr] of tagPriors(meta, pair)) {
@@ -1985,6 +1991,48 @@ function buildVibes(pair: [Character, Character], acts: ActHit[], des: DesireHit
     add(c, 7, lean > 0 ? "top" : "bottom", Math.abs(lean) * 0.6, { what: `AO3 tag counts for ${name}: ${Math.round(pr.pTop * 100)}% of tagged roles are top`, source: "community Top Tops / Top Bottoms / Most Versatile sheets" });
   }
   return pair.map((c) => rateVibe(c.name, items.get(c) ?? []));
+}
+
+/** Everyday power dynamic: who leads and who follows, apart from who tops and bottoms. "top" here means leads. */
+function buildDynamic(pair: [Character, Character], des: DesireHit[], tags: PairTags, where: (pi: number) => string): DynamicRating[] {
+  const other = (c: Character) => (pair[0] === c ? pair[1] : pair[0]);
+  const items = new Map<Character, VibeItem[]>(pair.map((c) => [c, []]));
+  type Src = Pick<VibeItem, "what" | "source" | "where" | "fromOther">;
+  const add = (c: Character, tier: VibeItem["tier"], role: Role, weight: number, src: Src = {}) => items.get(c)?.push({ tier, role, weight, ...src });
+  const theirs = (src: Src): Src => ({ ...src, fromOther: true });
+  const flip = (r: Role): Role => (r === "top" ? "bottom" : "top");
+
+  // 1. What the tags say: "Dominant Cas", "Submissive Dean", a power bottom or a service top.
+  for (const d of tags.dynamics) {
+    if (!items.has(d.char)) continue;
+    const src = { what: `AO3 tag “${d.tag}”`, source: d.tag };
+    add(d.char, 1, d.lean, 1, src);
+    add(other(d.char), 1, flip(d.lean), 0.4, theirs(src));
+  }
+  for (const r of tags.roles) {
+    if (!items.has(r.char)) continue;
+    const src = { what: `AO3 tag “${r.tag}”`, source: r.tag };
+    if (r.style === "power") add(r.char, 1, "top", 0.6, { ...src, what: `${src.what} (a power bottom takes charge)` });
+    if (r.style === "service") add(r.char, 1, "bottom", 0.5, { ...src, what: `${src.what} (a service top gives way)` });
+  }
+  // 2–4. Behaviour: taking charge, caring and praising, yielding.
+  const DYN_KINDS = new Set<Desire["kind"]>(["behavior", "aftercare", "petname"]);
+  const BASE_W: Partial<Record<Desire["kind"], number>> = { behavior: 0.4, aftercare: 0.3, petname: 0.25 };
+  for (const d of des) {
+    if (!DYN_KINDS.has(d.kind) || d.cat === "oral" || !items.has(d.who)) continue;
+    const role: Role = d.wants ? d.role : flip(d.role);
+    const caring = /protect|looking after|comfort|caring|care for|praising|good boy|good girl|pet name/i.test(d.act) || d.kind === "petname";
+    const tier: VibeItem["tier"] = role === "bottom" ? 4 : caring || d.kind === "aftercare" ? 3 : 2;
+    const w = (BASE_W[d.kind] ?? 0.3) * (d.wants ? 1 : 0.5);
+    const dsrc: Src = { what: `${d.act} (${d.kind}${d.wants ? "" : ", not wanted"}${d.guessed ? "; speaker guessed from the narration" : ""})`, source: d.sentence, where: where(d.para) };
+    add(d.who, tier, role, w, dsrc);
+    // Leading, carrying, protecting, pinning, holding and praising are things done to the other person: the one on the
+    // receiving end follows (and the one holding or looking after credits the one held). Blushing is only one side.
+    if (d.wants && !/flustered/.test(d.act)) add(other(d.who), role === "bottom" ? 3 : 4, flip(role), w * (d.kind === "aftercare" ? 0.7 : 0.5), theirs(dsrc));
+    // A tag that names the pair's dynamic ("Dom/sub", "Praise Kink") backs up who gives the orders, the praise or the care.
+    if (tags.dynamicTags.length && d.wants && (d.kind === "petname" || d.kind === "aftercare")) add(d.who, 1, d.role, w * 0.5, { ...dsrc, what: `${dsrc.what}; backed up by a dynamic tag (${tags.dynamicTags[0]})` });
+  }
+  return pair.map((c) => rateDynamic(c.name, items.get(c) ?? []));
 }
 
 interface Scene {

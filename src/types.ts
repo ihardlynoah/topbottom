@@ -140,6 +140,11 @@ export interface ManualResult {
   instances: ManualAct[];
 }
 
+/** Who leads and who follows in everyday life, scored apart from who tops and who bottoms. */
+export interface DynamicRating extends Omit<VibeRating, "label"> {
+  label: "Leads" | "Leans leading" | "Balanced" | "Leans following" | "Follows" | "Unclear";
+}
+
 export interface PairingResult {
   pairing: string;
   anal: ActResult;
@@ -156,6 +161,8 @@ export interface PairingResult {
   manual?: ManualResult;
   /** Overall vibe for each partner, from every kind of evidence. */
   vibe?: VibeRating[];
+  /** Everyday power dynamic for each partner: caretaking, leading, protecting and yielding, apart from the sexual vibe. */
+  dynamic?: DynamicRating[];
 }
 
 /** One AO3 tag checked against the text. */

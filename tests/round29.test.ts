@@ -77,9 +77,9 @@ describe("staring, groping and handling", () => {
   it("a hand down the back of the jeans → top-ish groping", () => hint("Eddie’s hand slipped down the back of Steve’s jeans and squeezed.", "top", "touch"));
   it("rubbing a palm over a bulge → bottom-ish touch", () => hint("Steve rubbed his palm over the bulge in Eddie’s jeans.", "bottom", "touch"));
   it("pouring lube over his own dick → top prep", () => hint("Steve watched, transfixed, as Eddie poured lube over his dick and rubbed it over himself.", "top", "prep"));
-  it("grabbing hips and pulling close counts as dominant behaviour for the vibe", () => {
-    const v = run("Eddie grabbed Steve’s hips and pulled him close.").vibe!.find((x) => /Eddie/.test(x.name))!;
-    expect(v.basis.join(" ")).toMatch(/behaviour/);
+  it("grabbing hips and pulling close counts as taking charge on the everyday-dynamic axis", () => {
+    const v = run("Eddie grabbed Steve’s hips and pulled him close.").dynamic!.find((x) => /Eddie/.test(x.name))!;
+    expect(v.basis.join(" ")).toMatch(/Taking charge/);
   });
 });
 

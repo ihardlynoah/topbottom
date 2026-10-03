@@ -10,7 +10,7 @@ const SPN = mk(["Castiel", "Dean Winchester"], "Supernatural");
 const hits = (m: Ao3Meta, base: string, line: string) => {
   const p = analyzeWithPatterns(base + line, m, { quiet: true }).pairings[0];
   const key = line.slice(0, 30);
-  const f = p.vibe!.flatMap((v) => v.factors!).filter((x) => (x.source ?? "").includes(key));
+  const f = [...p.vibe!, ...(p.dynamic ?? [])].flatMap((v) => v.factors!).filter((x) => (x.source ?? "").includes(key));
   const inst = [...p.anal.instances, ...p.blowjob.instances, ...p.rimming.instances].filter((i) => i.evidence.includes(key));
   return { f, inst, p };
 };
@@ -150,7 +150,7 @@ describe("Tricks of the Trade sweep: pronouns, speakers and idioms", () => {
   const CD: Ao3Meta = { ...mk(["Castiel", "Dean Winchester"], "Supernatural"), freeforms: ["Dom Castiel", "Sub Dean"] };
   const cb = baseOf("Cas", "Dean");
   const run = (line: string) => analyzeWithPatterns(cb + line, CD, { quiet: true }).pairings[0];
-  const factors = (line: string, key: string) => run(line).vibe!.flatMap((v) => v.factors!.map((f) => ({ ...f, who: v.name }))).filter((f) => (f.source ?? "").includes(key));
+  const factors = (line: string, key: string) => { const p = run(line); return [...p.vibe!, ...p.dynamic!].flatMap((v) => v.factors!.map((f) => ({ ...f, who: v.name }))).filter((f) => (f.source ?? "").includes(key)); };
   it("‘beg him to fuck him’: the asker is the bottom", () => {
     const f = factors("Dean wanted to beg him to just fuck him without it, but he knew he would be thankful tomorrow.", "beg him");
     expect(f.filter((x) => x.who === "Dean Winchester" && x.role === "top").length).toBe(0);
@@ -300,7 +300,8 @@ describe("solo acts: plans and struggles are not acts", () => {
 describe("everyday dynamics between the pair: caretaking, leading by the hand, carrying", () => {
   const ST = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
   const sb = baseOf("Steve", "Eddie");
-  const f = (line: string) => analyzeWithPatterns(sb + line, ST, { quiet: true }).pairings[0].vibe!.flatMap((v) => v.factors!.map((x) => ({ ...x, who: v.name }))).filter((x) => (x.source ?? "").includes(line.slice(0, 22)));
+  const f = (line: string) => { const p = analyzeWithPatterns(sb + line, ST, { quiet: true }).pairings[0]; return [...p.vibe!, ...p.dynamic!].flatMap((v) => v.factors!.map((x) => ({ ...x, who: v.name }))); };
+  const fs = (line: string) => f(line).filter((x) => (x.source ?? "").includes(line.slice(0, 22)));
   it.each([
     ["Eddie tucked a blanket around Steve and told him to sleep.", "Eddie"],
     ["Steve handed Eddie the bag of ice without a word.", "Steve"],
@@ -309,7 +310,7 @@ describe("everyday dynamics between the pair: caretaking, leading by the hand, c
     ["Eddie wrapped his arms around Steve’s waist and lifted him out of the van.", "Eddie"],
     ["Eddie stepped between Steve and Hopper.", "Eddie"],
   ])("%s", (line, who) => {
-    const hits = f(line);
+    const hits = fs(line);
     expect(hits.some((x) => x.who.startsWith(who) && x.role === "top"), line).toBe(true);
     expect(hits.some((x) => !x.who.startsWith(who) && x.role === "bottom" && x.fromOther !== true && false)).toBe(false);
   });
@@ -318,7 +319,7 @@ describe("everyday dynamics between the pair: caretaking, leading by the hand, c
     "Steve handed Billy the bag of ice and walked away.",
     "Eddie led the band through the final song.",
   ])("not a cue between the pair: %s", (line) => {
-    expect(f(line).length, line).toBe(0);
+    expect(fs(line).length, line).toBe(0);
   });
 });
 
