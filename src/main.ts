@@ -4,8 +4,9 @@ import { hasAo3Meta, romanticPairings } from "./ao3";
 import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerptExplicit } from "./analyze";
 import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
+import { FLAG_REASONS, type FlagReason, type FlaggedScene, type MissedScene, buildReport } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
-import type { ActResult, Analysis, Desire, RoleOdds, VaginalResult, VibeRating } from "./types";
+import type { ActResult, Analysis, Desire, Instance, RoleOdds, VaginalResult, VibeRating } from "./types";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -35,6 +36,16 @@ const els = {
   notes: $("notes"),
   claudeResults: $("claude-results"),
   claudeNotes: $("claude-notes"),
+  report: $("report"),
+  reportCount: $("report-count"),
+  reportList: $("report-list"),
+  reportGeneral: $<HTMLTextAreaElement>("report-general"),
+  missedPassage: $<HTMLTextAreaElement>("missed-passage"),
+  missedNote: $<HTMLInputElement>("missed-note"),
+  missedAdd: $<HTMLButtonElement>("missed-add"),
+  reportCopy: $<HTMLButtonElement>("report-copy"),
+  reportClear: $<HTMLButtonElement>("report-clear"),
+  reportPreview: $("report-preview"),
 };
 
 // ---- settings (localStorage can throw in private windows, so guard every access) ----
@@ -155,6 +166,11 @@ async function handleFile(file: File) {
     return;
   }
   renderMeta(current, file.name);
+  flagged.clear();
+  missedScenes.length = 0;
+  shown = null;
+  els.reportGeneral.value = "";
+  refreshReport();
   // Pattern analysis runs in a background worker; long explicit fics can take a few seconds.
   const work = current;
   runPatterns(work.text, work.meta)
@@ -168,6 +184,142 @@ async function handleFile(file: File) {
     });
   if (els.autoRun.checked && els.apiKey.value.trim()) void runAnalysis();
 }
+
+// ---- mistake report ----
+
+const flagged = new Map<string, FlaggedScene>();
+const missedScenes: MissedScene[] = [];
+let shown: { source: string; analysis: Analysis } | null = null;
+
+function cardSummaries(a: Analysis): string[] {
+  const out: string[] = [];
+  for (const p of a.pairings) {
+    const cards: [string, ActResult][] = [["anal", p.anal], ["blowjob", p.blowjob], ["rimming", p.rimming], ["cunnilingus", p.cunnilingus]];
+    for (const [k, r] of cards) {
+      if (r.verdict === "none" && !r.instances.length) continue;
+      out.push(`${p.pairing} · ${k}: ${r.verdict}${r.top ? ` (top/active ${r.top} / bottom/receiving ${r.bottom})` : ""} · ${r.confidence.label} ${Math.round(r.confidence.score * 100)}% · ${r.instances.length} scene${r.instances.length === 1 ? "" : "s"}`);
+    }
+    if (p.vaginal.instances.length) out.push(`${p.pairing} · vaginal: ${p.vaginal.instances.length} scene(s)`);
+    for (const v of p.vibe ?? []) out.push(`${p.pairing} · vibe ${v.name}: ${v.label} (${Math.round(v.confidence.score * 100)}%)`);
+  }
+  return out;
+}
+
+function reportText(): string {
+  const w = current;
+  return buildReport({
+    title: w?.meta.title,
+    fandoms: w?.meta.fandoms,
+    relationships: w?.meta.relationships,
+    categories: w?.meta.categories,
+    rating: w?.meta.rating,
+    words: w?.meta.words ?? w?.countedWords,
+    source: shown?.source ?? "patterns",
+    summaries: shown ? cardSummaries(shown.analysis) : [],
+    flags: [...flagged.values()],
+    missed: missedScenes,
+    general: els.reportGeneral.value,
+  });
+}
+
+function refreshReport() {
+  const n = flagged.size + missedScenes.length;
+  els.reportCount.textContent = n ? `${n} item${n === 1 ? "" : "s"}` : "none yet";
+  els.reportCopy.disabled = !n && !els.reportGeneral.value.trim();
+  els.reportClear.disabled = !n;
+  els.reportList.replaceChildren();
+  for (const f of flagged.values()) {
+    const li = el("li");
+    li.append(el("strong", undefined, `${f.top || "?"} → ${f.bottom || "?"}`), ` · ${f.act}: `, el("span", "evidence", f.evidence));
+    const rm = el("button", "linklike", "remove");
+    rm.type = "button";
+    rm.addEventListener("click", () => { flagged.delete(f.id); refreshReport(); document.querySelector(`[data-flag="${CSS.escape(f.id)}"]`)?.classList.remove("flagged"); });
+    li.append(" ", rm);
+    els.reportList.append(li);
+  }
+  missedScenes.forEach((m, i) => {
+    const li = el("li");
+    li.append(el("strong", undefined, "Missed: "), el("span", "evidence", m.passage.slice(0, 160)));
+    const rm = el("button", "linklike", "remove");
+    rm.type = "button";
+    rm.addEventListener("click", () => { missedScenes.splice(i, 1); refreshReport(); });
+    li.append(" ", rm);
+    els.reportList.append(li);
+  });
+  els.reportPreview.textContent = n || els.reportGeneral.value.trim() ? reportText() : "";
+}
+
+/** The "Report" button on a scene and the little form it opens. */
+function flagControl(li: HTMLElement, id: string, pairing: string, card: string, i: Instance) {
+  li.dataset.flag = id;
+  const btn = el("button", "linklike flag-btn", "Report a mistake");
+  btn.type = "button";
+  const form = el("form", "flag-form");
+  form.hidden = true;
+  const ticks = new Map<FlagReason, HTMLInputElement>();
+  for (const r of FLAG_REASONS) {
+    const label = el("label", "flag-opt");
+    const cb = el("input");
+    cb.type = "checkbox";
+    ticks.set(r.key, cb);
+    label.append(cb, ` ${r.label}`);
+    form.append(label);
+  }
+  const note = el("textarea");
+  note.rows = 2;
+  note.placeholder = "Why is it wrong? (e.g. “his husband” is Dracula, who is the one fucking Jack)";
+  const add = el("button", undefined, flagged.has(id) ? "Update report" : "Add to report");
+  add.type = "submit";
+  const cancel = el("button", "linklike", "Cancel");
+  cancel.type = "button";
+  form.append(note, add, " ", cancel);
+  const prior = flagged.get(id);
+  if (prior) { for (const r of prior.reasons) ticks.get(r)!.checked = true; note.value = prior.note; li.classList.add("flagged"); }
+  btn.addEventListener("click", () => { form.hidden = !form.hidden; });
+  cancel.addEventListener("click", () => { form.hidden = true; });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const reasons = [...ticks].filter(([, cb]) => cb.checked).map(([k]) => k);
+    flagged.set(id, {
+      id, pairing, card, top: i.top, bottom: i.bottom, act: i.act, basis: i.basis, confidence: i.confidence, confidenceReasons: i.reasons,
+      where: i.where, evidence: i.evidence, context: i.context, reasons, note: note.value,
+    });
+    li.classList.add("flagged");
+    form.hidden = true;
+    add.textContent = "Update report";
+    refreshReport();
+  });
+  li.append(" ", btn, form);
+}
+
+els.missedAdd.addEventListener("click", () => {
+  const passage = els.missedPassage.value.trim();
+  if (!passage) return;
+  missedScenes.push({ passage, note: els.missedNote.value });
+  els.missedPassage.value = "";
+  els.missedNote.value = "";
+  refreshReport();
+});
+els.reportGeneral.addEventListener("input", refreshReport);
+els.reportClear.addEventListener("click", () => {
+  flagged.clear();
+  missedScenes.length = 0;
+  els.reportGeneral.value = "";
+  document.querySelectorAll(".flagged").forEach((x) => x.classList.remove("flagged"));
+  refreshReport();
+});
+els.reportCopy.addEventListener("click", async () => {
+  const text = reportText();
+  try {
+    await navigator.clipboard.writeText(text);
+    els.reportCopy.textContent = "Copied!";
+  } catch {
+    // Clipboard blocked: show the text so it can be selected by hand.
+    (els.reportPreview.closest("details") as HTMLDetailsElement | null)?.setAttribute("open", "");
+    els.reportCopy.textContent = "Select the text below";
+  }
+  setTimeout(() => { els.reportCopy.textContent = "Copy report for Claude"; }, 2500);
+});
 
 // ---- rendering ----
 
@@ -348,7 +500,7 @@ function renderOdds(kind: ActKind, people: RoleOdds[]): HTMLElement {
   return box;
 }
 
-function renderAct(kind: ActKind, act: ActResult): HTMLElement {
+function renderAct(kind: ActKind, act: ActResult, pairing: string, source: string): HTMLElement {
   const w = ROLE_WORDS[kind];
   const card = el("article", `card act verdict-${act.verdict}`);
   const head = el("div", "act-head");
@@ -373,21 +525,27 @@ function renderAct(kind: ActKind, act: ActResult): HTMLElement {
     const det = el("details", "instances");
     det.append(el("summary", undefined, `${act.instances.length} scene${act.instances.length === 1 ? "" : "s"}`));
     const ul = el("ul");
-    for (const i of act.instances) {
+    act.instances.forEach((i, n) => {
       const li = el("li");
       li.append(el("strong", undefined, w.scene(i.top, i.bottom)), ` · ${i.act}`);
       if (i.where) li.append(el("span", "where", ` · ${i.where}`));
       if (i.basis && i.basis !== "named") li.append(el("span", "basis", i.basis === "pronoun" ? "via pronouns" : "inferred"));
+      if (i.confidence !== undefined) {
+        const c = el("span", `scene-conf ${i.confidence >= 0.75 ? "high" : i.confidence >= 0.5 ? "medium" : "low"}`, `${Math.round(i.confidence * 100)}% sure`);
+        if (i.reasons?.length) c.title = i.reasons.join("; ");
+        li.append(c);
+      }
       if (i.evidence) li.append(el("div", "evidence", i.evidence));
+      flagControl(li, `${source}|${pairing}|${kind}|${n}`, pairing, kind, i);
       ul.append(li);
-    }
+    });
     det.append(ul);
     card.append(det);
   }
   return card;
 }
 
-function renderVaginal(v: VaginalResult): HTMLElement {
+function renderVaginal(v: VaginalResult, pairing: string, source: string): HTMLElement {
   const card = el("article", `card act verdict-${v.occurs ? "one_way" : "none"}`);
   const head = el("div", "act-head");
   head.append(el("h4", undefined, "Vaginal"), el("span", `badge ${v.occurs ? "one_way" : "none"}`, v.occurs ? "Happens" : "Doesn't happen"));
@@ -396,13 +554,14 @@ function renderVaginal(v: VaginalResult): HTMLElement {
     const det = el("details", "instances");
     det.append(el("summary", undefined, `${v.instances.length} scene${v.instances.length === 1 ? "" : "s"}`));
     const ul = el("ul");
-    for (const i of v.instances) {
+    v.instances.forEach((i, n) => {
       const li = el("li");
       li.append(el("strong", undefined, [i.top, i.bottom].filter(Boolean).join(" & ")), ` · ${i.act}`);
       if (i.where) li.append(el("span", "where", ` · ${i.where}`));
       if (i.evidence) li.append(el("div", "evidence", i.evidence));
+      flagControl(li, `${source}|${pairing}|vaginal|${n}`, pairing, "vaginal", i);
       ul.append(li);
-    }
+    });
     det.append(ul);
     card.append(det);
   }
@@ -442,15 +601,19 @@ function renderVibe(vibe: VibeRating[]): HTMLElement {
 
 function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement) {
   target.replaceChildren();
+  // A new analysis replaces the reading the flags pointed at.
+  if (shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k); }
+  shown = { source: a.source, analysis: a };
+  refreshReport();
   if (!a.pairings.length) target.append(el("p", "hint", "Couldn't identify the characters in this work."));
   for (const p of a.pairings) {
     const block = el("div", "pairing-block");
     if (a.pairings.length > 1) block.append(el("h4", "pairing-name", p.pairing));
     if (p.vibe?.length) block.append(renderVibe(p.vibe));
     const grid = el("div", "grid two");
-    grid.append(renderAct("anal", p.anal), renderAct("blowjob", p.blowjob), renderAct("rimming", p.rimming));
-    if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus));
-    if (p.vaginal.applicable) grid.append(renderVaginal(p.vaginal));
+    grid.append(renderAct("anal", p.anal, p.pairing, a.source), renderAct("blowjob", p.blowjob, p.pairing, a.source), renderAct("rimming", p.rimming, p.pairing, a.source));
+    if (p.cunnilingus.verdict !== "none" || p.vaginal.applicable) grid.append(renderAct("cunnilingus", p.cunnilingus, p.pairing, a.source));
+    if (p.vaginal.applicable) grid.append(renderVaginal(p.vaginal, p.pairing, a.source));
     block.append(grid);
     target.append(block);
   }

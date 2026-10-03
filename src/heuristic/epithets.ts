@@ -144,10 +144,10 @@ const NATIONALITY: Descriptor[] = NATIONS.map(([adj, nouns]) => ({
 
 const ALL: Descriptor[] = [...HAIR, ...BUILD, ...NATIONALITY];
 
-const MALE_NOUNS = "man|boy|guy|lad|male|gentleman|fellow|bloke|dude|king|prince|wizard";
-const FEMALE_NOUNS = "woman|girl|lady|gal|queen|princess|witch";
+const MALE_NOUNS = "man|boy|guy|lad|male|gentleman|fellow|bloke|dude|king|prince|wizard|lord|baron|duke|earl|marquis|marquess|viscount|baronet|squire|knight|sir|nobleman|emperor|tsar|czar|sultan|caliph|khan|pharaoh|shogun|monk|friar|abbot|chevalier|swordsman|stableboy|stablehand|cupbearer|courtier|heir";
+const FEMALE_NOUNS = "woman|girl|lady|gal|queen|princess|witch|baroness|duchess|countess|marchioness|viscountess|empress|dame|noblewoman|handmaiden|maiden|sorceress|priestess|abbess|nun";
 const ROLE_NOUNS =
-  "alpha|omega|beta|count|duke|earl|baron|prince|king|queen|emperor|husband|lover|boyfriend|werewolf|wolf|vampire|hunter|soldier|agent|detective|captain|knight|demon|angel|hero|villain|auror|doctor|human|elf|mutant|android|god|guard|lieutenant|sergeant|commander|sheriff|deputy|student|officer|cop|pilot|sailor|pirate|assassin|mercenary|singer|idol|player|athlete|boxer|fighter|dancer|actor|writer|artist|professor|teacher|nobleman|lord|servant";
+  "alpha|omega|beta|count|duke|earl|baron|prince|king|queen|emperor|husband|lover|boyfriend|werewolf|wolf|vampire|hunter|soldier|agent|detective|captain|knight|demon|angel|hero|villain|auror|doctor|human|elf|mutant|android|god|guard|lieutenant|sergeant|commander|sheriff|deputy|student|officer|cop|pilot|sailor|pirate|assassin|mercenary|singer|idol|player|athlete|boxer|fighter|dancer|actor|writer|artist|professor|teacher|nobleman|lord|servant|lady|baroness|duchess|countess|marquis|marquess|viscount|baronet|squire|steward|chamberlain|regent|monarch|sovereign|heir|noble|courtier|vassal|liege|chevalier|paladin|templar|crusader|swordsman|archer|sorcerer|sorceress|warlord|chieftain|bard|monk|friar|abbot|priest|priestess|stableboy|stablehand|groom|cupbearer|consort|empress|tsar|czar|sultan|caliph|khan|pharaoh|shogun|samurai|ronin|blacksmith|jester|herald|retainer|master|mistress|majesty|highness";
 /** Nouns that can follow a descriptor ("the tall man", "the American soldier"). */
 const NOUNS = `${MALE_NOUNS}|${FEMALE_NOUNS}|${ROLE_NOUNS}|one|kid|teen|teenager`;
 

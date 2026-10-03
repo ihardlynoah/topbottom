@@ -98,7 +98,10 @@ word count is estimated and the main characters are guessed from frequently capi
    Draco”, “Steve towered over Tony”, “Steve was a big man”, “Draco was two years older”, “Steve’s American
    accent”, “Bucky was from Russia”, “Draco, the blond,”, Alpha/Omega tags, and consistent use across the
    fic (a second pass). With two main characters, the opposite is inferred (taller known → shorter is the
-   other). Otherwise an epithet falls back to “the person who isn’t the current subject”. Each scene shows
+   other). Otherwise an epithet falls back to “the person who isn’t the current subject”. Noble and medieval
+   titles work as epithets too (“the lord”, “the baron”, “the prince”, “the knight”, “the squire”, “the
+   countess”…). Relationship words (“his husband”, “her lover”) are always relative: they mean the partner of
+   whoever “his” is, never one fixed person. After “permitted/let/forced X to …”, a later “he” is X. Each scene shows
    whether roles came from names or pronouns/epithets.
 4. **Desire / fantasy**: wanting (“he wanted Draco to fuck him”), imagining (“imagined Harry sucking him
    off”), hypotheticals, habits (“he’d always bottomed”), dialogue requests (“Fuck me,” Harry begged;
@@ -119,6 +122,19 @@ word count is estimated and the main characters are guessed from frequently capi
    least one scene (a single weak contrary hit is flagged as a possible exception instead). Confidence goes
    up with more scenes, named (not pronoun) evidence, matching AO3 tags (“Bottom X”, “Switching”) and
    matching desire/fantasy lines and hints, and down when tags or desires disagree. The reasons are shown on each card.
+7. **Scene confidence**: every scene also gets its own “N% sure” (hover for why). It starts from the strength of
+   the best sentence, goes up when several sentences agree or the people are named, and down when the people were
+   only inferred, other sentences in the scene point the other way, or the wording is ambiguous (“rode him” can
+   describe either partner). A shaky scene that goes against nearly every firm scene in the pair loses more. Scene
+   confidence scales how much the scene counts toward the verdict, the per-person odds and the vibe rating, and a
+   scene under 40% sure can’t on its own make someone a switch.
+8. **Report a mistake**: under each scene, “Report a mistake” opens a short form: tick what’s wrong (wrong
+   character flagged as topping or bottoming, roles reversed, wrong act, not a sex act, solo act shown as a scene
+   with the partner, a wish rather than an event, wrong people) and say why. Missed scenes and other comments can
+   be added too. “Copy report for Claude” produces a text report (work tags, what the analyzer concluded, each
+   flagged sentence with its surrounding passage, the scene confidence and reasons, and your explanation) to paste
+   into Claude to find which pattern misfired. Nothing is sent anywhere; the report holds the passages you flag, so
+   read it before sharing.
 
 ## Vibe rating
 

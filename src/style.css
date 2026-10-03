@@ -312,3 +312,19 @@ footer { margin-top: 32px; color: var(--muted); font-size: 0.85rem; text-align: 
 .vibe-ends { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); }
 .vibe-conf { margin: 8px 0 4px; font-size: 0.85rem; }
 .vibe-basis { margin: 4px 0 0; padding-left: 18px; font-size: 0.8rem; color: var(--muted); }
+
+/* ---- scene confidence and mistake reports ---- */
+.scene-conf { margin-left: 8px; font-size: 0.78rem; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.scene-conf.high { color: var(--ok); }
+.scene-conf.medium { color: var(--unclear); }
+.scene-conf.low { color: var(--accent); }
+.linklike { background: none; border: none; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; font-size: 0.85rem; }
+.flag-btn { margin-left: 8px; }
+.instances li.flagged { border-left: 3px solid var(--accent); padding-left: 8px; }
+.flag-form { margin: 8px 0; padding: 10px; border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 4px; }
+.flag-form[hidden] { display: none; }
+.flag-opt { display: flex; gap: 6px; align-items: flex-start; font-size: 0.88rem; }
+.flag-form textarea, #report textarea, #report input[type="text"] { width: 100%; box-sizing: border-box; font: inherit; }
+.report-list { padding-left: 18px; font-size: 0.9rem; }
+.report-actions { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+.report-preview { white-space: pre-wrap; max-height: 320px; overflow: auto; font-size: 0.8rem; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }

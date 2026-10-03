@@ -215,7 +215,7 @@ export function oddsFromResult(act: Pick<ActResult, "instances" | "desires">, na
   const ev: RoleEvidence[] = [];
   for (const i of act.instances) {
     // Fingering only hints at anal roles.
-    const w = /fingering/i.test(i.act) ? 0.3 : 1;
+    const w = (/fingering/i.test(i.act) ? 0.3 : 1) * (i.confidence === undefined ? 1 : 0.4 + 0.6 * i.confidence);
     ev.push({ who: i.top, role: "top", weight: w, kind: "scene" }, { who: i.bottom, role: "bottom", weight: w, kind: "scene" });
   }
   for (const d of act.desires) {

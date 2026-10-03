@@ -52,6 +52,10 @@ interface ActHit {
   sentence: string;
   /** The sentence didn't say which hole, and the bottom may have a vagina: settled later by their other scenes. */
   holeGuess?: "anal" | "vaginal" | "ambiguous";
+  /** Why this reading could be wrong ("rode him" can be said of either partner); lowers the scene's confidence. */
+  shaky?: string;
+  /** The text around the sentence, so a reader (or Claude) can check the reading. */
+  context?: string;
 }
 
 interface DesireHit {
@@ -134,6 +138,14 @@ const DESIRE_LEAD = /^\W*(?:wants?|needs?|longs?|aches?|craves?|wishes?|yearns?)
 /** "your ass is grass", "kick your ass", "pain in the ass": an ass that isn't one. */
 const IDIOM_ASS = /\b(?:ass is grass|(?:kick|kicked|kicking|whoop|whooped|whooping|save|saved|saving|bust|busted|busting|cover|covered|covering|haul|hauled|hauling|bite|bit)\w*\s+(?:your|his|her|my|their|our)?\s*ass|pain in the ass|smart[- ]?ass|dumb[- ]?ass|half[- ]?ass|work\w*\s+(?:your|his|her|my|their)\s+ass\s+off|ass\s+(?:off|kicked|whooped))\b/i;
 /** A toy (dildo, plug, vibrator…) used on oneself, or worn: that is bottoming, so it counts as such. */
+/** Up to ~250 characters either side of a sentence, for checking a reading by eye. */
+function contextAround(para: string, sentence: string): string {
+  const at = para.indexOf(sentence);
+  if (at < 0) return "";
+  const from = Math.max(0, at - 250);
+  const to = Math.min(para.length, at + sentence.length + 250);
+  return (from > 0 ? "…" : "") + para.slice(from, to).trim() + (to < para.length ? "…" : "");
+}
 const SOLO_TOY = /\b(?:dildos?|vibrators?|vibes?|butt\s*plugs?|plugs?|anal beads|beads|toys?|wand)\b/i;
 const usesToyOnSelf = (d: { kind: string; act: string; sentence: string }) => (d.kind === "solo" || d.act === "wearing a plug") && SOLO_TOY.test(d.sentence);
 const DESIRE_TAIL = /\b(?:(?:ask|beg|plead|urg|offer)(?:ed|s|ing)?(?:\s+[\w'’-]+)?|desires?(?:\s+of)?(?:\s+\w+ly)?)\s*$/i;
@@ -207,6 +219,15 @@ class Ctx {
   /** "The blond", "the taller man": a learned mapping, else the person who isn't the current subject. */
   epithet(tok: string): Character | undefined {
     const { keys, gender, other } = canonEpithet(tok);
+    // "his husband", "her lover": always the possessor's partner, never one fixed person.
+    if (keys[0]?.startsWith("rel:")) {
+      const ck = keys[0];
+      if (this.sentence.has(ck)) return this.sentence.get(ck);
+      const possessor = this.sentMentions[0]?.c ?? this.lastSubject;
+      const c = possessor ? this.partnerOf(possessor, gender) : this.recent.find((r) => Ctx.compatible(r, gender));
+      this.sentence.set(ck, c);
+      return c;
+    }
     for (const k of keys) {
       const known = this.epithets.get(k);
       if (known && Ctx.compatible(known, gender)) return known;
@@ -693,7 +714,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const re = new RegExp(`(?:^|([\\w'’]+)?([\\s,]+))((?:${NAMES}|${EPITHET_TOKEN})(?![\\w'’])|[Hh]e|[Ss]he|[Tt]hey|I)(?=[\\s,])`, "g");
     const hits = [...prefix.matchAll(re)];
     // "Laurent needs Damianos to know he likes him … that he drags him": after "needs X to", a bare he/she is X.
-    const ctl = [...prefix.matchAll(new RegExp(`\\b(?:need|want|ask|tell|told|beg|let|make|made|get|got|expect|order|allow|urge|help|wish|like)\\w*\\s+(${NAMES})\\s+to\\b`, "gi"))].pop();
+    const ctl = [...prefix.matchAll(new RegExp(`\\b(?:need|want|ask|tell|told|beg|let|make|made|get|got|expect|order|allow|permit|force|forc|command|invite|encourage|instruct|coax|urge|help|wish|like)\\w*\\s+(${NAMES})\\s+to\\b`, "gi"))].pop();
+    // "The count permitted Jack to wriggle beneath him … while he was impaled": the he that follows is Jack.
+    if (ctl && /^\s*(?:he|she|they)\b/i.test(suffix) && !new RegExp(`\\b(?:${NAMES})\\b`).test(prefix.slice(ctl.index! + ctl[0].length))) {
+      const named = cast.byAlias.get(ctl[1]);
+      if (named) return named;
+    }
     const lastHit = hits[hits.length - 1];
     if (ctl && lastHit && /^(?:he|she|they)$/i.test(lastHit[3]) && lastHit.index! > ctl.index!) {
       const named = cast.byAlias.get(ctl[1]);
@@ -1189,6 +1215,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       cat = "oral";
       act = "blowjob (face-fucking)";
     }
+    // "made wet, filthy sounds around him … as he emptied into him": the sounds are a mouth around a cock, so a blowjob.
+    if (cat === "anal" && /^(?:came-inside|bottomed-out|push-into|fuck)/.test(pat.id) && !ANAL_CTX.test(sent) && !FINGER_CTX.test(sent) &&
+        /\b(?:sounds?|noises?|gagg\w*|chok\w*|slurp\w*|swallow\w*|suck\w*|sloppy|messy|wet)\b[^.!?]{0,30}\baround\s+(?:him|it|his|her|their)\b/i.test(sent)) {
+      cat = "oral";
+      act = "blowjob";
+    }
     // Anal or vaginal? Decided by the words used (male omegas and trans men can have vaginas),
     // falling back to anatomy when the text doesn't say.
     // "Shannon rides him … Buck could fuck him like this": a woman riding is vaginal unless an ass or hole is named.
@@ -1284,7 +1316,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         ctx.lastSubject = pat.subj === "t" ? top : bottom;
         return;
       }
-      acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original, holeGuess });
+      // "Dracula rode him": with no cock, lap or "on" in the sentence it says nothing about who is inside whom.
+      const shaky = /^riding/.test(pat.id) && /^(?:him|her|them|it)$/i.test(tTok ?? "") && !/\b(?:cock|dick|prick|length|shaft|lap|dildo|strap|on|onto|astride|straddl\w*)\b/i.test(sent.slice(m.index!).replace(/^\S+\s+\S+\s+/, ""))
+        ? "“rode him” can describe either partner" : holeGuess === "ambiguous" ? "the sentence doesn't say which hole" : undefined;
+      acts.push({ cat, act, top, bottom, weight, basis, para: pi, sentence: original, holeGuess, shaky, context: contextAround(paras[pi] ?? "", original) });
       ctx.setPartners(cat, top, bottom);
       ctx.lastSubject = pat.subj === "t" ? top : bottom;
       return;
@@ -1665,6 +1700,9 @@ function buildAct(
   const decisive = hits.filter((h) => !(cat === "anal" && h.act === "fingering"));
   const fingering = hits.filter((h) => cat === "anal" && h.act === "fingering");
   const sceneTops = new Map<string, { char: Character; partner: Character; scenes: number; weight: number; strong: boolean }>();
+  // First pass: one record per scene direction, with how sure we are of it.
+  interface SceneRec { best: ActHit; hs: ActHit[]; w: number; first: number; conf: number; reasons: string[] }
+  const recs: SceneRec[] = [];
   for (const scene of groupScenes(decisive, where)) {
     const dirs = new Map<string, ActHit[]>();
     for (const h of scene.hits) {
@@ -1683,21 +1721,58 @@ function buildAct(
       const w = hs.reduce((n, h) => n + h.weight, 0);
       if (once(hs) < Math.max(0.2, totalOnce * 0.3)) continue; // a stray hit against the scene's majority
       const best = [...hs].sort((a, b) => b.weight - a.weight || (a.basis === "named" ? -1 : 1))[0];
-      const acts = [...new Set(hs.map((h) => h.act))];
-      instances.push({
-        top: best.top.name,
-        bottom: best.bottom.name,
-        act: acts.join(", "),
-        where: where(scene.first),
-        evidence: truncate(best.sentence),
-        basis: best.basis,
-      });
-      const entry = sceneTops.get(best.top.name) ?? { char: best.top, partner: best.bottom, scenes: 0, weight: 0, strong: false };
-      entry.scenes++;
-      entry.weight += Math.min(w, 3);
-      entry.strong ||= hs.some((h) => h.basis === "named") || w >= 1.5;
-      sceneTops.set(best.top.name, entry);
+      const sentences = new Set(hs.map((h) => h.sentence)).size;
+      const against = new Set(scene.hits.filter((h) => h.top.name !== best.top.name).map((h) => h.sentence)).size;
+      const reasons: string[] = [];
+      let conf = 0.3 + 0.5 * Math.min(1, best.weight);
+      if (sentences >= 3) { conf += 0.15; reasons.push(`${sentences} sentences agree`); }
+      else if (sentences === 2) { conf += 0.1; reasons.push("2 sentences agree"); }
+      else reasons.push("one sentence");
+      if (best.basis === "named") conf += 0.05;
+      else if (best.basis === "inferred") { conf -= 0.1; reasons.push("people inferred, not named"); }
+      else reasons.push("people found through pronouns");
+      if (against) { conf -= Math.min(0.3, 0.1 * against); reasons.push(`${against} sentence${against === 1 ? "" : "s"} in the scene point the other way`); }
+      const shaky = hs.find((h) => h.shaky && h.sentence === best.sentence)?.shaky;
+      if (shaky) { conf -= 0.25; reasons.push(shaky); }
+      recs.push({ best, hs, w, first: scene.first, conf: Math.max(0.15, Math.min(0.98, conf)), reasons });
     }
+  }
+  // A shaky or lone-sentence scene that goes against what nearly every firm scene says is probably the misread one.
+  {
+    const firm = recs.filter((r) => r.conf >= 0.6);
+    const byTop = new Map<string, number>();
+    for (const r of firm) byTop.set(r.best.top.name, (byTop.get(r.best.top.name) ?? 0) + r.conf);
+    const sum = [...byTop.values()].reduce((n, x) => n + x, 0);
+    const lead = [...byTop.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (firm.length >= 3 && lead && lead[1] / sum >= 0.85) {
+      for (const r of recs) {
+        if (r.best.top.name !== lead[0] && r.conf < 0.65) {
+          r.conf = Math.max(0.15, r.conf - 0.2);
+          r.reasons.push(`goes against ${firm.filter((f) => f.best.top.name === lead[0]).length} firmer scenes the other way`);
+        }
+      }
+    }
+  }
+  for (const r of recs) {
+    const { best, hs, w, conf } = r;
+    const acts = [...new Set(hs.map((h) => h.act))];
+    instances.push({
+      top: best.top.name,
+      bottom: best.bottom.name,
+      act: acts.join(", "),
+      where: where(r.first),
+      evidence: truncate(best.sentence),
+      basis: best.basis,
+      confidence: Math.round(conf * 100) / 100,
+      reasons: r.reasons,
+      context: best.context,
+    });
+    const entry = sceneTops.get(best.top.name) ?? { char: best.top, partner: best.bottom, scenes: 0, weight: 0, strong: false };
+    // A shaky scene adds a little weight but doesn't on its own make someone a switch.
+    if (conf >= 0.4) entry.scenes++;
+    entry.weight += Math.min(w, 3) * (0.4 + 0.6 * conf);
+    entry.strong ||= (hs.some((h) => h.basis === "named") || w >= 1.5) && conf >= 0.5;
+    sceneTops.set(best.top.name, entry);
   }
   for (const scene of groupScenes(fingering, where)) {
     const best = [...scene.hits].sort((a, b) => b.weight - a.weight)[0];
