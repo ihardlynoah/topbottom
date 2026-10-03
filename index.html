@@ -56,6 +56,33 @@
           <p id="notes" class="notes" hidden></p>
         </section>
 
+        <section id="report" class="panel">
+          <div class="roles-head">
+            <h3>Report a mistake <span id="report-count" class="pill">none yet</span></h3>
+          </div>
+          <p class="hint">
+            See something wrong? Use “Report a mistake” under any scene above, tick what's wrong and say why. Add anything
+            it missed below, then copy the report and paste it into Claude to work out which pattern misfired. The report
+            contains the sentences and passages you flag, so check it before sharing.
+          </p>
+          <ul id="report-list" class="report-list"></ul>
+          <details>
+            <summary>Add a scene it missed</summary>
+            <label class="field"><span>Passage</span><textarea id="missed-passage" rows="3" placeholder="Paste the sentence or passage that should have been caught"></textarea></label>
+            <label class="field"><span>What it shows</span><input id="missed-note" type="text" placeholder="e.g. Dracula tops Jack; this is anal sex" /></label>
+            <button id="missed-add" type="button">Add missed scene</button>
+          </details>
+          <label class="field"><span>Other comments</span><textarea id="report-general" rows="2" placeholder="Anything else about the results, e.g. a wrong character, pairing or vibe rating"></textarea></label>
+          <div class="report-actions">
+            <button id="report-copy" type="button" disabled>Copy report for Claude</button>
+            <button id="report-clear" type="button" class="linklike" disabled>Clear</button>
+          </div>
+          <details>
+            <summary>Preview the report</summary>
+            <pre id="report-preview" class="report-preview"></pre>
+          </details>
+        </section>
+
         <section id="claude" class="panel">
           <div class="roles-head">
             <h3>Second opinion from Claude <span class="optional">(optional)</span></h3>

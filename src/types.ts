@@ -11,6 +11,11 @@ export interface Instance {
   evidence: string;
   /** How the people were identified: both named, via pronouns, or inferred from context. */
   basis?: "named" | "pronoun" | "inferred";
+  /** How sure we are that this scene is read correctly (0–1), and why. Feeds the role odds. */
+  confidence?: number;
+  reasons?: string[];
+  /** The passage around the evidence sentence. */
+  context?: string;
 }
 
 /**

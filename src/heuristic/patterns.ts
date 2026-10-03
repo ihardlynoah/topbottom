@@ -459,6 +459,16 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{T}\\s+{aux}(?:fill(?:s|ed|ing)?|split(?:s|ting)?|claim(?:s|ed|ing)?|wreck(?:s|ed|ing)?|ruin(?:s|ed|ing)?|stuff(?:s|ed|ing)?)\\s+{B:ass}(?:\\s+(?:up|open|apart|full))?`,
   },
   {
+    // "the urge to sink down onto it": the cock is the one just mentioned.
+    id: "riding-it",
+    cat: "anal",
+    act: "anal sex (riding)",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:(?:sink|sank|sinks|sinking|sunk|lower|lowers|lowered|lowering|ease|eases|eased|easing|slid|slide|slides|sliding|settl\\w*)\\s+(?:${SELF}\\s+)?(?:slowly\\s+|back\\s+|all the way\\s+)*down\\s+(?:on|onto)|ride|rode|riding|rides)\\s+it\\b(?!\\s+(?:out|off|like|as if|through|to\\b))`,
+  },
+  {
     id: "riding",
     cat: "anal",
     act: "anal sex (riding)",
@@ -1371,6 +1381,27 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     signal: { kind: "fingers", actorRole: "bottom" },
     src: `\\b{B}\\s+{aux}(?:suck|draw|drew|took|take|pull|guid)\\w*\\s+(?:(?:two|three|a couple|one) of\\s+)?(?:{T:poss}|the|two|three|a|one|those)\\s+(?:[\\w-]+\\s+){0,2}?(?:fingers?|thumb|digits?)\\s+(?:\\w+\\s+)?(?:into|in|between)\\s+(?:his|her|their|my|your)\\s+(?:mouth|lips)`,
+  },
+  {
+    // "The count stroked his fingers in and out of Jack's mouth": the mouth's owner is sucking them.
+    id: "fingers-in-out-mouth",
+    cat: "oral",
+    act: "sucking on fingers",
+    subj: "t",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "fingers", actorRole: "bottom", actor: "b" },
+    src: `\\b{T}\\s+{aux}(?:strok|fuck|work|pump|slid|slide|slip|push|thrust|press|dipp?|mov|rubb?)\\w*\\s+(?:(?:his|her|their|my|your|two|three|a|one|the|another)\\s+)?(?:[\\w-]+\\s+){0,2}?(?:fingers?|thumb|digits?)\\s+(?:\\w+\\s+)?(?:in\\s+and\\s+out\\s+of|in\\s+and\\s+out|over|across|along|against)\\s+{B:poss}\\s+(?:(?:${MOUTH_ADJ})\\s+)?(?:mouth|lips|tongue)`,
+  },
+  {
+    // "his cock rutted against the line of Steve's ass": dry humping, the one rubbing is on top.
+    id: "rut-against-ass",
+    cat: "anal",
+    act: "grinding against an ass",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "touch", actorRole: "top" },
+    src: `\\b(?:{T}|{T:penisReq})\\s+{aux}(?:rut|grind|ground|rock|rubb?|press|hump)\\w*\\s+(?:(?:\\w+ly|harder|closer|slowly)\\s+)?(?:(?:his|her|their)\\s+(?:${PENIS}|crotch|hips|groin|bulge)\\s+)?(?:up\\s+)?(?:against|into|on|along|over)\\s+(?:the\\s+(?:line|curve|swell|crease|cleft|seam)\\s+of\\s+)?{B:poss}\\s+(?:\\w+\\s+)?(?:ass|arse|butt|cheeks|backside)`,
   },
   {
     // "Deadpool shoved two leather-covered fingers into his mouth": the mouth's owner gets the hint.
