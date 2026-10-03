@@ -374,3 +374,23 @@ describe("‘I want to ride his dick’ is a bottom wish whoever ‘his’ is", 
     expect(wishes("“I would never ride his dick,” Steve said.").length).toBe(0);
   });
 });
+
+describe("bottom-coded oral cues: offering the mouth, asking to be fed, licking up come", () => {
+  const SB = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const bottomFactors = (line: string) => analyzeWithPatterns(sb + line, SB, { quiet: true }).pairings[0].vibe!.filter((v) => v.name.startsWith("Steve")).flatMap((v) => v.factors!).filter((f) => f.role === "bottom" && f.tier < 7);
+  it.each([
+    "“Like the song, Eds. Feed it to me,” Steve said, and he slowly opened his mouth, letting his tongue slip out.",
+    "“Fill my mouth,” Steve whispered.",
+    "Eddie came across Steve’s lips, and Steve licked the cum off his lips.",
+    "Steve answered by sticking out his tongue and slowly licking the come from his lips.",
+  ])("%s", (line) => {
+    expect(bottomFactors(line).length, line).toBeGreaterThan(0);
+  });
+  it.each([
+    "Steve licked the frosting off his lips and grinned.",
+    "“Feed me, I’m starving,” Steve said.",
+  ])("everyday: %s", (line) => {
+    expect(bottomFactors(line).length, line).toBe(0);
+  });
+});

@@ -2851,6 +2851,30 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     src: `\\b(?:hot\\s+)?(?:ropes?|streaks?|spurts?|splashes?|jets?|strands?)\\s+of\\s+(?:hot\\s+)?(?:come|cum|spunk|jizz)\\s+(?:to\\s+|that\\s+)?(?:splatter|land|paint|streak|spatter|shoot|hit|spray|splash)\\w*\\s+(?:across|over|on)\\s+{B:poss}\\s+(?:face|lips|cheeks?|chin|tongue|mouth)`,
   },
+  {
+    // "slowly licking the come from his lips", "swallowed the cum off his fingers": taking it in after
+    id: "lick-come-off",
+    cat: "vibe",
+    kw: "lick|lap|swallow|tast|suck|wip",
+    act: "licking up come",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:[\\w’']+\\s+){0,8}?(?:lick|lap|swallow|tast|suck)\\w*\\s+(?:up\\s+)?(?:the\\s+|his\\s+|her\\s+|their\\s+)?(?:come|cum|spunk|jizz|precum|pre-come)\\s+(?:off|from|on)\\s+(?:of\\s+)?{B:poss}\\s+(?:lips|face|chin|mouth|fingers|hand|tongue)`,
+  },
+  {
+    // "slowly opened his mouth, letting his tongue slip out": offering the mouth
+    id: "offer-mouth",
+    cat: "vibe",
+    kw: "tongue",
+    act: "offering their mouth",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "prep", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:\\w+ly\\s+)?(?:open|part)\\w*\\s+(?:his|her|their)\\s+(?:mouth|lips)(?:\\s*,\\s*|\\s+and\\s+)(?:letting|sticking|stick|let)\\w*\\s+(?:his|her|their)\\s+tongue\\s+(?:slip\\s+)?out`,
+  },
 ];
 
 // ───────────── Dialogue: what a speaker asks for or says they want ─────────────
@@ -2900,6 +2924,8 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "anal", act: "checking out a cock", role: "bottom", kind: "ogling", re: /(?<!\b(?:this|my|that|his|want|wanted|inside)\s(?:\w+\s)?)\b(?:nice|great|gorgeous|perfect|amazing|big|huge|thick|beautiful|pretty|fucking) (?:fucking )?(?:cock|dick)\b(?!\s+(?:inside|in|up|into|deep|down|in\s+you))|\byour (?:cock|dick) (?:is|looks|feels)\b/ },
   { cat: "oral", act: "checking out a cock", role: "bottom", kind: "ogling", re: /(?<!\b(?:this|my|that|his|want|wanted|inside)\s(?:\w+\s)?)\b(?:nice|great|gorgeous|perfect|amazing|big|huge|thick|beautiful|pretty|fucking) (?:fucking )?(?:cock|dick)\b(?!\s+(?:inside|in|up|into|deep|down|in\s+you))|\byour (?:cock|dick) (?:is|looks|feels)\b/ },
   // oral — speaker top (getting sucked, or eating ass)
+  // Offering your mouth to be used: bottom-coded whoever's cock it is (oral hints don't feed the vibe, so this is a vibe cue).
+  { cat: "vibe", act: "asking to be fed a cock", role: "bottom", kind: "said", weight: 0.8, re: /\bfeed (?:it|that|your (?:cock|dick)) to me\b|\bfeed me (?:your|that) (?:cock|dick)\b|\b(?:fill|use) my (?:mouth|throat)\b|\bfuck my (?:mouth|throat|face)\b|\bput it in my mouth\b/ },
   { cat: "oral", act: "blowjob", role: "top", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|now,?\s+|c'mon,?\s+|come on,?\s+|just\s+)(?:suck (?:me|my (?:cock|dick))|blow me|swallow me|choke on (?:it|me|my (?:cock|dick)))\b/ },
   { cat: "oral", act: "blowjob", role: "top", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?(?:fuck|use)\\s+your\\s+(?:mouth|throat|face)\\b`) },
   { cat: "oral", act: "blowjob", role: "top", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?(?:come|cum)\\s+(?:in|down)\\s+your\\s+(?:mouth|throat)\\b`) },
