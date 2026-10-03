@@ -164,6 +164,8 @@ const HYPO_SENT = /^\W*(?:[\w'’]+[,!]\s+)?(?:(?:will|would|could|should|can|sh
 const IDIOM_SAFE = /\b(?:cock|dick|prick|ass|arse|hole|claim\w*|alphas?|omegas?|mate[ds]?|mating|cunt|pussy|clit\w*|vagina|cunny|slick|wet|dripping|womb|heat|rut|bred|breed\w*|inside|thrust\w*|knot\w*|lube[ds]?|prostate|come|cum|bed|mattress|sheets?|moan\w*|gasp\w*|whimper\w*|beg\w*|hard|deep(?:ly)?|slow(?:ly)?|senseless|raw|open|into|against|until|over the|on (?:his|her|their|the)\b|all night|good and proper)\b/i;
 /** In the matched words themselves: "is going to knot", "can just fuck", "would have let". */
 const HYPO_MATCH = /\bgonna\b|\bcan\s+just\b|\bwould\s+have\s+let\b/i;
+const DANGER = /\b(?:explo\w+|gun|guns|rifle|shotgun|knife|knives|stab\w*|shot|shoot\w*|bullet|blood\w*|bleed\w*|monster|demogorgon|demobat|vecna|upside down|torture\w*|tied (?:me|him|you|us) up|scream\w*|punch\w*|kick\w*|fight\w*|attack\w*|ambush\w*|weapon\w*|flinch\w*|lunged|crashed|fled|run!|duck(?:ed)?)\b/i;
+const SEX_STRICT = /\b(?:cock|dick|prick|lube|lubed|slick|slicked|naked|erection|prostate|anus|condom|orgasm|climax|rim\w*|knot|strap|dildo|pussy|clit|cum|cumming|nipples?|arous\w*|undress\w*|thighs?|crotch|bulge|boner|hard-?on|moan\w*|thrust\w*|shirtless|blowjob|handjob)\b/gi;
 const HYPO_AUX = /\b(?:would|could|will|might|should|shall|going|gonna|['’]d|['’]ll)\b/i;
 const HABIT_AUX = /\b(?:always|usually|never|often|typically|rarely|only|used)\b/i;
 /** Fantasy markers strong enough to cover the whole rest of the sentence ("the vision he'd clung to, which included…"). */
@@ -689,7 +691,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // Dialogue: attribute each quote to a speaker and look for requests/desires.
     // Is sex happening around here? Narration only, so a "fuck me" in the dialogue doesn't count.
     const near = [pi - 3, pi - 2, pi - 1, pi, pi + 1, pi + 2, pi + 3].map((i) => masked[i]?.masked ?? "").join(" ");
-    const narrationSexy = SEX_CTX.test(near) || /\b(?:nipples?|pleasure|arous\w*|undress\w*|thighs?|lube|fingers? (?:in|inside)|crotch|bulge)\b/i.test(near);
+    // "hard", "inside", "came", "bed" and "hips" turn up in every long fic: for the weak suggestive lines the narration
+    // has to carry an unambiguous sexual word (or several of the loose ones).
+    const strictHits = new Set((near.toLowerCase().match(SEX_STRICT) ?? []).map((w) => w.replace(/(?:s|es|ed|ing)$/, "")));
+    const narrationSexy = strictHits.size >= 1 || (near.match(SEX_CTX) ?? []).length >= 4 || /\b(?:nipples?|pleasure|arous\w*|undress\w*|thighs?|lube|fingers? (?:in|inside)|crotch|bulge)\b/i.test(near);
     let paraSpeaker: Character | undefined;
     let lastQ: Quote | undefined;
     let lastQPrev: Quote | undefined;
@@ -1322,6 +1327,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (pat.id === "suck-fingers" && /^[^.!?]{0,60}?\b(?:push|press|slid|slip|work|insert|sink|guid|ease)\w*\s+(?:them|it)\s+(?:in|into|inside)\b/i.test(after)) return;
       if (pat.signal.kind === "fingers" && /\bwhistl\w*/i.test(sent)) return;
       if (cat === "oral" && oralKindOf(act) === "blowjob" && top.penis === false && bottom.penis === false && !/\b(?:cock|dick|penis)\b/i.test(para)) return;
+      // Fights, torture and rescues: shoving, gripping, lifting and shielding aren't dominance when they come with danger
+      // and no sexual words, and a plural "they" is a group, not the partner.
+      if (cat === "vibe" && (pat.signal.kind === "behavior" || pat.signal.kind === "position")) {
+        if (/^they$/i.test(tTok ?? "") || /^(?:the|a)\s+(?:man|guy|dude|stranger|bastard|cop|officer)$/i.test(tTok ?? "")) return;
+        const recent = original + " " + (paras[pi] ?? "").slice(Math.max(0, (paras[pi] ?? "").indexOf(original) - 200), (paras[pi] ?? "").indexOf(original));
+        if (DANGER.test(recent) && (recent.match(SEX_STRICT) ?? []).length === 0) return;
+      }
       // Behaviour hints need two people: "pressing them into his chest" (knees) and "grabbed his opposite wrist" are not.
       if (cat === "vibe" && (/^(?:them|it)$/i.test(bTok ?? "") || /^(?:them|it)$/i.test(tTok ?? "") || /\b(?:own|opposite|other)\s+(?:wrist|hand|chin|hair|neck)/i.test(matchText))) return;
       const actor = (pat.signal.actor ?? pat.subj) === "t" ? top : bottom;
@@ -1426,7 +1438,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const ifNot = /\bif\s+(?:[\w'’-]+\s+){0,2}(?:doesn['’]t|don['’]t|didn['’]t|won['’]t|hadn['’]t|isn['’]t|wasn['’]t)\s*$/i.test(window) || (/\bif\s+(?:[\w'’-]+\s+){0,2}$/i.test(window) && NEG.test(aux));
     // "tried not to suppress the urge to pull out and snap back in": not resisting a wish means having it.
     const doubleNeg = /\b(?:not|n['’]t|never|without)\s+(?:to\s+)?(?:\w+\s+){0,2}?(?:suppress|resist|fight|hold back|stifle|restrain|deny|ignore|squash|stop|hide|push down|swallow|fight off)\w*\s+(?:\w+\s+){0,2}(?:urge|desire|need|want|impulse|temptation|craving)/i.test(window);
-    const negated = !ifNot && !doubleNeg && (NEG.test(aux) || NEG.test(negWindow));
+    // "Not without taking Eddie's dick out of his mouth": not … without cancels out.
+    const notWithout = /\bnot\s+without\s+(?:\w+\s+){0,2}$/i.test(window);
+    const negated = !ifNot && !doubleNeg && !notWithout && (NEG.test(aux) || NEG.test(negWindow));
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
     else if (DESIRE_LEAD.test(sent) || DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
@@ -1436,7 +1450,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     else if (
       !/\bas (?:if|though)\s+(?:he|she|they)\s+(?:wasn['’]t|weren['’]t|was not|were not|hadn['’]t been|had not been)\s+(?:the\s+(?:man|guy|one|person|boy|woman|girl)|Epithet\d+)\s+(?:who|that)\b/i.test(prefix) &&
       !(/\bas (?:if|though)\s*$/i.test(prefix) && /\b(?:isn['’]t|wasn['’]t|aren['’]t|weren['’]t|is not|was not|were not|not)\b[^.!?]*\benough\b/i.test(sent.slice(m.index!))) &&
-      (HYPO_AUX.test(aux) || HYPO_MATCH.test(prefix.slice(-25) + matchText) || /\b(?:can|could|would|should)\s+(?:just\s+)?\w+\b[^.!?]*\band\s*\w*$/i.test(prefix + matchText.slice(0, 6)) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) || (/\bthan\s+(?:it\s+was\s+|it's\s+)?$/i.test(prefix) && /^to\b/i.test(matchText)) || /\bthan\s+(?:it\s+was\s+|it's\s+)?to\s*$/i.test(prefix) || /\b(?:like|as if|as though)\s+(?:he|she|they|I)(?:['’]s|['’]d|\s+(?:is|was|were|are|had|has|would))?\s*$/i.test(prefix) || (/\b(?:like|as if|as though)\s*$/i.test(prefix) && /^(?:he|she|they|I)\b/.test(matchText)) ||
+      ((HYPO_AUX.test(aux) && !/\bcould\s+(?:\w+\s+)?(?:taste|feel|smell|hear|see)\b/i.test(prefix.slice(-25) + matchText.slice(0, 30))) || HYPO_MATCH.test(prefix.slice(-25) + matchText) || /\b(?:can|could|would|should)\s+(?:just\s+)?\w+\b[^.!?]*\band\s*\w*$/i.test(prefix + matchText.slice(0, 6)) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) || (/\bthan\s+(?:it\s+was\s+|it's\s+)?$/i.test(prefix) && /^to\b/i.test(matchText)) || /\bthan\s+(?:it\s+was\s+|it's\s+)?to\s*$/i.test(prefix) || /\b(?:like|as if|as though)\s+(?:he|she|they|I)(?:['’]s|['’]d|\s+(?:is|was|were|are|had|has|would))?\s*$/i.test(prefix) || (/\b(?:like|as if|as though)\s*$/i.test(prefix) && /^(?:he|she|they|I)\b/.test(matchText)) ||
       (/\bso\s*$/i.test(window) && /\b(?:can|could|might|may|will|would)\b/i.test(aux)) ||
       /\b(?:would|could|might)\s+(?:want|like|love|wish|prefer|enjoy|rather|fit)\b[^.!?;]{0,70}?\b(?:as|while|when|if|so)\s+(?:[\w'’]+\s+)?$/i.test(prefix))
     ) kind = "hypothetical";

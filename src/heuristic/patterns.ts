@@ -888,7 +888,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.8,
     needsCtx: true,
-    src: `\\b{B}\\s+{aux}(?:(?:press|drag|run|ran|rub|slid|slide|trac|swip)\\w*\\s+(?:his|her|their|my|your)\\s+(?:tongue|lips|mouth|face|nose)\\s+(?:\\w+\\s+)?(?:against|along|over|across|on|into)|(?:mouth|nuzzl|lick|kiss|suck|mouth)\\w*\\s+(?:at|along|over|against|on))\\s+(?:the\\s+(?:\\w+\\s+)?(?:bulge|outline|erection|hardness|tent|front|fly)\\s+(?:in|of|under|beneath|through)\\s+)?{T:poss}\\s+(?:\\w+\\s+)?(?:underwear|boxers|briefs|jeans|pants|trousers|shorts|sweatpants|cotton|fly|zipper|crotch)\\b`,
+    src: `\\b{B}\\s+{aux}(?:(?:press|drag|run|ran|rub|slid|slide|trac|swip)\\w*\\s+(?:his|her|their|my|your)\\s+(?:(?:open|parted|hot|wet|warm)\\s+)?(?:tongue|lips|mouth|face|nose)\\s+(?:\\w+\\s+)?(?:against|along|over|across|on|into)|(?:mouth|nuzzl|lick|kiss|suck|mouth)\\w*\\s+(?:at|along|over|against|on))\\s+(?:the\\s+(?:\\w+\\s+)?(?:bulge|outline|erection|hardness|tent|front|fly)\\s+(?:in|of|under|beneath|through)\\s+)?{T:poss}\\s+(?:\\w+\\s+)?(?:underwear|boxers|briefs|jeans|pants|trousers|shorts|sweatpants|cotton|fly|zipper|crotch)\\b`,
   },
   {
     // "rolled his tongue around the head of Steve's cock", "swirled his tongue around the tip"
@@ -899,7 +899,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.9,
     needsCtx: true,
-    src: `\\b{B}\\s+{aux}(?:roll|swirl|circl|flick|trac|run|ran|slid|slip|work|press|drag|lap)\\w*\\s+(?:his|her|their|my|your)\\s+tongue\\s+(?:\\w+\\s+)?(?:around|over|across|along|against|on|up|down)\\s+(?:the\\s+(?:\\w+\\s+)?(?:head|tip|crown|slit|underside|shaft|length|base)(?:\\s+of\\s+{T:penis})?|{T:penisReq})`,
+    src: `\\b{B}\\s+{aux}(?:roll|swirl|circl|flick|trac|run|ran|slid|slip|work|press|drag|lap)\\w*\\s+(?:the\\s+(?:back|flat|tip)\\s+of\\s+)?(?:his|her|their|my|your)\\s+tongue\\s+(?:\\w+\\s+)?(?:around|over|across|along|against|on|up|down)\\s+(?:the\\s+(?:\\w+\\s+)?(?:head|tip|crown|slit|underside|shaft|length|base)(?:\\s+of\\s+{T:penis})?|{T:penisReq})`,
   },
   {
     // "licked a long stripe up the shaft", "licked the tip", "licked his way from the base to the tip of Steve's cock"
@@ -1246,7 +1246,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.7,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|thrust|eas|sheath|guid|rock|snap|fuck|press)\\w*\\s+(?:${SELF}\\s+)?(?:(?:back|forward|slowly|carefully|deep|all the way|right|finally|gently)\\s+)*(?:in|inside|home)(?![\\w-])(?!\\s*(?:to|the|a|an|his|her|their|my|your|front|back|line|time|place|close|closer|between|with|for|on|at|of|and then the)\\b)(?!\\s+[\\w-]+['’]s\\b)`,
+    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|thrust|eas|sheath|guid|rock|snap|fuck|press)\\w*\\s+(?:${SELF}\\s+)?(?:(?:back|forward|slowly|carefully|deep|all the way|right|finally|gently)\\s+)*(?:in|inside|home)(?![\\w-])(?!\\s*(?:to|the|a|an|his|her|their|my|your|front|back|line|time|place|close|closer|between|with|for|on|at|of|and then the|next|beside|quietly|silently|unnoticed|behind|alongside|among|near|opposite|across|beneath|under|over|after|before|through|from|hesitantly|nervously|awkwardly)\\b)(?!\\s+[\\w-]+['’]s\\b)`,
   },
   {
     // "Cas was scorching and slick and snug around Dean's cock"
@@ -1703,7 +1703,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.6,
     signal: { kind: "behavior", actorRole: "top" },
-    src: `\\b{T}\\s+{aux}(?:pinn?ed|pins|pinning|press(?:ed|es|ing)|shov(?:ed|es|ing)|slam(?:med|s|ming)|back(?:ed|s|ing)|crowd(?:ed|s|ing))\\s+{B}\\s+(?:up\\s+)?(?:against|to|onto|into|down\\s+(?:on|onto|against|into))\\b`,
+    src: `\\b{T}\\s+{aux}(?:pinn?ed|pins|pinning|press(?:ed|es|ing)|shov(?:ed|es|ing)|slam(?:med|s|ming)|back(?:ed|s|ing)|crowd(?:ed|s|ing))\\s+{B}\\s+(?:up\\s+)?(?:against|to(?!\\s+(?:the\\s+)?(?:side|ground|floor)\\b)|onto|into\\s+(?:the\\s+)?(?:wall|door|bed|mattress|couch|sofa|counter|table|desk|floor|car|hood|locker|pillow|sheets|cushions?)|down\\s+(?:on|onto|against|into))\\b`,
   },
   {
     id: "dom-take-control",
@@ -1793,7 +1793,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.6,
     signal: { kind: "behavior", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:let|lets|allow(?:ed|s)?)\\s+{T}\\s+(?:take|lead|take\\s+over|take\\s+charge|set|decide|undress|strip)\\b`,
+    src: `\\b{B}\\s+{aux}(?:let|lets|allow(?:ed|s)?)\\s+{T}\\s+(?:take|lead|take\\s+over|take\\s+charge|set|decide|undress|strip)\\b(?!\\s+(?:over\\s+)?(?:the|a|an|his|her|their|my|your)\\s+(?:job|shop|store|business|route|territory|campaign|game|band|show|town|run|operation|work|shift|class|club|case|dungeon|table|plan|lead))`,
   },
   {
     id: "sub-pinned",
@@ -2618,6 +2618,84 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     signal: { kind: "body", actorRole: "bottom" },
     src: `\\b{B:poss}\\s+(?:\\w+\\s+)?(?:ass|arse|hole|entrance|rim|opening|pussy|cunt)\\s+{aux}(?:beg(?:s|ged|ging)?|ache\\w*|throb\\w*|puls\\w*|flutter\\w*|twitch\\w*|clench\\w*|spasm\\w*|clutch\\w*)(?![\\w-])(?!\\s+(?:around|on|down|onto))`,
+  },
+  // ───────────── sweep of Steve & Eddie: oral phrasings ─────────────
+  {
+    // "taking Eddie's dick out of his mouth", "pulled Steve's cock out of his mouth with a pop"
+    id: "cock-out-of-mouth",
+    cat: "oral",
+    kw: "out of|from",
+    act: "blowjob",
+    subj: "t",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b(?:tak|pull|slid|slip|let|releas|drew|draw|pop|withdr)\\w*\\s+{T:poss}\\s+(?:\\w+\\s+)?(?:cock|dick|prick|length|shaft)\\s+(?:out\\s+of|from)\\s+{B:poss}\\s+(?:mouth|throat)`,
+  },
+  {
+    // "slowly forcing his cock down his throat" (the cock is the partner's, the throat the subject's)
+    id: "forcing-cock-down-throat",
+    cat: "oral",
+    kw: "down|throat",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:[\\w-]+\\s+){0,6}?(?:forc|push|shov|guid|pull|drag)\\w*\\s+{T:poss}\\s+(?:\\w+\\s+)?(?:cock|dick|prick|length|shaft|hips)\\s+(?:down|into|deeper\\s+into|further\\s+into)\\s+{B:poss}\\s+throat`,
+  },
+  {
+    // "his throat squeezing around Eddie", "Steve's throat clenched around him"
+    id: "throat-around-cock",
+    cat: "oral",
+    kw: "throat",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.9,
+    needsCtx: true,
+    src: `\\b{B:poss}\\s+throat\\s+{aux}(?:squeez|clench|tighten|constrict|convuls|flutter|work|clamp|spasm|clos|contract|grip)\\w*\\s+(?:\\w+\\s+)?(?:around|on|about)\\s+(?:{T}|{T:penis}|him|her)\\b`,
+  },
+  {
+    // "fought through the urge to gag", "fighting down his gag reflex"
+    id: "fight-gag",
+    cat: "oral",
+    kw: "gag",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:fought|fight|fights|fighting|suppress|stifl|swallow|resist|held back|hold back|breath\\w*)\\w*\\s+(?:back\\s+|down\\s+|through\\s+)?(?:the\\s+|his\\s+|her\\s+|their\\s+)?(?:urge\\s+to\\s+gag|need\\s+to\\s+gag|gag\\s+reflex|instinct\\s+to\\s+gag)`,
+  },
+  {
+    // "tasted the precum in the back of his throat"
+    id: "taste-precum-throat",
+    cat: "oral",
+    kw: "tast",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    src: `\\b{B}\\s+{aux}(?:could\\s+)?tast(?:e|ed|es|ing)\\s+(?:the\\s+|his\\s+|her\\s+|their\\s+|{T:poss}\\s+)?(?:\\w+\\s+)?(?:precum|pre-?come|pre-?cum|cum|come|salt|bitterness)\\s+(?:\\w+\\s+){0,3}?(?:back\\s+of\\s+(?:his|her|their)\\s+throat|on\\s+(?:his|her|their)\\s+tongue)`,
+  },
+  {
+    // "Eddie grabbed Steve's hair and slowly pushed his hips as far forward as they would go"
+    id: "hair-grab-hips-forward",
+    cat: "oral",
+    kw: "hair",
+    act: "blowjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    src: `\\b{T}\\s+{aux}(?:grabb?|grip|fist|tangl|tugg?|pull|clutch|held|hold)\\w*\\s+{B:poss}\\s+hair\\s+(?:and\\s+)?(?:\\w+ly\\s+)?(?:push|thrust|roll|jerk|snap|pump|drove|drive|rock)\\w*\\s+(?:his|her|their)\\s+hips\\s+(?:\\w+\\s+){0,3}?(?:forward|in|up)\\b`,
+  },
+  {
+    // "a mess of spit and precum dripping from Steve's mouth"
+    id: "spit-precum-from-mouth",
+    cat: "oral",
+    kw: "dripp|drool|string|trail|smear",
+    act: "blowjob",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    src: `\\b(?:spit|saliva|drool|precum|pre-?come|cum|come)\\s+(?:and\\s+(?:spit|saliva|drool|precum|pre-?come|cum|come)\\s+)?(?:dripp|drool|string|trail|run|ran|dribbl|leak|smear)\\w*\\s+(?:\\w+\\s+){0,2}?(?:from|down|off|out of)\\s+{B:poss}\\s+(?:mouth|lips|chin)`,
   },
 ];
 

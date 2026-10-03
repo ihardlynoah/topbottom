@@ -106,3 +106,42 @@ describe("Steve/Eddie report: everyday sentences are not sex cues", () => {
     expect(f.length).toBe(0);
   });
 });
+
+describe("Steve/Eddie sweep: oral phrasings in a bathroom scene", () => {
+  const ST = mk(["Steve Harrington", "Eddie Munson"], "Stranger Things");
+  const sb = baseOf("Steve", "Eddie");
+  const blow = (line: string) => analyzeWithPatterns(sb + line, ST, { quiet: true }).pairings[0].blowjob.instances.filter((i) => i.evidence.includes(line.slice(0, 25)));
+  const cases: [string, string, string][] = [
+    ["Not without pulling Eddie’s dick out of his mouth, which Steve did not want to do yet.", "Eddie", "Steve"],
+    ["Steve choked, his throat squeezing around Eddie tighter than before.", "Eddie", "Steve"],
+    ["Steve was busy digging his fingers into Eddie’s hips, slowly forcing his cock down his throat.", "Eddie", "Steve"],
+    ["Eddie grabbed Steve’s hair and slowly pushed his hips as far forward as they would go.", "Eddie", "Steve"],
+    ["Steve said, pressing his open mouth against Eddie’s zipper.", "Eddie", "Steve"],
+    ["Steve ran the back of his tongue around the head, looking up at Eddie.", "Eddie", "Steve"],
+  ];
+  for (const [l, top, bottom] of cases)
+    it(`reads: ${l.slice(0, 48)}`, () => {
+      const i = blow(l);
+      expect(i.length, l).toBeGreaterThan(0);
+      expect(i[0].top).toMatch(new RegExp(top));
+      expect(i[0].bottom).toMatch(new RegExp(bottom));
+    });
+  it("slipping in next to someone is not penetration", () => {
+    const p = analyzeWithPatterns(sb + "Steve slid in next to Eddie, which he tried not to read into.", ST, { quiet: true }).pairings[0];
+    expect(p.anal.instances.length).toBe(0);
+  });
+  it("shoving someone aside, or to safety, is not a dominance cue", () => {
+    for (const l of ["Steve jumped off Billy and shoved him to the side at the same time.", "Eddie shoved Steve to the floor and covered his head just as the explosion hit."]) {
+      const r = hits(ST, sb, l);
+      expect(r.f.length, l).toBe(0);
+    }
+  });
+  it("comfort after a nightmare is not aftercare evidence", () => {
+    const r = hits(ST, sb, "Steve woke up shaking in the dark. Eddie sat down beside him on the bed. “Hey, you’re okay,” Eddie said. “I’ve got you.”");
+    expect(r.f.length).toBe(0);
+  });
+  it("letting someone take over a job is not submission", () => {
+    const r = hits(ST, sb, "He wondered if Rick would let him take over the job for the whole town.");
+    expect(r.f.length).toBe(0);
+  });
+});
