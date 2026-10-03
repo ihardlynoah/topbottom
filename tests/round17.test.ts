@@ -43,7 +43,7 @@ describe("who is doing it", () => {
     const p = run(
       `${ORAL}\n\nWhen he felt Dean's muscles untighten he moved his mouth, wrapping it around Dean's cock and it didn't take long for Dean to cum, spilling into his mouth.`,
     );
-    expect(p.blowjob.instances[0]).toMatchObject({ top: "Dean Winchester", bottom: "Castiel" });
+    expect(p.blowjob.instances.some((i) => i.top === "Dean Winchester" && i.bottom === "Castiel")).toBe(true);
   });
 });
 

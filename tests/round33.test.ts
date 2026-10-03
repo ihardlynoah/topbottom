@@ -3,7 +3,7 @@ import { type Ao3Meta, emptyMeta } from "../src/ao3";
 import { analyzeWithPatterns } from "../src/heuristic";
 
 const meta: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Dracula (TV 2020)"], relationships: ["Dracula/Jack Seward"], characters: ["Dracula", "Jack Seward"] };
-const base = ("Dracula and Jack were in bed, naked and kissing. The count kissed Jack. Jack kissed the count back, breathless. The count, Dracula, smiled. ").repeat(3) + "Jack's hole clenched and his cock was hard. ";
+const base = ("Dracula and Jack were in bed, naked and kissing. The count kissed Jack. Jack kissed the count back, breathless. The count, Dracula, smiled. ").repeat(3) + "Jack's cock was hard. ";
 const run = (s: string) => analyzeWithPatterns(base + s, meta, { quiet: true }).pairings[0];
 const all = (s: string) => { const p = run(s); return [...p.anal.desires ?? [], ...p.blowjob.desires ?? []]; };
 const jack = (s: string) => run(s).vibe!.find((v) => /Jack/.test(v.name))!;
