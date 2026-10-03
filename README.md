@@ -209,6 +209,9 @@ word count is estimated and the main characters are guessed from frequently capi
    flagged sentence with its surrounding passage, the scene confidence and reasons, and your explanation) to paste
    into Claude to find which pattern misfired. Nothing is sent anywhere; the report holds the passages you flag, so
    read it before sharing.
+   Third person is not always omniscient: a tag naming one POV character ("POV Steve Harrington", "Eddie Munson POV") makes
+   a third-person work that character's throughout, "Third Person Limited" (or close/deep third) turns on the section
+   rules below even without an "alternating" tag, and "Omniscient" turns point of view off.
    In a work tagged as alternating POV, each dated or timed section heading ("June 2011– Las Vegas", "Three weeks later–
    Detroit") starts a new stretch told from the first of the pair named in its narration (not in a quoted line, a chat line or
    a speech tag), and the camera also switches inside a section when the narration moves to the other one and the next few
@@ -274,10 +277,12 @@ Your API key stays in your browser and is sent only to `api.anthropic.com`.
 ## Vibe display: two ratings or one
 
 **Text messages.** Chat-style lines ("Shane: Why?", often under a timestamp, with a phone cue or a long exchange nearby) and
-narrated texting ("Cas texted him", "his phone buzzed", "a message from Dean") are found and shown on a Text messages card:
-who texted whom, how many, and how many were sexual. A contact name ("Lily", "Unknown Number") is matched to the character on the
-other end. Chat lines are rewritten as dialogue from the sender before analysis, so a texted "I want to fuck you" counts like a
-spoken one. "Texting" and "Sexting" tags are checked against the text.
+narrated texting ("Cas texted him", "his phone buzzed") are recognized so the lines can be attributed: a contact name ("Lily",
+"Unknown Number") is matched to the character on the other end, and each chat line is rewritten as dialogue from the sender
+before analysis, so a texted "I want to fuck you" counts like a spoken one. There is no separate card; "Texting" and "Sexting"
+tags are checked against the text in the tags-vs-text section.
+Arrow-style texts are read too: a line starting with ">" is sent by the viewpoint character (the narrator, or whoever was named
+just before) and a line ending in "<" (or starting with "<") is received from the other one of the pair.
 
 **Omegaverse.** In a work tagged alpha/beta/omega (or one that uses the words all through the text), nonsexual gestures count
 toward the everyday dynamic: baring the neck or scent gland, lowering the eyes, nesting and submitting to an alpha read as

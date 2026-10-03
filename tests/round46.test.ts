@@ -211,3 +211,33 @@ describe("POV in an alternating work with dated sections", () => {
     expect(wishes(text)).toEqual(["Ilya"]);
   });
 });
+
+describe("alternating POV in first person", () => {
+  it("the section opener rule is not used: the first name in a first-person section is who the narrator talks to", () => {
+    const m: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Teen Wolf"], relationships: ["Derek Hale/Stiles Stilinski"], characters: ["Derek Hale", "Stiles Stilinski"], freeforms: ["POV First Person", "POV Alternating"] };
+    const text = `Derek and Stiles lay in bed, kissing. Derek kissed Stiles. Stiles kissed Derek back.\n\nJune 2011– Las Vegas\n\nStiles’ face went serious and I felt my stomach flip. Stiles smiled at me. I wanted to be fucked.`;
+    const r = analyzeWithPatterns(text, m, { quiet: true });
+    expect(r.pairings[0].anal.desires.some((d) => d.who.startsWith("Stiles") && d.role === "bottom" && d.wants)).toBe(false);
+  });
+});
+
+describe("third person is not always omniscient", () => {
+  const base: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Stranger Things (TV 2016)"], relationships: ["Steve Harrington/Eddie Munson"], characters: ["Steve Harrington", "Eddie Munson"] };
+  const intro = (`Steve and Eddie were on the couch, kissing. Steve kissed Eddie. Eddie kissed Steve back, moaning. `).repeat(2);
+  const body = "Eddie smiled at him across the room. He wanted to be fucked.";
+  const who = (tags: string[], text: string) => analyzeWithPatterns(text, { ...base, freeforms: tags }, { quiet: true }).pairings[0].anal.desires.filter((d) => d.kind === "wanted" && d.wants && d.role === "bottom").map((d) => d.who.split(" ")[0]);
+  it("a tag naming one POV character makes a third-person work that character’s throughout", () => {
+    expect(who(["POV Steve Harrington"], `${intro}\n\n${body}`)).toEqual(["Steve"]);
+    expect(who(["Eddie Munson POV"], `${intro}\n\nSteve smiled at him across the room. He wanted to be fucked.`)).toEqual(["Eddie"]);
+  });
+  it("two POV-character tags mean the camera moves, so a sole default is not applied", () => {
+    expect(who(["POV Steve Harrington", "POV Eddie Munson"], `${intro}\n\n${body}`)).not.toEqual(["Steve"]);
+  });
+  it("‘Third Person Limited’ lets dated sections open on their character without an ‘alternating’ tag", () => {
+    const sec = (head: string, a: string, b: string) => `${head}\n\n${a} lost the bet. ${a} felt sick about it. ${a} wondered why it mattered. ${a} noticed the clock. ${a} hoped nobody saw. ${b} smiled at him across the room. He wanted to be fucked.`;
+    expect(who(["Third Person Limited"], `${intro}\n\n${sec("June 2011– Las Vegas", "Eddie", "Steve")}\n\n${sec("September 2012– Montreal", "Steve", "Eddie")}`)).toEqual(["Eddie", "Steve"]);
+  });
+  it("an omniscient tag turns point of view off", () => {
+    expect(who(["Omniscient Narrator", "POV Steve Harrington"], `${intro}\n\n${body}`)).not.toEqual(["Steve"]);
+  });
+});

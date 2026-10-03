@@ -59,4 +59,44 @@ describe("text messages", () => {
     expect(run(["Shane’s phone buzzed.", "Ilya: fuck off", "Shane: holy fuck", "Ilya: ok"].join("\n\n")).texting!.sexual).toBe(0);
     expect(run(["Shane’s phone buzzed.", "Ilya: let me fuck you tonight", "Shane: ok"].join("\n\n")).texting!.sexual).toBe(1);
   });
+  it("arrow-style texts: > comes in from the other person, < is the viewpoint character’s reply", () => {
+    const t = run(["Shane’s phone buzzed on the couch.", "Shane stared at it and typed back.", "> Jesus, man.", "would you let me fuck you? <", "> Why?", "i want to fuck you <"].join("\n\n")).texting!;
+    expect(t.chat).toBe(4);
+    expect(t.pairs.find((p) => p.from === "Shane Hollander")?.count).toBe(2);
+    expect(t.pairs.find((p) => p.from === "Ilya Rozanov")?.count).toBe(2);
+  });
+  it("an arrow-style incoming wish is read as dialogue from the other person", () => {
+    const p = run(["Shane’s phone buzzed on the couch.", "> i want to fuck you", "Why? <"].join("\n\n")).pairings[0];
+    expect(p.anal.desires.some((d) => d.who.startsWith("Ilya") && d.role === "top")).toBe(true);
+  });
+  it("quoted email-style > lines and <3 are not texts", () => {
+    expect(run("> quoted reply from an old email\n\nShane laughed. Hello <3 he said.").texting!.occurs).toBe(false);
+  });
+  it("arrow lines written on consecutive lines (no blank lines between) still count", () => {
+    const t = run("Shane’s phone buzzed on the couch.\n> Why?\ni want to fuck you <\n> Really?\nreally <").texting!;
+    expect(t.chat).toBe(4);
+  });
+});
+
+describe("limited third with scene breaks and arrow threads", () => {
+  const D: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Rugby RPF"], relationships: ["Dunk Pennytree/Aerion Vance"], characters: ["Dunk Pennytree", "Aerion Vance"], freeforms: [] };
+  const intro = "Dunk and Aerion were at the clubhouse, talking. Dunk laughed. Aerion smiled back. ".repeat(2);
+  const scene = (who: string, other: string) =>
+    ["—•—", `${who} woke early and stared at the ceiling. ${who} felt restless. ${who} wondered what ${other} was doing.`, `${who} noticed the light on the wall. ${who} hoped the day would be quiet. ${who} knew it wouldn’t be.`, `${who} watched the street for a while. ${who} thought about training.`, `${other} smiled at him across the room. He wanted to be fucked.`].join("\n\n");
+  const bottoms = (text: string) => analyzeWithPatterns(text, D, { quiet: true }).pairings[0].anal.desires.filter((d) => d.kind === "wanted" && d.wants && d.role === "bottom").map((d) => d.who.split(" ")[0]);
+  it("scenes that open on and report one character’s experience are read as limited third, with no tag", () => {
+    const text = [intro, scene("Dunk", "Aerion"), scene("Aerion", "Dunk"), scene("Dunk", "Aerion"), scene("Aerion", "Dunk"), scene("Dunk", "Aerion")].join("\n\n");
+    expect(bottoms(text)).toEqual(["Dunk", "Aerion", "Dunk", "Aerion", "Dunk"]);
+  });
+  it("a contact name above an arrow thread is not a POV heading, and > comes from that contact", () => {
+    const text = `${intro}\n\nDunk lay on his bed. Dunk read the message and felt his stomach drop. Dunk wondered what to say.\n\nAerion Vance\n> i want to fuck you\nWhy? <\n> because i do`;
+    const r = analyzeWithPatterns(text, D, { quiet: true });
+    expect(r.texting!.pairs.find((p) => p.from === "Aerion Vance")?.count).toBe(2);
+    expect(r.texting!.pairs.find((p) => p.from === "Dunk Pennytree")?.count).toBe(1);
+    expect(r.pairings[0].anal.desires.some((d) => d.who.startsWith("Aerion") && d.role === "top")).toBe(true);
+  });
+  it("a thread with someone outside the pair is not theirs", () => {
+    const text = `${intro}\n\nDunk lay on his bed, then opened his messages and sent a plea to Roland, who answered within seconds.\n\nlet’s go out <\n> anything for you`;
+    expect(analyzeWithPatterns(text, D, { quiet: true }).texting!.pairs.length).toBe(0);
+  });
 });

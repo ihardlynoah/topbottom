@@ -12,7 +12,7 @@ import { ANAL_CTX, type Cat, VULVA_CTX, type CompiledPattern, DIALOGUE, type Dia
 import { EPITHET, learnEpithets } from "./epithets";
 import { readTags } from "./tags";
 import { checkTags } from "./tagcheck";
-import { type TextingMap, detectTexts, looksLikeChat, summarizeTexts } from "./texting";
+import { type TextingMap, detectTexts, looksLikeChat, looksLikeMessage, summarizeTexts } from "./texting";
 import { detectPov, POV_SENTENCE } from "./pov";
 import { ORAL_KINDS, oralKindOf } from "../roles";
 import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
@@ -44,12 +44,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const analysisText = clitIsCock
     ? analysisText0.replace(/\b(his|their|[A-Z][\w-]*['’]s)(\s+(?:[a-z-]+\s+){0,2}?)clit(?:ty|oris)?\b/g, "$1$2cock")
     : analysisText0;
-  let paras = splitParagraphs(analysisText);
+  // Arrow-style texts ("> hi" sent, "Hello <" received) are one line each and carry no end punctuation: keep each on its own paragraph.
+  let paras = splitParagraphs(analysisText.replace(/^([ \t]*>[ \t]*\S.*|.*\S[ \t]*<[ \t]*)$/gm, "\n$1\n"));
   // Text messages shown as chat lines ("Shane: Why?") become dialogue with a speaker tag, so the rest of the engine reads them.
   let texting: TextingMap = { messages: [], rewritten: new Map() };
   if (looksLikeChat(paras)) {
     const pre = paras.map((p) => maskQuotes(p, false).masked);
-    texting = detectTexts(paras, buildCast(meta, pre.join("\n"), paras.join("\n")));
+    const preCast = buildCast(meta, pre.join("\n"), paras.join("\n"));
+    // Whose phone it is comes from the point of view at that spot; a contact name above a thread isn't a POV heading.
+    const povFirst = detectPov(paras.map((p, i) => (p.trim().length <= 28 && !/[.!?:,;]$/.test(p.trim()) && !looksLikeMessage(p) && looksLikeMessage(paras[i + 1] ?? "") ? "" : p)), (p) => CHAPTER_RE.test(p), preCast, meta.freeforms);
+    texting = detectTexts(paras, preCast, (i) => povFirst.at[i]);
     if (texting.rewritten.size) paras = paras.map((p, i) => texting.rewritten.get(i) ?? p);
   }
   const doubleQuotes = (analysisText.match(/[“"]/g) ?? []).length;
@@ -180,7 +184,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
   const bodyCtxCache = new Map<number, boolean>();
   // Two passes when epithets are in play: the first learns which character "the blond" usually is.
-  const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast, /\bpov\b[^|]*\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b|\b(?:alternating|switching|multiple|dual|two|both|rotating|shifting|changing)\b[^|]*\bpovs?\b|\b(?:two|multiple|dual) povs?\b/i.test(meta.freeforms.join(" | ")));
+  const pov = detectPov(paras, (p) => CHAPTER_RE.test(p), cast, meta.freeforms);
   // An omegaverse work: alpha/beta/omega in the tags, or the words all through the text. Only there do bared throats,
   // scenting and the alpha voice mean dominance and submission.
   const isAbo = (() => {
@@ -211,7 +215,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       chapter = para.length > 60 ? para.slice(0, 60) + "…" : para;
     }
     chapters[pi] = chapter;
-    ctx.povNow = pov.at[pi];
+    ctx.povNow = cast.narrator ? undefined : pov.at[pi]; // in first person "he" is never the narrator
     // Alternating first person: a chapter headed with the narrator's name says whose "I" follows.
     if (cast.narrator && pov.source === "headings" && pov.at[pi]) ctx.narratorNow = pov.at[pi];
     // Alternating first person: a short heading that is just a character's name (and a date) says whose "I" follows.
