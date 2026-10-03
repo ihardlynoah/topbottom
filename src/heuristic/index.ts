@@ -264,7 +264,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // A dream can run on into the next two paragraphs ("Louis's tongue feels so good…") until someone wakes.
     const WAKE = /\b(?:wak(?:e|es|ing)\s+up|woke|awake|jolt(?:s|ed)?\s+awake|snap(?:s|ped)?\s+out\s+of)\b/i;
-    const fantasyPara = FANTASY_PARA.test(mp.slice(0, 160)) || (dreamRun > 0 && !WAKE.test(mp.slice(0, 160)) && !SCENE_BREAK.test(para));
+    // "All the times he imagined this, and the real thing is so much more" is the reverse of a fantasy.
+    const fantasyPara = (FANTASY_PARA.test(mp.slice(0, 160)) && !/\b(?:the real (?:thing|deal)|for real|in real life|really happening|(?:this|it|that) is real)\b/i.test(mp.slice(0, 260))) || (dreamRun > 0 && !WAKE.test(mp.slice(0, 160)) && !SCENE_BREAK.test(para));
     if (WAKE.test(mp) || SCENE_BREAK.test(para)) dreamRun = 0;
     else if (/(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|daydream\w*|fantasi[sz](?:ed|es|ing))\b/i.test(mp)) dreamRun = 2;
     else if (dreamRun) dreamRun--;
@@ -909,6 +910,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "work his tongue over his lover" in the middle of a blowjob paragraph is the blowjob, not rimming.
     if (act === "rimming" && pat.id !== "tongue-probing" && !/\b(?:ass|arse|hole|rim|crack|cheeks|entrance|pucker)\b/i.test(sent) && /\b(?:sucking|gagg\w*|throat|cock|dick|prick|blowjob)\b/i.test(para)) return;
+    // "when Anakin rides him so hard, in sixty years": a far-off future is no scene.
+    if (cat === "anal" && /\bin (?:\w+ )?(?:years|decades|centuries|months)\b[^.!?]{0,40}$/i.test(sent.slice(Math.max(0, m.index! - 80), m.index!))) return;
+    // "his tongue twists inside him … Eddie sinks into him": the same paragraph's tongue is the act, not a second, anal one.
+    if (cat === "anal" && /\btongue\b/i.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`) && !/\b(?:cock|dick|prick|knot|fingers?|length|shaft|toy|dildo|vibrator|plug|strap|head|tip)\b/i.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`)) return;
     // "Dean pushed the dildo into his ass" with no one else in the sentence: his own ass, so he is bottoming, not topping.
     if (cat === "anal" && !pat.signal && /\b(?:dildo|vibrator|vibe|butt\s*plug|plug|beads|toy)\b/i.test(matchText) && /^(?:his|her|their)$/i.test(bTok ?? "") && !new RegExp(`\\b(?:${cast.chars.filter((c) => c !== top).flatMap((c) => c.aliases).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") || "$^"})\\b`).test(sent)) {
       desires.push({ via: pat.id, cat: "anal", act: "using a toy on himself", who: top, partner: bottom, role: "bottom", wants: true, kind: "solo", weight: 0.5, para: pi, sentence: original });

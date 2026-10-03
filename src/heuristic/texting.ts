@@ -22,6 +22,8 @@ export interface TextingMap {
 }
 
 const CHAT_LINE = /^(?:\[[^\]]{1,30}\]\s*)?([A-Z][\w.'’-]*(?:\s+[A-Z][\w.'’-]*){0,2})\s*[:：]\s+(\S.*)$/;
+/** "[Name] message", the bracketed-sender log format (the bracket holds a name, not a time or a media tag). */
+const BRACKET_LINE = /^\(?\[([A-Z][\w.'’-]*(?:\s+[A-Z][\w.'’-]*){0,2})\]\s*(\S.*)$/;
 const TIMESTAMP = /^\W*(?:\[?\s*)?(?:\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4}[ ,T]*)?\d{1,2}:\d{2}(?::\d{2})?\s*(?:[ap]\.?m\.?)?\W*$|^\W*\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4}\W*$/i;
 const NOT_LABELS = new Set("Note Notes Warning Warnings Chapter Summary Author Authors Title Rating Tags Tag Fandom Relationship Category Characters Edit Update Disclaimer Playlist Music Song Lyrics Part Day Time Scene Location Setting Re Ps PS Translator Beta Original Part".split(" "));
 const PHONE_CUE = /\b(?:phone|text|texts|texted|texting|message|messages|messaged|buzz\w*|vibrat\w*|chim\w*|ping\w*|screen|typed|typing|reply|replied|sent|sext\w*|dm|dms|group chat|imessage|whatsapp|notification)\b/i;
@@ -33,11 +35,15 @@ export function detectTexts(paras: string[], cast: Cast, ownerAt?: (para: number
   if (!cast.chars.length) return { messages, rewritten };
 
   // ── chat runs: consecutive chat lines (narration or a timestamp may sit between them) ──
-  type Line = { para: number; label: string; text: string };
+  type Line = { para: number; label: string; text: string; bracket?: boolean };
   const lines: Line[] = [];
   paras.forEach((p, i) => {
     const m = p.trim().length < 400 ? CHAT_LINE.exec(p.trim()) : null;
     if (m && !NOT_LABELS.has(m[1].split(" ")[0]) && !/^["“”]/.test(m[2])) lines.push({ para: i, label: m[1], text: m[2] });
+    else if (p.trim().length < 400) {
+      const b = BRACKET_LINE.exec(p.trim());
+      if (b && !NOT_LABELS.has(b[1].split(" ")[0])) lines.push({ para: i, label: b[1], text: b[2], bracket: true });
+    }
   });
   const runs: Line[][] = [];
   for (const l of lines) {
@@ -61,7 +67,7 @@ export function detectTexts(paras: string[], cast: Cast, ownerAt?: (para: number
     const partnerOf = (c: Character) => cast.pairings.find((pr) => pr.includes(c))?.find((x) => x !== c);
     run.forEach((l, k) => {
       let sender = aliasChar(l.label);
-      if (!sender) {
+      if (!sender && !l.bracket) {
         const nb = [...run.slice(0, k).reverse(), ...run.slice(k + 1)].find((o) => o.label !== l.label && aliasChar(o.label));
         const nbChar = nb && aliasChar(nb.label);
         sender = nbChar && partnerOf(nbChar);
@@ -138,17 +144,20 @@ export function detectTexts(paras: string[], cast: Cast, ownerAt?: (para: number
 
   // ── narration: "he texted", "his phone buzzed", "a text from X" ──
   const NAMES = cast.aliasPattern || "(?!)";
-  const sentRe = new RegExp(`\\b(${NAMES})\\s+(?:\\w+ly\\s+)?(?:texted|sexted|messaged|dm['’]?ed|wrote back|typed (?:out )?(?:a|his|her|their)\\s+(?:reply|response|message|text)|sent\\s+(?:\\w+\\s+){0,3}?(?:a\\s+)?(?:text|message|texts|messages|selfie|pic|photo|picture|emoji|sext)\\b)(?:\\s+(?:to\\s+)?(${NAMES}|him|her|them))?`, "g");
+  const sentRe = new RegExp(`\\b(${NAMES}|he|she|they)\\s+(?:\\w+ly\\s+)?(?:texted|texts|sexted|sexts|messaged|messages|dm['’]?ed|dms|wrote back|writes back|typed (?:out )?(?:a|his|her|their)\\s+(?:reply|response|message|text)|types (?:out )?(?:a|his|her|their)\\s+(?:reply|response|message|text)|sent\\s+(?:\\w+\\s+){0,3}?(?:a\\s+)?(?:text|message|texts|messages|selfie|pic|photo|picture|emoji|sext)\\b|sends\\s+(?:\\w+\\s+){0,3}?(?:a\\s+)?(?:text|message|texts|messages|selfie|pic|photo|picture|emoji|sext)\\b)(?:\\s+(?:to\\s+)?(${NAMES}|him|her|them))?`, "g");
   const fromRe = new RegExp(`\\b(?:a\\s+)?(?:text|message|reply|texts|messages)\\s+from\\s+(${NAMES})\\b`, "g");
-  const buzzRe = /\b(?:his|her|their)\s+phone\s+(?:buzzed|vibrated|chimed|pinged|lit up|beeped|dinged)\b/;
+  const buzzRe = /\b(?:his|her|their)\s+phone\s+(?:buzzed|buzzes|vibrated|vibrates|chimed|chimes|pinged|pings|lit up|lights up|beeped|beeps|dinged|dings)\b/i;
+  const itsRe = new RegExp(`\\b(?:text|message)\\b[^.!?]{0,30}[.!?]\\s+(?:It['’]s|It is)\\s+(${NAMES})\\b`);
   paras.forEach((p, i) => {
     if (rewritten.has(i)) return;
     for (const s of p.split(/(?<=[.!?”])\s+/)) {
       let m: RegExpExecArray | null;
       sentRe.lastIndex = 0;
       while ((m = sentRe.exec(s))) {
-        const sender = cast.byAlias.get(m[1]);
-        const receiver = (m[2] && cast.byAlias.get(m[2])) || (sender && cast.pairings.find((pr) => pr.includes(sender))?.find((c) => c !== sender));
+        const named = (m[2] && cast.byAlias.get(m[2])) || undefined;
+        // "he texts Eddie back": the pronoun is no one in particular, so the sender is whoever Eddie's partner is.
+        const sender = cast.byAlias.get(m[1]) ?? (named && cast.pairings.find((pr) => pr.includes(named))?.find((c) => c !== named));
+        const receiver = named || (sender && cast.pairings.find((pr) => pr.includes(sender))?.find((c) => c !== sender));
         messages.push({ para: i, sender, receiver, text: s.trim(), how: "narrated" });
       }
       fromRe.lastIndex = 0;
@@ -157,7 +166,11 @@ export function detectTexts(paras: string[], cast: Cast, ownerAt?: (para: number
         const receiver = sender && cast.pairings.find((pr) => pr.includes(sender))?.find((c) => c !== sender);
         messages.push({ para: i, sender, receiver, text: s.trim(), how: "narrated" });
       }
-      if (buzzRe.test(s) && !messages.some((x) => x.para === i)) messages.push({ para: i, text: s.trim(), how: "narrated" });
+      if (buzzRe.test(s) && !messages.some((x) => x.para === i)) {
+        const from = buzzRe.test(p) ? cast.byAlias.get(itsRe.exec(p)?.[1] ?? "") : undefined;
+        const receiver = from && cast.pairings.find((pr) => pr.includes(from))?.find((c) => c !== from);
+        messages.push({ para: i, sender: from, receiver, text: s.trim(), how: "narrated" });
+      }
     }
   });
   return { messages, rewritten };
@@ -167,9 +180,9 @@ export function detectTexts(paras: string[], cast: Cast, ownerAt?: (para: number
 export function looksLikeChat(paras: string[]): boolean {
   if (paras.filter((p) => /^\s*>\s*\S/.test(p) && p.length < 300).length >= 1 && paras.some((p) => /^\s*(?:<\s*[^\s3]|\S.*<\s*$)/.test(p))) return true;
   let n = 0;
-  for (const p of paras) if (p.length < 400 && CHAT_LINE.test(p.trim())) n++;
+  for (const p of paras) if (p.length < 400 && (CHAT_LINE.test(p.trim()) || BRACKET_LINE.test(p.trim()))) n++;
   if (n >= 3) return true;
-  return n >= 2 && paras.some((p) => TIMESTAMP.test(p.trim()) || (PHONE_CUE.test(p) && !CHAT_LINE.test(p.trim())));
+  return n >= 2 && paras.some((p) => TIMESTAMP.test(p.trim()) || (PHONE_CUE.test(p) && !CHAT_LINE.test(p.trim()) && !BRACKET_LINE.test(p.trim())));
 }
 
 const STRONG_SEXUAL = /\b(?:cock|dick|horny|jerk\w*|cum|cumming|coming for|nipples?|touch\w* (?:myself|yourself)|stroking|sucking|suck you|suck me|fuck (?:me|you (?:so|hard|until|senseless))|fucking (?:me|you)|let me (?:fuck|suck|ride|touch|taste|blow)|(?:want|wanna|going) to (?:fuck|ride|suck)|fuck(?:ed)? (?:me|you) (?:so|until|hard))\b/i;
@@ -203,5 +216,5 @@ export function summarizeTexts(messages: TextMessage[], where: (pi: number) => s
 /** One line of a text thread: "> sent", "received <", "Name: message", "[photo]", "Typing…". */
 export function looksLikeMessage(p: string): boolean {
   const t = p.trim();
-  return /^>\s*\S/.test(t) || /\S\s*<$/.test(t) || (t.length < 400 && CHAT_LINE.test(t)) || /^\[(?:photo|image|video|gif|voice message|sticker)\]$/i.test(t);
+  return /^>\s*\S/.test(t) || /\S\s*<$/.test(t) || (t.length < 400 && (CHAT_LINE.test(t) || BRACKET_LINE.test(t))) || /^\[(?:photo|image|video|gif|voice message|sticker)\]$/i.test(t);
 }

@@ -1166,7 +1166,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.7,
     needsCtx: true,
-    src: `\\b{T:poss}\\s+tongue\\s+(?:\\w+\\s+){0,2}?(?:in|into|inside|deep in|deep inside|past)\\s+{B}\\b`,
+    src: `\\b{T:poss}\\s+tongue\\s+(?:\\w+,?\\s+){0,4}?(?:in|into|inside|deep in|deep inside|past)\\s+{B}\\b`,
   },
   {
     id: "face-between-cheeks",
@@ -1275,7 +1275,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "t",
     weight: 0.7,
     needsCtx: true,
-    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|thrust|eas|sheath|guid|rock|snap|fuck|press)\\w*\\s+(?:${SELF}\\s+)?(?:(?:back|forward|slowly|carefully|deep|all the way|right|finally|gently)\\s+)*(?:in|inside|home)(?![\\w-])(?!\\s*(?:to|the|a|an|his|her|their|my|your|front|back|line|time|place|close|closer|between|with|for|on|at|of|and then the|next|beside|quietly|silently|unnoticed|behind|alongside|among|near|opposite|across|beneath|under|over|after|before|through|from|hesitantly|nervously|awkwardly)\\b)(?!\\s+[\\w-]+['’]s\\b)`,
+    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|sink|sank|thrust|eas|sheath|guid|rock|snap|fuck|press)\\w*\\s+(?:${SELF}\\s+)?(?:(?:back|forward|slowly|carefully|deep|all the way|right|finally|gently)\\s+)*(?:in|inside|home)(?![\\w-])(?!\\s*(?:to|the|a|an|his|her|their|my|your|front|back|line|time|place|close|closer|between|with|for|on|at|of|and then the|next|beside|quietly|silently|unnoticed|behind|alongside|among|near|opposite|across|beneath|under|over|after|before|through|from|hesitantly|nervously|awkwardly|response|return|reply|answer|anger|fear|surprise|kind|turn|retaliation|defen[cs]e|reaction)\\b)(?!\\s+[\\w-]+['’]s\\b)`,
   },
   {
     // "Cas was scorching and slick and snug around Dean's cock"

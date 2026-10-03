@@ -115,6 +115,7 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
   // Untagged limited third: if the sections open on the character whose experience they then report, and both of the pair
   // take turns, treat the work as alternating limited third even without a tag.
   let autoLimited = false;
+  let autoSole: Character | undefined;
   if (!alternating && !cast.narrator && !omniscient && pairChars.size >= 2) {
     const marks: number[] = [];
     paras.forEach((p, i) => { if (isHead(p) || isSep(p)) marks.push(i); });
@@ -133,6 +134,13 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
     });
     const both = [...pairChars].filter((c) => (led.get(c) ?? 0) >= 2).length >= 2;
     autoLimited = clear >= 4 && agree / clear >= 0.75 && both;
+    // Untagged close third on one character: every section that reports anyone's experience reports the same one's, and the
+    // other of the pair never leads one. That is that character's point of view throughout.
+    const ranked = [...pairChars].sort((a, b) => (led.get(b) ?? 0) - (led.get(a) ?? 0));
+    if (!autoLimited && clear >= 4 && ranked.length >= 2 && (led.get(ranked[0]) ?? 0) === clear && !(led.get(ranked[1]) ?? 0)) {
+      const all = paras.slice(0);
+      if (experience(ranked[1], all) * 4 <= experience(ranked[0], all)) autoSole = ranked[0];
+    }
   }
   const limited = alternating || autoLimited;
   paras.forEach((p, i) => { if (isHead(p) || (limited && isSep(p))) starts.push(i); });
@@ -154,7 +162,7 @@ export function detectPov(paras: string[], isChapterHead: (p: string) => boolean
     // named in its narration (not in a quoted line, a chat line or a speech tag).
     if (!pov && limited && from < paras.length && (isChapterHead(head) || SECTION.test(head.trim()) || isSep(head))) pov = opener(from, to);
     // 1c. A tag naming one POV character in a third-person work ("POV Steve Harrington") makes it that character's throughout.
-    if (!pov && soleTagged) pov = soleTagged;
+    if (!pov && (soleTagged ?? autoSole)) pov = soleTagged ?? autoSole;
     // 2. Name-only lines inside the chapter switch the POV from there on.
     let current = pov;
     let sawMarker = !!pov;
