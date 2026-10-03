@@ -49,3 +49,19 @@ describe("report carries the vibe factors the reader ticked", () => {
     expect(text).toContain("Rating leans too far toward bottom");
   });
 });
+
+import { FLAG_REASONS, REASONS_FOR } from "../src/report";
+describe("error-report checkbox options", () => {
+  it("every option offered for scenes, hints, ratings and single factors has a label", () => {
+    const keys = new Set(FLAG_REASONS.map((r) => r.key as string));
+    for (const [kind, list] of Object.entries(REASONS_FOR)) for (const k of list) expect(keys.has(k), `${kind}:${k}`).toBe(true);
+  });
+  it("factors can be reported for a wrong speaker, pronoun, person, tier, weight, duplicates and more", () => {
+    for (const k of ["wrong_speaker", "wrong_pronoun", "wrong_person", "swapped", "not_sexual_context", "figurative", "hypothetical", "negated", "duplicate", "wrong_tier", "too_strong", "too_weak"]) expect(REASONS_FOR.factor).toContain(k);
+  });
+  it("scenes and hints offer the new speaker / pronoun / negation / duplicate options", () => {
+    expect(REASONS_FOR.scene).toEqual(expect.arrayContaining(["wrong_pronoun", "negated", "duplicate", "figurative"]));
+    expect(REASONS_FOR.hint).toEqual(expect.arrayContaining(["wrong_speaker", "wrong_pronoun", "not_sexual_context", "negated", "duplicate"]));
+  });
+  it("labels are unique", () => expect(new Set(FLAG_REASONS.map((r) => r.label)).size).toBe(FLAG_REASONS.length));
+});

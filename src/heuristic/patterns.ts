@@ -528,7 +528,7 @@ export const PATTERNS: PatternDef[] = [
     act: "fingering",
     subj: "t",
     weight: 1,
-    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|eas|press|work|crook|curl|sink|sank|thrust|add|scissor|twist|insert|wiggl|drove|guid|teas|circl|rub)\\w*\\s+(?:(?:a|one|two|three|four|another|the|{x's}|first|second|third|slick|lubed|wet|long|thick|blunt)\\s+){0,3}${FINGERS}\\s+(?:(?:back|deep(?:er)?|slowly|all the way|further|carefully|gently|in|up|down)\\s+)*(?:in(?:to|side)?|past|through|around|against|over|at)\\s+{B:ass}`,
+    src: `\\b{T}\\s+{aux}(?:push|slid|slide|slip|eas|press|work|crook|curl|sink|sank|thrust|add|scissor|twist|insert|wiggl|drove|guid|teas|circl|rub)\\w*\\s+(?:(?:a|one|two|three|four|another|the|{x's}|first|second|third|slick|lubed|wet|long|thick|blunt|slender|slim|thin|gloved|calloused|single|index|middle)\\s+){0,3}${FINGERS}\\s+(?:(?:back|deep(?:er)?|slowly|all the way|further|carefully|gently|in|up|down)\\s+)*(?:in(?:to|side)?(?:\\s+of)?|past|through|around|against|over|at)\\s+{B:ass}`,
   },
   {
     id: "fingers-inside",
@@ -1774,7 +1774,16 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.6,
     signal: { kind: "behavior", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:submit(?:ted|s)?|yield(?:ed|s)?|surrender(?:ed|s)?)\\b`,
+    src: `\\b{B}\\s+{aux}(?:submit(?:ted|s)?|yield(?:ed|s)?|surrender(?:ed|s)?)\\s+(?:(?:completely|utterly|fully|willingly|instantly|beautifully|totally|finally|easily)\\s+)*to\\s+{T}(?![\\w'’])`,
+  },
+  {
+    id: "sub-yield-self",
+    cat: "vibe",
+    act: "submitting",
+    subj: "b",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:submit(?:ted|s)?|yield(?:ed|s)?|surrender(?:ed|s)?)\\s+(?:${SELF}|completely|utterly|fully|totally|entirely)(?![\\w-])`,
   },
   {
     id: "sub-let-lead",
@@ -2179,10 +2188,10 @@ export const PATTERNS: PatternDef[] = [
     cat: "vibe",
     act: "climbing into someone's lap",
     subj: "b",
-    weight: 0.45,
+    weight: 0.3,
     needsCtx: true,
     signal: { kind: "position", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:climb|crawl|straddl|settl|sat|sit|sink|sank|slid|slip|scrambl)\\w*\\s+(?:\\w+\\s+){0,2}?(?:into|onto|on|in|across)\\s+{T:poss}\\s+(?:lap|thighs|hips)(?![\\w-])`,
+    src: `\\b{B}\\s+{aux}(?:climb|crawl|settl|sink|sank|slid|slip|scrambl)\\w*\\s+(?:\\w+\\s+){0,2}?(?:into|onto|in)\\s+{T:poss}\\s+lap(?![\\w-])`,
   },
   {
     id: "pos-pin-wrists",
@@ -2235,7 +2244,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.35,
     needsCtx: true,
     signal: { kind: "aftercare", actorRole: "bottom", actor: "b" },
-    src: `\\b{T}\\s+{aux}(?:gather|pull|draw|drew|tuck|cradl|hold|held|cuddl)\\w*\\s+{B}\\s+(?:\\w+\\s+){0,2}?(?:close|closer|to\\s+(?:his|her|their)\\s+chest|against\\s+(?:his|her|their)\\s+chest|into\\s+(?:his|her|their)\\s+arms)(?![\\w-])`,
+    src: `\\b{T}\\s+{aux}(?:gather|tuck|cradl|hold|held|cuddl)\\w*\\s+{B}\\s+(?:\\w+\\s+){0,2}?(?:close|to\\s+(?:his|her|their)\\s+chest|against\\s+(?:his|her|their)\\s+chest|into\\s+(?:his|her|their)\\s+arms)(?![\\w-])`,
   },
   {
     id: "aftercare-nestle",
@@ -2280,7 +2289,7 @@ export const PATTERNS: PatternDef[] = [
     subj: "b",
     weight: 0.45,
     signal: { kind: "position", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:\\w+\\s+){0,4}?(?:head|cheek|face|ear|temple|forehead)\\s+(?:\\w+\\s+)?(?:on|against|upon|to|over|onto|in|into)\\s+{T:poss}\\s+(?:\\w+\\s+)?chest(?![\\w-])`,
+    src: `\\b{B}\\s+{aux}(?:\\w+\\s+){0,2}?(?:rest|lay|laid|lain|put|press|nestl|burrow|bur(?:y|ied)|tuck|snuggl|cuddl|lean|settl|slump|pillow|dropp?|lower|slept|sleep|asleep|doz|nap)\\w*\\s+(?:\\w+\\s+){0,3}?(?:head|cheek|face|ear|temple|forehead)\\s+(?:\\w+\\s+)?(?:on|against|upon|to|over|onto|in|into)\\s+{T:poss}\\s+(?:\\w+\\s+)?chest(?![\\w-])`,
   },
   {
     id: "cuddle-head-on-chest-poss",
@@ -2403,8 +2412,8 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "oral", act: "blowjob", role: "top", kind: "said", weight: 0.8, re: /\byour mouth (?:feels|is|was|felt) (?:so )?(?:good|amazing|perfect|incredible|hot|fucking good)\b|\b(?:suck|swallow) (?:it|harder|deeper)\b/ },
   // anal — compliments as signals: an ass suggests the speaker tops, a cock that they bottom
   { cat: "anal", act: "checking out an ass", role: "top", kind: "ogling", re: /\b(?:nice|great|fantastic|gorgeous|perfect|amazing|fine|hot|sexy|incredible|unreal|cute|pretty|tight|fucking) (?:little )?(?:ass|arse|butt|bum)\b|\byour (?:ass|arse|butt) (?:is|looks)\b/ },
-  { cat: "anal", act: "checking out a cock", role: "bottom", kind: "ogling", re: /\b(?:nice|great|gorgeous|perfect|amazing|big|huge|thick|beautiful|pretty|fucking) (?:fucking )?(?:cock|dick)\b|\byour (?:cock|dick) (?:is|looks|feels)\b/ },
-  { cat: "oral", act: "checking out a cock", role: "bottom", kind: "ogling", re: /\b(?:nice|great|gorgeous|perfect|amazing|big|huge|thick|beautiful|pretty|fucking) (?:fucking )?(?:cock|dick)\b|\byour (?:cock|dick) (?:is|looks|feels)\b/ },
+  { cat: "anal", act: "checking out a cock", role: "bottom", kind: "ogling", re: /(?<!\b(?:this|my|that|his|want|wanted|inside)\s(?:\w+\s)?)\b(?:nice|great|gorgeous|perfect|amazing|big|huge|thick|beautiful|pretty|fucking) (?:fucking )?(?:cock|dick)\b(?!\s+(?:inside|in|up|into|deep|down|in\s+you))|\byour (?:cock|dick) (?:is|looks|feels)\b/ },
+  { cat: "oral", act: "checking out a cock", role: "bottom", kind: "ogling", re: /(?<!\b(?:this|my|that|his|want|wanted|inside)\s(?:\w+\s)?)\b(?:nice|great|gorgeous|perfect|amazing|big|huge|thick|beautiful|pretty|fucking) (?:fucking )?(?:cock|dick)\b(?!\s+(?:inside|in|up|into|deep|down|in\s+you))|\byour (?:cock|dick) (?:is|looks|feels)\b/ },
   // oral — speaker top (getting sucked, or eating ass)
   { cat: "oral", act: "blowjob", role: "top", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|now,?\s+|c'mon,?\s+|come on,?\s+|just\s+)(?:suck (?:me|my (?:cock|dick))|blow me|swallow me|choke on (?:it|me|my (?:cock|dick)))\b/ },
   { cat: "oral", act: "blowjob", role: "top", kind: "said", re: new RegExp(`\\b${WANT}\\s+(?:to\\s+)?(?:fuck|use)\\s+your\\s+(?:mouth|throat|face)\\b`) },
@@ -2418,7 +2427,8 @@ export const DIALOGUE: DialogueDef[] = [
   { cat: "oral", act: "blowjob", role: "bottom", kind: "said", re: /\b(?:come|cum) (?:in|down) my (?:mouth|throat)\b/ },
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /(?:^|[.!?,]\s*|please,?\s+|just\s+)(?:eat me out|rim me|lick me open|eat my (?:ass|arse)|tongue-?fuck me)\b/ },
   { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /\b(?:want|need|wanna)\s+(?:you\s+)?to\s+(?:eat me out|rim me|eat my (?:ass|arse))\b/ },
-  { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /\b(?:want|need)\s+your\s+(?:tongue|mouth)\s+(?:in|on)\s+(?:me|my (?:ass|arse|hole))\b/ },
+  { cat: "oral", act: "rimming", role: "bottom", kind: "said", re: /\b(?:want|need)\s+your\s+(?:tongue|mouth)\s+(?:in\s+me|(?:in|on)\s+my\s+(?:ass|arse|hole))\b/ },
+  { cat: "oral", act: "blowjob", role: "top", kind: "said", weight: 0.8, re: /\b(?:want|need)\s+your\s+(?:mouth|lips)\s+on\s+me\b/ },
   // ── vibe: stated preference ("I like being on top", "I never bottom") ──
   { cat: "anal", act: "saying they like to top", role: "top", kind: "stated", weight: 0.9, re: /\bi (?:really |just |always |do |absolutely )?(?:like|love|prefer|enjoy|need|crave) (?:being (?:the one )?(?:on top|in control|in charge|the top)(?! of)|topping\b|taking charge|(?:fucking|being inside) you\b|being the one (?:who )?(?:fucks|tops|in charge))/ },
   { cat: "anal", act: "saying they never bottom", role: "top", kind: "stated", weight: 0.9, re: /\bi (?:never|don'?t|do not|won'?t|will not|can'?t|cannot|refuse to) (?:ever |really |usually )?bottom\b|\bi(?:'m| am) not (?:a |much of a )?bottom\b/ },

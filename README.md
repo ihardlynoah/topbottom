@@ -136,7 +136,12 @@ word count is estimated and the main characters are guessed from frequently capi
    with the partner, a wish rather than an event, wrong people; for a vibe rating, leaning too far toward top or
    bottom, or the wrong confidence) and say why. Select part of a sentence first and it’s noted as the part you mean.
    Missed scenes (or any text you select on the page) and other comments can be added too, and each item has a
-   checkbox to leave it out of the report. “Copy report for Claude” produces a text report (work tags, what the analyzer concluded, each
+   checkbox to leave it out of the report.
+   Each individual factor under a vibe rating has its own “What's wrong with this?” form with options for a wrong
+   speaker, a pronoun pointing at the wrong person, credited to the wrong character, roles reversed, not a sexual cue,
+   an everyday action, a figure of speech, a wish rather than an event, negated, counted twice, wrong tier, and counts
+   for too much or too little. Scenes and hint lines offer the same kinds of options (wrong speaker, wrong pronoun,
+   negated, figurative, duplicate…). The problems you name for a factor are printed right under that factor in the report. “Copy report for Claude” produces a text report (work tags, what the analyzer concluded, each
    flagged sentence with its surrounding passage, the scene confidence and reasons, and your explanation) to paste
    into Claude to find which pattern misfired. Nothing is sent anywhere; the report holds the passages you flag, so
    read it before sharing.

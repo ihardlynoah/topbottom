@@ -167,7 +167,7 @@ const SCENE_BREAK = /^\s*(?:\*+|x{3,}|~+|-{3,}|—+|#+|o+0+o+|\* \* \*)\s*$/i;
 const FANTASY_PARA = /(?<!\b(?:not|never|no)\s|n['’]t\s)\b(?:(?<!\blike a (?:[\w'’]+ )?)dream(?:ed|t|s|ing)?(?![-‐ ]like\b| come true)|fantasi[sz](?:ed|ing|es)|fantasy|daydream\w*|imagin(?:ed|es|ing))\b/i;
 
 const SAY =
-  "said|says|say|asked|asks|begged|begs|whispered|whispers|murmured|murmurs|moaned|moans|groaned|groans|gasped|gasps|panted|pants|breathed|breathes|growled|growls|hissed|hisses|whined|whines|pleaded|pleads|demanded|demands|ordered|orders|told|tells|mumbled|mumbles|muttered|mutters|replied|replies|answered|answers|added|adds|choked out|managed|grunted|grunts|purred|purrs|rasped|rasps|sighed|sighs|laughed|laughs|snapped|snaps|teased|teases|urged|urges|insisted|insists|admitted|admits|confessed|confesses|sobbed|sobs|cried|cries|whimpered|whimpers|husked|drawled|offered|suggested|blurted|croaked|keened|ground out|bit out|gritted out|continued|promised|warned|commanded|instructed|repeated|agreed|protested|swore|cursed|chuckled|smirked|grinned|smiled|hummed|crooned|coaxed|praised|soothed|groused|whispered against|murmured against";
+  "said|says|say|asked|asks|begged|begs|whispered|whispers|murmured|murmurs|moaned|moans|groaned|groans|gasped|gasps|panted|pants|breathed|breathes|growled|growls|hissed|hisses|whined|whines|pleaded|pleads|demanded|demands|ordered|orders|told|tells|mumbled|mumbles|muttered|mutters|replied|replies|answered|answers|added|adds|choked out|managed|grunted|grunts|purred|purrs|rasped|rasps|sighed|sighs|laughed|laughs|snapped|snaps|teased|teases|urged|urges|insisted|insists|admitted|admits|confessed|confesses|sobbed|sobs|cried|cries|whimpered|whimpers|husked|drawled|offered|suggested|blurted|croaked|keened|ground out|bit out|gritted out|continued|promised|warned|commanded|instructed|repeated|agreed|protested|swore|cursed|chuckled|smirked|grinned|smiled|hummed|crooned|coaxed|praised|soothed|groused|whispered against|murmured against|chuckles|smirks|snorted|scoffed|huffed|grins|rumbled|rumbles|snarled|snarls|croons|continues|explains|explained|goes on|went on|offers|warns";
 
 // ───────────── character resolution ─────────────
 
@@ -512,6 +512,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const ctx = new Ctx(cast);
   ctx.epithets = learnEpithets(cast, meta.freeforms, narration);
 
+  /** Whether the last speaker was named by a dialogue tag (“…,” Eddie says) rather than guessed from who the narration is about. */
+  let attribExplicit = false;
   let acts: ActHit[] = [];
   let ambiguousHoles = 0;
   let defaultedAnal = 0;
@@ -675,14 +677,20 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const narrationSexy = SEX_CTX.test(near) || /\b(?:nipples?|pleasure|arous\w*|undress\w*|thighs?|lube|fingers? (?:in|inside)|crotch|bulge)\b/i.test(near);
     let paraSpeaker: Character | undefined;
     let lastQ: Quote | undefined;
+    let lastQPrev: Quote | undefined;
     for (const q of quotes) {
       // '"You can take it, princess," he tells him tightly, "You're made to take my cock."': one speaker.
-      const continues = lastQ && paraSpeaker && q.start - lastQ.end < 50 && !/[.!?]["”]?\s*$/.test(para.slice(lastQ.end, q.start).trim() || ".") ;
+      // A second quote soon after the first is the same speaker, unless the narration between names someone else
+      // ("“Please,” Steve whined a complaint, “Uh uh, be patient.”").
+      const gapText = lastQ ? mp.slice(lastQ.end, q.start) : "";
+      const gapWho = [...gapText.matchAll(nameRe)].map((m) => cast.byAlias.get(stripPoss(m[0]))).find((c) => !!c);
+      const continues = lastQ && paraSpeaker && q.start - lastQ.end < 50 && !/[.!?]["”]?\s*$/.test(para.slice(lastQ.end, q.start).trim() || ".") && !(gapWho && gapWho !== paraSpeaker);
+      lastQPrev = lastQ;
       lastQ = q;
-      const speaker = (continues ? paraSpeaker : undefined) ?? attributeSpeaker(para, mp, q) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
+      const speaker = (continues ? paraSpeaker : undefined) ?? attributeSpeaker(para, mp, q, paraSpeaker, lastQPrev) ?? paraSpeaker ?? (mp.trim().length < 6 && prevSpeaker ? ctx.partnerOf(prevSpeaker) : undefined);
       if (!speaker) continue;
       paraSpeaker = speaker;
-      scanDialogue(q.text, speaker, pi, { sexy: narrationSexy, oral: ORAL_NEAR_RE.test(near) && !ANAL_NEAR_RE.test(near), after: para.slice(q.end, q.end + 60), before: para.slice(Math.max(0, q.start - 60), q.start) });
+      scanDialogue(q.text, speaker, pi, { explicit: !!continues || attribExplicit, sexy: narrationSexy, oral: ORAL_NEAR_RE.test(near) && !ANAL_NEAR_RE.test(near), after: para.slice(q.end, q.end + 60), before: para.slice(Math.max(0, q.start - 60), q.start) });
     }
     if (paraSpeaker) prevSpeaker = paraSpeaker;
   }
@@ -701,6 +709,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const subj = cast.byAlias.get(beneathHim[1]);
       const other = subj && ctx.partnerOf(subj);
       if (other) return other;
+    }
+    // "He thought Dracula might break the door down and fuck him": after a thinking/seeing verb, the named subject of the
+    // embedded clause carries on as the left-out subject.
+    {
+      const emb = [...prefix.matchAll(new RegExp(`\\b(?:thought|knew|felt|imagined|worried|feared|wondered|hoped|believed|realized|realised|suspected|expected|figured|guessed|assumed|sensed|saw|heard|watched|noticed|said|swore|promised|wished|dreaded|pictured)\\s+(?:that\\s+)?(${NAMES})\\s+(?:might|would|could|will|may|should|must|was|were|had|has|is|are|did|can)\\b`, "gi"))].pop();
+      if (emb && !new RegExp(`\\b(?:${NAMES})\\b|\\b(?:he|she|they)\\b`, "i").test(prefix.slice(emb.index! + emb[0].length))) {
+        const c = cast.byAlias.get(emb[1]);
+        if (c) return c;
+      }
     }
     // "Dean arches underneath Cas' tongue as he swallows him down, humming around his length while his fingers slip inside
     // him": the "he" is the one whose tongue it is, for the rest of the sentence.
@@ -767,15 +784,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   }
 
   /** The speaker, unless the line speaks to that very person by name ("Your dick, Damianos."), which makes it the other one. */
-  function attributeSpeaker(para: string, mp: string, q: Quote): Character | undefined {
-    const who = attributeSpeakerFrom(para, mp, q);
+  function attributeSpeaker(para: string, mp: string, q: Quote, prevSpeaker?: Character, prevQ?: Quote): Character | undefined {
+    attribExplicit = false;
+    const who = attributeSpeakerFrom(para, mp, q, prevSpeaker, prevQ);
     if (!who) return who;
     const voc = new RegExp(`(?:^|[,.!?]\\s+|\\b(?:hey|oh|please|yes|no|god),?\\s+)(${NAMES})(?=\\s*[,.!?…]|\\s*$)|,\\s*(${NAMES})\\b`).exec(q.text);
     const addressed = voc ? cast.byAlias.get(voc[1] ?? voc[2]) : undefined;
     return addressed && addressed === who ? (ctx.partnerOf(addressed) ?? who) : who;
   }
 
-  function attributeSpeakerFrom(para: string, mp: string, q: Quote): Character | undefined {
+  function attributeSpeakerFrom(para: string, mp: string, q: Quote, prevSpeaker?: Character, prevQ?: Quote): Character | undefined {
     const after = para.slice(q.end, q.end + 80);
     const before = mp.slice(Math.max(0, q.start - 80), q.start);
     const resolve = (tok: string | undefined) => {
@@ -796,13 +814,28 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     };
     // '"…," he heard Cas' voice': the voice's owner said it.
     const heard = new RegExp(`^[,.!?—–\\s]*(?:[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+\\s+)?(?:heard|hears|recognized|recognised)\\s+((?:${NAMES}))(?:['’]s?)?\\s+(?:\\w+\\s+)?voice`).exec(after);
-    if (heard) return cast.byAlias.get(heard[1]);
+    if (heard) { attribExplicit = true; return cast.byAlias.get(heard[1]); }
     const a1 = new RegExp(`^[,.!?—–\\s]*((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})\\b`).exec(after);
-    if (a1) return resolve(a1[1]);
+    if (a1) {
+      attribExplicit = true;
+      let who = resolve(a1[1]);
+      // "“Good boy,” He says and Steve moans": the he of the tag isn't the person named later in the same sentence.
+      if (/^(?:he|she|they)$/i.test(a1[1])) {
+        const rest = after.slice(a1[0].length).split(/[.!?]/)[0];
+        const m2 = new RegExp(`\\b(${NAMES})\\b`).exec(rest);
+        const named = m2 ? cast.byAlias.get(stripPoss(m2[1])) : undefined;
+        if (named && who === named) who = ctx.partnerOf(named) ?? who;
+      }
+      return who;
+    }
     const a2 = new RegExp(`^[,.!?—–\\s]*(?:${SAY})\\s+((?:${NAMES})|he|she|they)\\b`).exec(after);
-    if (a2) return resolve(a2[1]);
-    const b1 = new RegExp(`((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})(?:\\s+[\\w’']+){0,4}?[,:]?\\s*["“‘]?\\s*$`).exec(before);
-    if (b1) return resolve(b1[1]);
+    if (a2) { attribExplicit = true; return resolve(a2[1]); }
+    const b1 = new RegExp(`((?:${NAMES})|[Hh]e|[Ss]he|[Tt]hey|I)\\s+(?:\\w+ly\\s+)?(?:${SAY})(?:\\s+[\\w’']+){0,4}?[,:.]?\\s*["“‘]?\\s*$`).exec(before);
+    // "“Eddie,” He moans raggedly. “Open your eyes.”": a tag sitting right after the previous quote belongs to that quote,
+    // so the new line is the other person's turn.
+    const tagOfPrev = !!b1 && (!before.slice(0, b1.index!).trim() || /\s{2,}$/.test(before.slice(0, b1.index!)) || /["”’]\s*$/.test(before.slice(0, b1.index!)));
+    if (b1 && !tagOfPrev) { attribExplicit = true; return resolve(b1[1]); }
+
     // Otherwise, whoever the narration in this paragraph is about.
     const narr = mp.replace(/["“”‘’\[\]]\s*/g, " ").trim();
     // "His friend listened, picking up the pace. '…'": the partner of the character whose point of view this is.
@@ -818,7 +851,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     return addressed ? ctx.partnerOf(addressed) : undefined;
   }
 
-  function scanDialogue(line: string, speaker: Character, pi: number, around: { sexy: boolean; oral?: boolean; after: string; before: string }) {
+  function scanDialogue(line: string, speaker: Character, pi: number, around: { explicit?: boolean; sexy: boolean; oral?: boolean; after: string; before: string }) {
     const lower = line.toLowerCase().replace(/’/g, "'");
     const seen = new Set<string>();
     // Generic "take it" / "you're so tight" talk is oral when the line itself mentions a mouth ("swallow me down") or the
@@ -832,6 +865,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // Suggestive lines ("take it", "you're so tight", "you're huge") only count when the narration around them
       // is sexual: "please take it" can be a gift, "too proud to take it" help.
       if (d.weight !== undefined && d.weight < 1 && (d.kind === "said" || d.kind === "petname" || d.kind === "position" || d.kind === "aftercare") && !around.sexy) continue;
+      // Pet names, care, check-ins and "I like to…" lines only count when the speaker was actually named, not guessed.
+      if ((d.kind === "petname" || d.kind === "aftercare" || d.kind === "position" || d.kind === "stated") && around.explicit === false) continue;
+      // “Please suck me off, Eddie… need your mouth on me” is about a cock, not an ass.
+      if (d.act === "rimming" && /\b(?:suck|blow)\s+(?:me|my)\b|\bmouth on me\b/.test(lower) && !/\b(?:ass|arse|hole)\b/.test(lower)) continue;
       if (d.cat === "anal" && IDIOM_ASS.test(lower)) continue;
       // "Fuck me, it's cold" / "Well, fuck me" / "fuck me sideways": an exclamation, not a request.
       if (/^fuck me$/.test(m[0]) && exasperated(lower, m.index!, around)) continue;
@@ -943,6 +980,18 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       }
       if (!subjChar) return;
     }
+    // "Dracula … sat next to Jack pulling him into his lap": a name right after a preposition is that preposition's object;
+    // the -ing verb that follows belongs to the sentence's subject.
+    if (!pat.elided && !subjChar) {
+      const st = pat.subj === "t" ? tTok : bTok;
+      const pre = sent.slice(0, m.index);
+      if (st && cast.byAlias.has(stripPoss(st)) && /\b(?:next to|beside|near|behind|against|toward|towards|beneath|under|around)\s+$/i.test(pre) && /^\S+\s+\w+ing\b/.test(m[0])) {
+        const subjectOfSentence = elidedSubject(pre.replace(/\s+(?:next to|beside|near|behind|against|toward|towards|beneath|under|around)\s+$/i, " "), sent.slice(m.index!));
+        if (subjectOfSentence && subjectOfSentence !== cast.byAlias.get(stripPoss(st))) subjChar = subjectOfSentence;
+      }
+    }
+    // "He wished to fuck the count would at least let him know": a name followed by a finite verb starts a new clause, so it isn't the object.
+    if (/^fuck/.test(pat.id) && /^\s+(?:would|could|should|might|will|can|had|was|were|did|does|is|are)\b/i.test(sent.slice(m.index! + m[0].length)) && !/^(?:him|her|them|me|you|it)$/i.test(bTok ?? "")) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
     const subjTok = pat.subj === "t" ? tTok : bTok;
     // "When Alex manages…, one of his digits slips lower": a possessive pronoun works the same way.
@@ -1052,6 +1101,16 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const lastNoun = [...recent.slice(-220).matchAll(/\b(cock|dick|prick|length|shaft|erection|member|knot|girth|horse|chair|bike|bicycle|saddle|couch|sofa|bed|stool|seat|camel|pony|mechanical bull|bull|swing|log|rock|bench|horses)\b/gi)].pop();
       if (lastNoun && !PENIS_CTX.test(lastNoun[1])) return;
     }
+    // Cuddling, position, aftercare and pet-name cues need a real subject: "dragging him up to sit in his lap" has "him" as the
+    // sitter, which the subject slot can't read, and "his head lolls onto his chest" is one person's own chest.
+    if (/^(?:cuddle-|pos-|aftercare-|petname-)/.test(pat.id)) {
+      const subjTk = pat.subj === "t" ? tTok : bTok;
+      if (/^(?:him|her|them)$/i.test(subjTk ?? "")) return;
+      if (pat.id.startsWith("cuddle-head-on-chest-poss") && !/['’]s?$/.test(bTok ?? "")) return;
+      if (pat.id.startsWith("cuddle-head-on-chest") && /^(?:he|she|they)$/i.test(bTok ?? "") && /^(?:his|her|their)$/i.test(tTok ?? "") && !/\b(?:[A-Z][a-z]+)\b[^.]*\b(?:head|face|cheek)\b/.test(matchText)) return;
+    }
+    // "He took the shoes and parted his legs": nobody else is in the sentence, so they're his own.
+    if (pat.id.startsWith("spread-their-legs") && (!tTok || /^(?:he|she|they)$/i.test(tTok)) && /^(?:his|her|their)$/i.test(bTok ?? "") && !/\b(?:him|her|them)\b/i.test(sent.slice(0, m.index)) && !new RegExp(`^\\s*(?:to|so)?\\s*(?:stand|settle|kneel|get)\\w*\\s+between`, "i").test(after)) return;
     // A manspread on a sofa is just sitting.
     if (/^spread-(?:their-)?legs/.test(pat.id) && /\b(?:sofa|couch|chair|armchair|seat|stool|bench|sprawl\w*|comfortabl\w*|slouch\w*|lounge\w*|recline\w*)\b/i.test(sent) && !ANAL_CTX.test(sent) && !PENIS_CTX.test(sent)) return;
     // An ass in an idiom ("your ass is grass", "kick your ass").

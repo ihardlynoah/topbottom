@@ -4,7 +4,7 @@ import { hasAo3Meta, romanticPairings } from "./ao3";
 import { MODELS, type ModelId, RefusalError, analyzeWork, estimateTokens, excerptExplicit } from "./analyze";
 import { type ExtractedWork, extractFile } from "./extract";
 import { runPatterns } from "./heuristic/run";
-import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport } from "./report";
+import { FLAG_REASONS, type FlagKind, type FlagReason, type FlaggedScene, type MissedScene, REASONS_FOR, buildReport, reasonLabel } from "./report";
 import { type ActKind, ROLE_WORDS } from "./roles";
 import type { ActResult, Analysis, Desire, Instance, RoleOdds, VaginalResult, VibeFactor, VibeRating } from "./types";
 
@@ -258,18 +258,26 @@ function refreshReport() {
   els.reportPreview.textContent = n || els.reportGeneral.value.trim() ? reportText() : "";
 }
 
-/** Vibe factors the reader ticked as worth showing Claude, by vibe id. */
-const pickedFactors = new Map<string, Map<number, string>>();
+/** Vibe factors the reader ticked as worth showing Claude, by vibe id and factor number, with any problems they named. */
+interface PickedFactor { line: string; reasons: FlagReason[]; note: string }
+const pickedFactors = new Map<string, Map<number, PickedFactor>>();
 const vibeSpec = new Map<string, VibeRating>();
 
 function factorLine(f: VibeFactor): string {
   return `${f.role} · tier ${f.tier} (${f.tierName}) · weight ${f.weight}${f.fromOther ? " · from the other person's side" : ""} · ${f.what}${f.where ? ` · ${f.where}` : ""}${f.source ? ` — “${f.source}”` : ""}`;
 }
 
-/** The extra lines a vibe item carries: what it rests on, plus any factors the reader ticked. */
+/** The extra lines a vibe item carries: what it rests on, plus any factors the reader ticked and what they said was wrong with each. */
 function vibeExtra(id: string, v: VibeRating): string[] {
   const picked = [...(pickedFactors.get(id)?.values() ?? [])];
-  return [`Evidence: ${v.basis.join("; ") || "none"}`, ...picked.map((l) => `Factor I'm pointing at: ${l}`)];
+  return [
+    `Evidence: ${v.basis.join("; ") || "none"}`,
+    ...picked.map((p) => {
+      const problems = p.reasons.length ? ` ⟶ What is wrong with this factor: ${p.reasons.map(reasonLabel).join("; ")}` : "";
+      const note = p.note.trim() ? ` ⟶ My explanation: ${p.note.trim()}` : "";
+      return `Factor I'm pointing at: ${p.line}${problems}${note}`;
+    }),
+  ];
 }
 
 /** The "Report a mistake" button on a scene, hint or vibe rating, and the little form it opens. */
@@ -636,10 +644,10 @@ function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLEl
     const vid = `${source}|${pairing}|vibe|${v.name}`;
     vibeSpec.set(vid, v);
     const vspec: FlagSpec = { id: vid, kind: "vibe", pairing, card: "vibe", top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: vibeExtra(vid, v), evidence: "" };
-    // Tick a factor to send it with the report; ticking one starts a report item for this rating.
-    const toggleFactor = (idx: number, f: VibeFactor, on: boolean) => {
-      const m = pickedFactors.get(vid) ?? new Map<number, string>();
-      if (on) m.set(idx, factorLine(f)); else m.delete(idx);
+    // Tick a factor to send it with the report, and say what's wrong with it; either starts a report item for this rating.
+    const setFactor = (idx: number, f: VibeFactor, on: boolean, reasons: FlagReason[] = [], note = "") => {
+      const m = pickedFactors.get(vid) ?? new Map<number, PickedFactor>();
+      if (on) m.set(idx, { line: factorLine(f), reasons, note }); else m.delete(idx);
       pickedFactors.set(vid, m);
       const prior = flagged.get(vid);
       if (prior) flagged.set(vid, { ...prior, extra: vibeExtra(vid, v) });
@@ -668,10 +676,51 @@ function renderVibe(vibe: VibeRating[], pairing: string, source: string): HTMLEl
           cb.type = "checkbox";
           cb.checked = !!pickedFactors.get(vid)?.has(idx);
           cb.title = "Include this in the error report";
-          cb.addEventListener("change", () => toggleFactor(idx, f, cb.checked));
           label.append(cb, " ", el("strong", undefined, f.role), el("span", "where", ` · ${f.what}${f.where ? ` · ${f.where}` : ""}${f.fromOther ? " · other person's side" : ""} · weight ${f.weight}`));
           fi.append(label);
           if (f.source) fi.append(el("div", "evidence", f.source));
+          // What's wrong with this one factor.
+          const prior = pickedFactors.get(vid)?.get(idx);
+          const btn = el("button", "linklike flag-btn", "What's wrong with this?");
+          btn.type = "button";
+          btn.addEventListener("mousedown", (e) => e.preventDefault());
+          const form = el("form", "flag-form");
+          form.hidden = true;
+          const ticks = new Map<FlagReason, HTMLInputElement>();
+          for (const key of REASONS_FOR.factor) {
+            const r = FLAG_REASONS.find((x) => x.key === key)!;
+            const lab = el("label", "flag-opt");
+            const box = el("input");
+            box.type = "checkbox";
+            box.checked = !!prior?.reasons.includes(key);
+            ticks.set(key, box);
+            lab.append(box, ` ${r.label}`);
+            form.append(lab);
+          }
+          const note = el("textarea");
+          note.rows = 2;
+          note.value = prior?.note ?? "";
+          note.placeholder = "Why? (e.g. Eddie said this line, not Steve)";
+          const save = el("button", undefined, "Add to report");
+          save.type = "submit";
+          const cancel = el("button", "linklike", "Cancel");
+          cancel.type = "button";
+          form.append(note, save, " ", cancel);
+          btn.addEventListener("click", () => { form.hidden = !form.hidden; });
+          cancel.addEventListener("click", () => { form.hidden = true; });
+          form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const reasons = [...ticks].filter(([, x]) => x.checked).map(([k]) => k);
+            cb.checked = true;
+            setFactor(idx, f, true, reasons, note.value);
+            form.hidden = true;
+          });
+          // Ticking or unticking the box keeps any problems already named.
+          cb.addEventListener("change", () => {
+            const cur = pickedFactors.get(vid)?.get(idx);
+            setFactor(idx, f, cb.checked, cur?.reasons ?? [], cur?.note ?? "");
+          });
+          fi.append(btn, form);
           fl.append(fi);
         }
         det.append(fl);
