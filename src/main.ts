@@ -170,7 +170,10 @@ async function handleFile(file: File) {
     return;
   }
   renderMeta(current, file.name);
+  // A new fic starts a new report: nothing marked wrong or right for the last one carries over.
   flagged.clear();
+  rightItems.clear();
+  rightPaint.clear();
   pickedFactors.clear();
   missedScenes.length = 0;
   shown = null;
