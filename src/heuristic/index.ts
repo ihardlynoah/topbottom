@@ -413,6 +413,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // "…as Dunk's hands kneaded his arse as he pressed his tongue…": the hands' owner carries on as "he".
     const handsOf = new RegExp(`(?:^|[,;]|\\b(?:as|while|when|and|but|then|yet|so))\\s+(${NAMES})['’]s?\\s+(?:[\\w-]+\\s+)?(?:hands?|fingers|mouth|lips|tongue|arms?|thumbs?|palms?)\\s+([^;—]*?)\\b(?:as|while|when)\\s*$`).exec(prefix);
     if (handsOf && !new RegExp(`\\b(?:${NAMES})\\b|\\b(?:he|she|they)\\b`, "i").test(handsOf[2])) return cast.byAlias.get(handsOf[1]);
+    // "Ethan close enough to touch, if only Hank could find the courage, buried deep inside him": the wish is Hank's, so the
+    // participle that picks the sentence back up is Hank.
+    {
+      const wish = new RegExp(`\\bif\\s+only\\s+(${NAMES})\\b[^.!?;]*?(?:,\\s*)?$`, "i").exec(prefix);
+      if (wish && /^[\s,]*\w+(?:ed|ing)\b/.test(suffix)) { const c = cast.byAlias.get(wish[1]); if (c) return c; }
+    }
     // "Cas didn't wait for Dean to say anything else, he just pushed inside": the he after the comma is the main clause's
     // subject, not the name inside "for Dean to…".
     {
@@ -454,7 +460,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // A name right after a verb or preposition is an object ("spread Draco open"), not a subject.
       const isObject =
         !!prev &&
-        !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh)$/.test(prev) &&
+        !/^(?:and|but|or|so|then|when|as|while|because|until|before|after|if|though|although|once|since|where|now|still|finally|later|suddenly|slowly|meanwhile|that|who|yes|no|oh|moment|instant|second|minute|time|day|night|morning|evening|afternoon)$/.test(prev) &&
         // "…," whispers Alex: a name after a speech verb is its subject.
         !/^(?:says|said|whispers|whispered|murmurs|murmured|asks|asked|groans|groaned|moans|moaned|breathes|breathed|growls|growled|gasps|gasped|mutters|muttered|replies|replied|begs|begged|pants|panted|laughs|laughed|sighs|sighed|whimpers|whimpered|hisses|hissed|purrs|purred|teases|teased|grunts|grunted|answers|answered|adds|added|continues|continued|corrects|corrected|leers|leered|demands|demanded|insists|insisted|admits|admitted|pleads|pleaded|chokes|choked|calls|called|cries|cried)$/.test(prev);
       // "…at Sam, who's leaning over Steve…": a relative clause makes Sam the subject of what follows.
@@ -799,6 +805,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.cat === "anal" && !pat.signal && /\b(?:sore|aching|achy|tender|raw)\s+(?:from|after)\s+(?:being\s+|having\s+been\s+)(?:stretched|fucked|opened|taken|filled|used|ridden|pounded|bred|knotted|plowed|wrecked)\b/i.test(sent.slice(Math.max(0, m.index! - 40), m.index! + m[0].length))) return;
     // "He fists Cregan from root to tip": a hand on a cock, not a fist in an ass.
     if (pat.id.startsWith("fisting") && /\b(?:root to tip|base to tip|tip to base|from the base|up and down|his (?:cock|dick|length|shaft)|(?:cock|dick|prick|shaft|length|erection))\b/i.test(sent.slice(m.index!, m.index! + m[0].length + 40)) && !/\b(?:ass|arse|hole|anus|rim|inside)\b/i.test(sent)) return;
+    // "he tugged him gently to where he wanted him": a pull, not a handjob. Only "tugged him off" is.
+    if (pat.id.startsWith("hj-jerk-him") && /\btugg?\w*\s+\S+\s+(?!off\b)/i.test(m[0])) return;
     // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
     if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
@@ -1359,7 +1367,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
 
     // Whose desire is it? The first person mentioned before the desire word, else the subject.
     const wantAnd = /\b(?:want|need|wish|hope|long|crave)\w*\b[^.!?]*\b(?:and|but)\s+(?:then\s+)?(?:have|let|make|get)\s*$/i.test(prefix);
-    const exp = (wantAnd ? firstEntity(sent) : undefined) ?? firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
+    // "…, if only Hank could find the courage, buried deep inside him": the one wishing is the one named after "if only".
+    const ifOnly = new RegExp(`\\bif\\s+only\\s+(${NAMES})\\b`, "i").exec(window);
+    const exp = (ifOnly ? cast.byAlias.get(ifOnly[1]) : undefined) ?? (wantAnd ? firstEntity(sent) : undefined) ?? firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
     const role: Role | undefined = exp === top ? "top" : exp === bottom ? "bottom" : undefined;
     if (!role) return;
     // "There was no way Steve was asking him to fuck him": disbelief about a claim, not a dislike of the act.
