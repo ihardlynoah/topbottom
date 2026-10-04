@@ -220,6 +220,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const all = paras.join(" ");
     return (all.match(/\balphas?\b/gi) ?? []).length >= 8 && (all.match(/\bomegas?\b/gi) ?? []).length >= 4;
   })();
+  // A chastity device or cock cage in the tags (male-only works): being locked up reads as submission, holding the key as control.
+  const isChastity = /chastity|cock[- ]?cage|\bkey ?holder|\bcaged\b/i.test(meta.freeforms.join(" | ")) && (meta.categories.length === 0 || meta.categories.includes("M/M"));
   scan();
   if (ctx.learnFromVotes()) scan();
 
@@ -308,6 +310,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         gateSeen.fill(0);
         for (const pat of patterns) {
           if (pat.abo && !isAbo) continue;
+          if (pat.chastity && !isChastity) continue;
           if (pat.needsCtx && !sexy) continue;
           if (pat.needsPenis && !penisy) continue;
           // Many patterns share a gate (and each has an elided twin): test the sentence against each distinct gate once.

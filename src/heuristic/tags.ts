@@ -104,7 +104,7 @@ export function readTags(freeforms: string[], cast: Cast): TagInfo {
       const ac = word && findChar(name);
       if (ac) info.dynamics.push({ char: ac, lean: /^alpha/i.test(word) ? "top" : "bottom", tag });
     }
-    if (/dom\/sub|dominant\/submissive|\bd\/s\b|praise kink|good boy|good girl|daddy kink|degradation|power (?:dynamics?|imbalance|play)|bdsm|pet names?|primal play|sir kink|master\/slave|service top|submissive|dominant|\bdom\b|\bsub\b/.test(t) && !info.dynamics.some((d) => d.tag === tag)) info.dynamicTags.push(tag);
+    if (/dom\/sub|dominant\/submissive|\bd\/s\b|praise kink|good boy|good girl|daddy kink|degradation|power (?:dynamics?|imbalance|play)|bdsm|pet names?|chastity|cock[- ]?cage|key ?holder|primal play|sir kink|master\/slave|service top|submissive|dominant|\bdom\b|\bsub\b/.test(t) && !info.dynamics.some((d) => d.tag === tag)) info.dynamicTags.push(tag);
 
     if (/\brim(?:ming|med|s)?\b|ass eating|eating ass/.test(t)) info.rimming.push(tag);
     if (/blow ?jobs?|fellatio|deep ?throat|face[- ]fuck|cock ?sucking|oral fixation/.test(t)) info.blowjobs.push(tag);

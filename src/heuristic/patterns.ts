@@ -30,6 +30,8 @@ export interface PatternDef {
   needsCtx?: boolean;
   /** Only read in an omegaverse work (alpha/beta/omega), where these gestures mean dominance or submission. */
   abo?: boolean;
+  /** Only read in a work whose tags name a chastity device or cock cage, where being locked up means submission and holding the key means control. */
+  chastity?: boolean;
   /** Sentence must mention a penis/strap word. */
   /** Counts at most once per sentence, alongside whatever else matched it (for patterns that overlap others). */
   dedupe?: boolean;
@@ -3089,6 +3091,79 @@ export const PATTERNS: PatternDef[] = [
     dedupe: true,
     needsCtx: true,
     src: `\\b{B}\\s+{aux}(?:be|get|got|gets|getting|being|been)\\s+(?:so\\s+|properly\\s+|thoroughly\\s+|really\\s+|finally\\s+|well\\s+)*(?:fucked|plowed|ploughed|pounded|railed|bred|knotted|wrecked|ruined|stretched|filled|stuffed)(?!\\s+(?:up|over|off|around|with|out\\s+of)\\b)(?!(?:\\s+[\\w-]+){0,2}\\s+by\\b)\\b`,
+  },
+  // ───────────── chastity (only where the tags name a chastity device or cock cage): the one locked up leans bottom, the one with the key leans top ─────────────
+  {
+    // "locked the cage onto Castiel's cock", "snapped the chastity device around Castiel's dick"
+    id: "chastity-lock-on",
+    cat: "vibe",
+    chastity: true,
+    kw: "cage|chastity",
+    act: "locking a chastity device on their partner",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:lock|snap|clip|click|fit|secur|buckl|slip|slid|put|fasten)\\w*\\s+(?:the\\s+|a\\s+|his\\s+|her\\s+)?(?:\\w+\\s+){0,2}?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage)\\s+(?:on|onto|around|over)\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:cock|dick|prick|length|shaft)\\b`,
+  },
+  {
+    // "locked Castiel's cock in a cage", "put Castiel in chastity", "caged Castiel"
+    id: "chastity-lock-up",
+    cat: "vibe",
+    chastity: true,
+    kw: "cage|chastity",
+    act: "locking their partner in chastity",
+    subj: "t",
+    weight: 0.7,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:(?:lock|shut|seal)\\w*\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:cock|dick|prick|length)\\s+(?:up\\s+)?(?:in|inside|away in|within)\\s+(?:a|the|his|her)\\s+(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage)|(?:put|placed|keep|kept|had)\\s+{B}\\s+(?:\\w+\\s+)?(?:in|into)\\s+(?:a\\s+|the\\s+)?(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage)|caged\\s+{B})(?![\\w-])`,
+  },
+  {
+    // "unlocked Castiel's cage", "held the key to Castiel's chastity": the keyholder
+    id: "chastity-keyholder",
+    cat: "vibe",
+    chastity: true,
+    kw: "cage|chastity|key",
+    act: "holding the key to a chastity device",
+    subj: "t",
+    weight: 0.6,
+    signal: { kind: "behavior", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:(?:unlock|undid|undo|unclip|remov|took)\\w*\\s+(?:the\\s+|his\\s+|her\\s+|{B:poss}\\s+)(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage)|(?:held|kept|had|dangled|pocketed|twirled|tucked)\\s+(?:the\\s+|a\\s+|his\\s+|her\\s+)?(?:\\w+\\s+){0,2}?key\\s+(?:to|for|of)\\s+{B:poss}\\s+(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage))(?![\\w-])`,
+  },
+  {
+    // "Castiel was locked in a cage", "Castiel wore the chastity device", "Castiel's cock strained against the cage": the wearer
+    id: "chastity-wearer",
+    cat: "vibe",
+    chastity: true,
+    kw: "cage|chastity|caged",
+    act: "wearing a chastity device",
+    subj: "b",
+    weight: 0.5,
+    signal: { kind: "behavior", actorRole: "bottom" },
+    src: `\\b(?:{B}\\s+{aux}(?:(?:was|is|were|been|being|remained|stayed)\\s+(?:locked|caged|kept)\\s+(?:up\\s+)?(?:in|inside)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+)?(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage)|(?:wore|wears|wearing|squirmed in|whined in|ached in)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+)?(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage))|{B:poss}\\s+(?:\\w+\\s+)?(?:cock|dick|prick|length)\\s+(?:\\w+\\s+)?(?:strain|press|push|swell|throb|ach|leak|twitch|pulse)\\w*\\s+(?:\\w+\\s+)?(?:against|in|inside|within|at)\\s+(?:the|its|his|a)\\s+(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage))(?![\\w-])`,
+  },
+  {
+    // "Castiel was locked in a cage", "Castiel wore the chastity device", "Castiel's cock strained against the cage": the wearer
+    id: "chastity-wearer-anal",
+    cat: "anal",
+    chastity: true,
+    kw: "cage|chastity|caged",
+    act: "wearing a chastity device (hints anal bottom)",
+    subj: "b",
+    weight: 0.4,
+    signal: { kind: "touch", actorRole: "bottom" },
+    src: `\\b(?:{B}\\s+{aux}(?:(?:was|is|were|been|being|remained|stayed)\\s+(?:locked|caged|kept)\\s+(?:up\\s+)?(?:in|inside)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+)?(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage)|(?:wore|wears|wearing|squirmed in|whined in|ached in)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+)?(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage))|{B:poss}\\s+(?:\\w+\\s+)?(?:cock|dick|prick|length)\\s+(?:\\w+\\s+)?(?:strain|press|push|swell|throb|ach|leak|twitch|pulse)\\w*\\s+(?:\\w+\\s+)?(?:against|in|inside|within|at)\\s+(?:the|its|his|a)\\s+(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage))(?![\\w-])`,
+  },
+  {
+    // "Castiel was locked in a cage", "Castiel wore the chastity device", "Castiel's cock strained against the cage": the wearer
+    id: "chastity-wearer-oral",
+    cat: "oral",
+    chastity: true,
+    kw: "cage|chastity|caged",
+    act: "wearing a chastity device (hints oral bottom)",
+    subj: "b",
+    weight: 0.4,
+    signal: { kind: "touch", actorRole: "bottom" },
+    src: `\\b(?:{B}\\s+{aux}(?:(?:was|is|were|been|being|remained|stayed)\\s+(?:locked|caged|kept)\\s+(?:up\\s+)?(?:in|inside)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+)?(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage)|(?:wore|wears|wearing|squirmed in|whined in|ached in)\\s+(?:a\\s+|the\\s+|his\\s+|her\\s+)?(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage))|{B:poss}\\s+(?:\\w+\\s+)?(?:cock|dick|prick|length)\\s+(?:\\w+\\s+)?(?:strain|press|push|swell|throb|ach|leak|twitch|pulse)\\w*\\s+(?:\\w+\\s+)?(?:against|in|inside|within|at)\\s+(?:the|its|his|a)\\s+(?:\\w+\\s+)?(?:cock[- ]?cage|chastity(?:\\s+(?:cage|device|belt|tube))?|cage))(?![\\w-])`,
   },
   // ───────────── omegaverse: dominant and submissive gestures outside sex (feed the everyday-dynamic axis) ─────────────
   {
