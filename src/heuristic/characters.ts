@@ -284,7 +284,7 @@ function guessGenders(chars: Character[], meta: Ao3Meta, narration: string) {
 }
 
 const GROUP_TAG =
-  /['’]s\s+(?:parents?|father|mother|dad|mom|family|siblings?|brothers?|sisters?|friends?|kids?|children|team|crew|exes?|ex-\w+|relatives?|grandparents?)\b|^(?:original|other|various|assorted)\b[^,]*\b(?:children|kids|characters|people|friends|family)\s+of\b|^(?:the\s+)?[\w' ]+\s+(?:family|household|crew|team|pack)$/i;
+  /['’]s\s+(?:parents?|father|mother|dad|mom|family|siblings?|brothers?|sisters?|friends?|kids?|children|team|crew|exes?|ex-\w+|relatives?|grandparents?)\b|^(?:original|other|various|assorted)\b[^,]*\b(?:children|kids|characters|people|friends|family)\s+of\b|^(?:the\s+)?[\w' ]+\s+(?:family|household|crew|team|pack)(?:\s*\([^)]*\))?$/i;
 
 export function buildCast(meta: Ao3Meta, narration: string, fullText = narration): Cast {
   // Generic OC tags ("Original Male Character(s)") are slots to fill from the text; named ones are just names.
