@@ -21,7 +21,7 @@ import { CHAPTER_RE, Quote, maskQuotes, sentenceSpans } from "./quotes";
 import { ANAL_NEAR_RE, ANIMAL_NEAR, DANGER, DESIRE, DESIRE_LEAD, DESIRE_TAIL, FANTASY, FANTASY_PARA, HABIT_AUX, HYPO_AUX, HYPO_MATCH, HYPO_SENT, HYPO_WINDOW, IDIOM_ASS, IDIOM_SAFE, NEG, ORAL_LINE_RE, ORAL_NEAR_RE, REFLEXIVE, SAY, SCENE_BREAK, SEX_STRICT, STRONG_FANTASY, contextAround } from "./markers";
 import { AddressBook } from "./address";
 import { reliabilityOf } from "./reliability";
-import { featuresOf, trustOf } from "./learned";
+import { babyNear, featuresOf, trustOf } from "./learned";
 import { Ctx, groupValue, pronoun, resolvePair, stripPoss } from "./resolve";
 import { PairTags, buildAct, buildDynamic, buildManual, buildSolo, buildVaginal, buildVibes, plural, soloIsAnal, tagsFor } from "./builders";
 
@@ -388,6 +388,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const other = subj && ctx.partnerOf(subj);
       if (other) return other;
     }
+    // "When Buck looked down and realised that Chris had stopped listening, he blushed": after an opening clause, the he is the
+    // opening clause's own subject, not the name inside "realised that Chris…".
+    {
+      const opening = new RegExp(`^\\W*(?:when|after|before|as|while|once|because|since|although|though|if)\\s+(?:[\\w'’-]+\\s+){0,2}?(${NAMES})\\b[^.!?;,]*?\\b(${NAMES})\\b[^.!?;,]*,\\s*$`, "i").exec(prefix);
+      if (opening && /^\s*(?:he|she)\b/i.test(suffix)) {
+        const first = cast.byAlias.get(opening[1]), second = cast.byAlias.get(opening[2]);
+        if (first && second && first !== second) return first;
+      }
+    }
     // "He thought Dracula might break the door down and fuck him": after a thinking/seeing verb, the named subject of the
     // embedded clause carries on as the left-out subject.
     {
@@ -730,7 +739,22 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // who isn't in the cast can't be credited as the person before.
     if (pat.elided && new RegExp(`(?:^|(?:[,;]|\\b(?:and|but|while|as|then|yet|so))\\s+)(?:(?:Mr|Mrs|Ms|Miss|Dr)\\.?\\s+)?([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?:,[^,.;]{2,50},)?\\s*$`).test(sent.slice(0, m.index!))) {
       const named = new RegExp(`(?:^|(?:[,;]|\\b(?:and|but|while|as|then|yet|so))\\s+)(?:(?:Mr|Mrs|Ms|Miss|Dr)\\.?\\s+)?([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)(?:,[^,.;]{2,50},)?\\s*$`).exec(sent.slice(0, m.index!))![1];
-      if (!cast.byAlias.get(named) && !cast.byAlias.get(named.split(" ")[0]) && !/^(?:Then|Now|Still|Instead|Maybe|Perhaps|God|Please|Fuck|Jesus|Christ|Just|Again|Next|Later|Soon|Once|Yes|No|Oh|Okay|Ok|Fine|Good|Hell|Shit|Damn)$/.test(named) && !/ly$/.test(named)) return;
+      if (!cast.byAlias.get(named) && !cast.byAlias.get(named.split(" ")[0]) && !/^(?:Then|Now|Still|Instead|Maybe|Perhaps|God|Please|Fuck|Jesus|Christ|Just|Again|Next|Later|Soon|Once|Yes|No|Oh|Okay|Ok|Fine|Good|Hell|Shit|Damn|He|She|They|It|We|You|I|His|Her|Their|The|A|An|This|That|There|Some|Another)$/.test(named) && !/ly$/.test(named)) return;
+    }
+    // "before Eustace placed a hand on his back and guided him out": the left-out subject is Eustace, whoever he is, when no one
+    // in the cast (or a he / she) comes between his name and the verb.
+    if (pat.elided) {
+      const lead = sent.slice(0, m.index!) + (/^\s*(?:and\b|,)\s*/.exec(m[0])?.[0] ?? "");
+      const o = /(?:^|[,;]\s*|\b(?:and|but|while|as|then|yet|so|before|after|when|until)\s+)(?:(?:Mr|Mrs|Ms|Miss|Dr)\.?\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+((?:[\w'’-]+\s+){1,8}?)(?:and|,)\s*$/.exec(lead);
+      if (o && !cast.byAlias.get(o[1]) && !cast.byAlias.get(o[1].split(" ")[0]) && !/ly$/.test(o[1]) &&
+          !/^(?:Then|Now|Still|Instead|Maybe|Perhaps|God|Please|Fuck|Jesus|Christ|Just|Again|Next|Later|Soon|Once|Yes|No|Oh|Okay|Ok|Fine|Good|Hell|Shit|Damn|But|And|When|While|As|After|Before|If|So|Yet|Until|He|She|They|It|We|You|I|His|Her|Their|The|A|An|This|That|There|Some|Another)$/.test(o[1]) &&
+          !new RegExp(`\\b(?:${NAMES})\\b|\\b(?:he|she|they|I|we|you)\\b`, "i").test(o[2])) return;
+    }
+    // "Sam said as he poured Dean a cup of tea": a he right after an outsider's name and "as / while / when" is that outsider.
+    if (!pat.elided && /^(?:he|she)$/i.test(pat.subj === "t" ? tTok ?? "" : bTok ?? "")) {
+      const o = /\b([A-Z][a-z]+)\s+(?:[\w'’-]+\s+){0,3}?(?:as|while|when|and|but|before|after)\s+$/.exec(sent.slice(0, m.index!));
+      if (o && !cast.byAlias.get(o[1]) && !/ly$/.test(o[1]) && !/^(?:Then|Now|Still|Instead|Maybe|Perhaps|God|Please|Just|Again|Next|Later|Soon|Once|Yes|No|Oh|But|And|When|While|As|After|Before|If|So|Yet|Until|The|His|Her|Their|It|This|That|There)$/.test(o[1]) &&
+          !new RegExp(`\\b(?:${NAMES})\\b|\\b(?:he|she|they|I|we|you)\\b`, "i").test(sent.slice(o.index! + o[1].length, m.index!))) return;
     }
     // "…looks at him like she wants to pull him into a hug and feed him soup": the left-out subject is the "she" before it, and
     // nobody in this cast is a she.
@@ -743,6 +767,25 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     }
     // "Steve never sucked Eddie off, taking him deep": a participle carries on the negated verb before it.
     if (pat.elided && /^\W*(?:\w+ly\s+)?\w+ing\b/.test(m[0]) && (/^\s*,/.test(m[0]) || /,\s*$/.test(sent.slice(0, m.index!))) && /\b(?:never|refus(?:ed|es|e|ing) to)\b/i.test(sent.slice(0, m.index!))) return;
+    // Hints about how two people act (looking after, leading, protecting, pinning…) mean little around a baby: the one being
+    // scooped up, fed or carried is a child. Only in stretches that aren't sexual, so "baby" as a pet name doesn't count.
+    if (pat.cat === "vibe" && babyNear(paras, pi)) return;
+    // "armies to protect him", "guards to keep him safe": the left-out subject is not a person in the scene.
+    if (pat.id.startsWith("dom-protect") && pat.elided && /\b(?:armies|army|guards?|soldiers?|knights?|men|advisors?|servants?|laws?|walls?|shields?)\s+to\s+$/i.test(sent.slice(0, m.index!) + (/^\s*to\s+/i.exec(m[0])?.[0] ?? ""))) return;
+    // "rubbing his hands together" warms hands; it comforts no one.
+    if (pat.id.startsWith("care-soothe") && /\bhands?\s+together\b/i.test(sent.slice(m.index!, m.index! + m[0].length + 20))) return;
+    // A handjob on oneself ("fists his own cock") is solo.
+    if (pat.id.startsWith("hj-") && /\b(?:his|her|their)\s+own\b/i.test(m[0])) return;
+    // A wish or fantasy before the verb: "wanted to hold him close and continue to stroke his cock", "fantasies of pressing him down".
+    if (pat.cat === "vibe" && (pat.signal?.kind === "handjob" || pat.id.startsWith("dom-pin")) &&
+        (/\b(?:want(?:ed|s|ing)?|wish(?:ed|es)?|long(?:ed|s|ing)?|crav(?:ed|es|ing)|hop(?:ed|es|ing)|need(?:ed|s)?)\s+(?:to|for)\b[^.!?;]*$/i.test(sent.slice(0, m.index!)) ||
+         /\b(?:fantas(?:y|ies|ised|ized|ising|izing)|dream(?:s|ed|t|ing)?|imagin\w+|daydream\w*)\s+(?:of|about)\b[^.!?;]*$/i.test(sent.slice(0, m.index!)))) return;
+    // Arms around him pinning him to a chest is a hug, not a hold-down.
+    if (pat.id.startsWith("dom-pin") && /\bto\s*$/i.test(m[0]) && /^\s*(?:the\s+|his\s+|her\s+|their\s+|my\s+)?(?:warm\s+|broad\s+|solid\s+|firm\s+)?(?:mass of\s+)?chest\b/i.test(sent.slice(m.index! + m[0].length)) && /\barms?\b[^.!?]*$/i.test(sent.slice(0, m.index!))) return;
+    // "dropped to his knees and began pulling Molotovs out of his backpack": kneeling to do something.
+    if (pat.id.startsWith("sinks-to-floor") && /^\s*(?:and\s+)?(?:began|started|proceeded)?\s*(?:to\s+)?(?:pull|pick|grab|search|dig|rummag|check|examin|tie|tend|fix|bandag|gather|collect|retriev|scrabbl)/i.test(sent.slice(m.index! + m[0].length))) return;
+    // Kneeling at a ceremony is not spreading for a lover.
+    if (pat.id.startsWith("spread-legs") && !SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`) && /\bkneel\w*|\bknees\s+further\b/i.test(sent)) return;
     // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
     if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
