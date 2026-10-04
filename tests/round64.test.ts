@@ -19,7 +19,7 @@ describe("fixes from the Starving gods report", () => {
   });
   it("‘staring at Dean as he stretches himself’: the one stretching is the one watched", () => {
     const { p } = run("Cas is watching. He’s staring at Dean as he stretches himself, and Dean puts on a show, moaning, his hips rocking.", "Dean Winchester");
-    expect(p.solo.instances.map((i) => i.who.split(" ")[0])).toEqual(["Dean"]);
+    expect(p?.solo?.instances.map((i) => i.who.split(" ")[0])).toEqual(["Dean"]);
   });
   it("‘this man and as he rides him’ is the partner, not other men in the past", () => {
     expect(des("Dean wants this man and as he rides him to completion, as he feels Cas shudder, he can only feel the same want in Cas’ every touch.", "Dean Winchester")).not.toContain("Dean:bottom:history");
@@ -28,9 +28,9 @@ describe("fixes from the Starving gods report", () => {
     expect(run("Cas is looking, eyes homed in on Dean’s hole and the fingers he presses inside himself too fast.", "Dean Winchester").p.anal.instances).toHaveLength(0);
   });
   it("touching your own nipples is not masturbation", () => {
-    expect(run("The boy takes to touching his own nipples, flicking his fingers over them as he gasps, eyes unfocused, his cock hard.", "Castiel").p.solo.instances).toHaveLength(0);
+    expect(run("The boy takes to touching his own nipples, flicking his fingers over them as he gasps, eyes unfocused, his cock hard.", "Castiel").p?.solo?.instances).toHaveLength(0);
   });
   it("…but a hand on your own cock still is", () => {
-    expect(run("Dean lay back, naked, stroking his own cock slowly while Castiel watched, hard.", "Dean Winchester").p.solo.instances.length).toBeGreaterThan(0);
+    expect(run("Dean lay back, naked, stroking his own cock slowly while Castiel watched, hard.", "Dean Winchester").p?.solo?.instances.length).toBeGreaterThan(0);
   });
 });

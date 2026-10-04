@@ -17,7 +17,7 @@ describe("context in the mistake report", () => {
     const r = analyzeWithPatterns(`${lead}Dean spread his legs a little. Castiel watched him, hard in his jeans. Dean stroked himself slowly, moaning, naked on the bed.\n\n`, M, { quiet: true });
     const hint = r.pairings[0].anal.desires.find((x) => x.via === "spread-legs");
     expect(hint?.context).toContain("Castiel watched him");
-    const solo = r.pairings[0].solo.instances[0];
+    const solo = r.pairings[0]?.solo?.instances[0];
     expect(solo?.context).toContain("Castiel watched him");
   });
 });
