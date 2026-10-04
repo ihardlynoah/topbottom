@@ -23,7 +23,7 @@ const DETECTORS: Detector[] = [
   { name: "Praise", kind: "kink", tag: /\bpraise\b/i, text: /\bgood (?:boy|girl|job|pet)\b|\bso good for me\b|\bsuch a good\b|\bso perfect\b|\bperfect (?:boy|girl)\b|\bwell done\b/i, min: 3, needsSex: true },
   { name: "Bondage / restraints", kind: "kink", tag: /bondage|restraints?|shibari|\brope\b|handcuff|tied up|kinbaku/i, text: /\b(?:tied|bound|binds?|ropes?|roped|cuffs?|cuffed|handcuff\w*|restraint\w*|shibari|bondage|strapped down)\b/i, min: 2, needsSex: true },
   { name: "Spanking / impact play", kind: "kink", tag: /spank|impact|flogg|paddl|caning|whipp/i, text: /\bspank\w*|\bflogg\w*|\bpaddl\w*|\bcaned?\b|\bwhipp?\w*|\bcrop\b/i, min: 1, needsSex: true },
-  { name: "Cock cage / chastity", kind: "kink", tag: /cock ?cage|chastity|\bcaged\b/i, text: /\bcock ?cage|\bchastity|\bcaged\b|\bthe cage\b/i, min: 1 },
+  { name: "Cock cage / chastity", kind: "kink", tag: /cock[- ]?cage|chastity|\bcaged\b|key ?holder/i, text: /\bcock[- ]?cage|\bchastity|\bcaged\b|\bthe cage\b|\bkey ?holder\b/i, min: 1 },
   { name: "Panties / lingerie", kind: "kink", tag: /panty|panties|lingerie|crossdress|feminiz/i, text: /\bpanties\b|\blingerie\b|\bthong\b/i, min: 1, needsSex: true },
   { name: "Exhibitionism / public", kind: "kink", tag: /exhibition|public sex|voyeur/i, text: /\bin front of (?:everyone|an audience|a crowd|the whole|strangers|a hundred|people)\b|\baudience\b|\bvoyeur/i, min: 2, needsSex: true },
   { name: "Aftercare", kind: "kink", tag: /aftercare|caretaking/i, text: /\baftercare\b|\bcleaned (?:him|her|them) up\b|\bwiped (?:him|her|them) down\b|\bwrapped (?:him|her|them) in a blanket\b|\bwater bottle\b/i, min: 1 },
