@@ -34,3 +34,18 @@ describe("chastity device / cock cage tags (m/m)", () => {
     expect(hitsFor("Dean carried the bird cage to Castiel's porch.", TAGS)).toHaveLength(0);
   });
 });
+
+describe("wearing a cage also hints at bottoming", () => {
+  const roles = (t: string, cat: "anal" | "oral") => {
+    const r = analyzeWithPatterns(lead + t, M(["Cock Cage"]), { quiet: true });
+    return r.pairings[0][cat === "anal" ? "anal" : "blowjob"].desires.map((d) => `${d.who.split(" ")[0]}:${d.role}`);
+  };
+  it("the wearer is an anal bottom hint and an oral bottom hint", () => {
+    expect(roles("Castiel was locked in a cage all week, whining.", "anal")).toContain("Castiel:bottom");
+    expect(roles("Castiel was locked in a cage all week, whining.", "oral")).toContain("Castiel:bottom");
+  });
+  it("no hint without the tag", () => {
+    const r = analyzeWithPatterns(lead + "Castiel was locked in a cage all week, whining.", M(["Rimming"]), { quiet: true });
+    expect(r.pairings[0].anal.desires.filter((d) => d.who.startsWith("Castiel") && d.role === "bottom")).toHaveLength(0);
+  });
+});
