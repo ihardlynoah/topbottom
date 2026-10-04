@@ -2131,6 +2131,18 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{B:assReq}\\s+{aux}(?:was|were|felt|feels|ached|throbbed|burned|stung|hurt)\\s+(?:\\w+\\s+){0,2}?(?:sore|raw|tender|stretched|used|loose|open|empty|aching|achy|well-fucked|fucked-out|wrecked)(?![\\w-])`,
   },
   {
+    // "still slightly sore from being stretched open", "aching from being fucked"
+    id: "body-sore-from",
+    kw: "sore|aching|tender|raw",
+    cat: "anal",
+    act: "sore after sex",
+    subj: "b",
+    weight: 0.7,
+    needsCtx: true,
+    signal: { kind: "body", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}(?:(?:\\w+ly\\s+)?(?:squirm|shift|wince|winc)\\w*\\s+(?:in\\s+(?:the|his|her|their)\\s+\\w+,?\\s+)?)?(?:still\\s+)?(?:\\w+ly\\s+)?(?:sore|aching|achy|tender|raw)\\s+(?:from|after)\\s+(?:being\\s+|having\\s+been\\s+)(?:stretched|fucked|opened|taken|filled|used|ridden|pounded|bred|knotted|plowed|wrecked)\\b`,
+  },
+  {
     id: "body-sore-person",
     kw: "sore|tender",
     cat: "anal",
@@ -2995,6 +3007,18 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     signal: { kind: "handjob", actorRole: "top" },
     src: `\\b{T:poss}\\s+hand\\s+(?:\\w+\\s+){0,3}?(?:wrap|clos|curl|wound|slid|snak|reach|moved|went|settled|found)\\w*\\s+(?:\\w+\\s+){0,3}?(?:around|on|over|to)\\s+{B:poss}\\s+(?:\\w+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection)(?![\\w-])(?![^.!?]{0,30}\\bcage\\b)`,
+  },
+  {
+    // "He fists Cregan from root to tip", "stroked him from base to tip"
+    id: "hj-root-to-tip",
+    cat: "vibe",
+    kw: "root|base",
+    act: "handjob",
+    subj: "t",
+    weight: 0.8,
+    needsCtx: true,
+    signal: { kind: "handjob", actorRole: "top" },
+    src: `\\b{T}\\s+{aux}(?:fist|jerk|strok|pump|tugg?|work)\\w*\\s+{B}\\s+(?:slowly\\s+|firmly\\s+|tightly\\s+)?from\\s+(?:the\\s+)?(?:root|base)\\s+to\\s+(?:the\\s+)?(?:tip|head)\\b`,
   },
   {
     // "loosely jerking him", "stroked him slowly", "jerked Dean off"
