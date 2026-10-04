@@ -72,9 +72,9 @@ export function testSkeletons(flags: FlaggedScene[], missed: MissedScene[], righ
   out.push("});");
   const keep = right.filter((f) => f.included !== false);
   if (keep.length) {
-    // Readings the reader checked and found correct: tests that a fix must leave passing.
+    // Readings the reader checked and found right: examples to weigh heavily, not rules that hold in every context.
     out.push("");
-    out.push('describe("readings that look right (keep these passing)", () => {');
+    out.push('describe("readings that looked right (a fix should keep these passing unless there is a reason)", () => {');
     keep.forEach((f, i) => {
       const kind = f.kind ?? "scene";
       out.push(`  it(${q(kind === "scene" ? `keeps ${f.top} → ${f.bottom} (${f.act})` : kind === "hint" ? `keeps the ${f.card} hint: ${f.top} · ${f.act}` : `keeps ${f.top}: ${f.act}`)}, () => {`);
