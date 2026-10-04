@@ -29,7 +29,7 @@ function expectation(f: FlaggedScene): { title: string; assertion: string } {
   return { title: "reads as intended", assertion: `// Say what should be true here, then assert it.\n    expect(roles(r, ${q(f.card)})).toEqual({ top: "TODO", bottom: "TODO" });` };
 }
 
-export function testSkeletons(flags: FlaggedScene[], missed: MissedScene[]): string {
+export function testSkeletons(flags: FlaggedScene[], missed: MissedScene[], right: FlaggedScene[] = []): string {
   const items = flags.filter((f) => f.included !== false);
   const out: string[] = [];
   out.push('import { describe, expect, it } from "vitest";');
@@ -70,6 +70,26 @@ export function testSkeletons(flags: FlaggedScene[], missed: MissedScene[]): str
     out.push("  });");
   });
   out.push("});");
+  const keep = right.filter((f) => f.included !== false);
+  if (keep.length) {
+    // Readings the reader checked and found correct: tests that a fix must leave passing.
+    out.push("");
+    out.push('describe("readings that look right (keep these passing)", () => {');
+    keep.forEach((f, i) => {
+      const kind = f.kind ?? "scene";
+      out.push(`  it(${q(kind === "scene" ? `keeps ${f.top} → ${f.bottom} (${f.act})` : kind === "hint" ? `keeps the ${f.card} hint: ${f.top} · ${f.act}` : `keeps ${f.top}: ${f.act}`)}, () => {`);
+      if (f.evidence) out.push(`    // original (delete before committing): ${q(oneLine(f.evidence).slice(0, 200))}`);
+      if (f.context && f.context !== f.evidence) out.push(`    // surrounding text matters; give it a neutral lead-in of one or two paraphrased sentences`);
+      if (f.note.trim()) out.push(`    // reader's note: ${oneLine(f.note)}`);
+      out.push(`    const r = run("PARAPHRASE_ME");`);
+      if (kind === "scene") out.push(`    expect(roles(r, ${q(f.card)})).toEqual({ top: ${q(f.top)}, bottom: ${q(f.bottom)} });`);
+      else if (kind === "hint") out.push(`    expect(count(r, ${q(f.card)})).toBeGreaterThan(0); // the hint still appears, credited as shown`);
+      else out.push(`    expect(rating(r, ${q(f.top)}).label).toBe(${q(f.act)});`);
+      out.push("  });");
+      if (i < keep.length - 1) out.push("");
+    });
+    out.push("});");
+  }
   out.push("");
   return out.join("\n");
 }

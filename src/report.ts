@@ -90,12 +90,43 @@ export interface ReportInput {
   /** One line per card, e.g. "Dracula/Jack Seward · anal: switch (top Dracula / bottom Jack) · High 97%". */
   summaries: string[];
   flags: FlaggedScene[];
+  /** Items the reader checked and marked as correct, so a fix can be kept from breaking them. */
+  right?: FlaggedScene[];
   missed: MissedScene[];
   general: string;
   /** How the engine's stated confidence has matched what the reader marked right or wrong so far. */
   calibration?: string[];
 }
 
+
+/** One flagged or checked item, as a block of lines. Items marked right leave out the "what is wrong" lines. */
+function describeItem(out: string[], f: FlaggedScene, n: number, right: boolean): void {
+  out.push("");
+  const kind = f.kind ?? "scene";
+  out.push(`### ${n}. ${f.pairing} · ${kind === "vibe" ? (f.card === "dynamic" ? "everyday-dynamic rating" : "vibe rating") : kind === "factor" ? "rating factor" : kind === "hint" ? (f.card === "solo" ? "solo act" : f.card === "manual" ? "handjob / frottage" : f.card === "tagcheck" ? "tag check" : `${f.card} hint`) : f.card}`);
+  if (kind === "scene") {
+    out.push(`- Shown as: **${f.top || "?"}** ${f.topVerb ?? "tops"} (top), **${f.bottom || "?"}** ${f.bottomVerb ?? "bottoms"} (bottom) · ${f.act}`);
+  } else if (kind === "hint" && f.card === "tagcheck") {
+    out.push(`- Tag(s): **${f.top}** shown as: ${f.bottom} · ${f.act}`);
+  } else if (kind === "hint" && f.card === "manual") {
+    out.push(`- Shown as a hand-sex moment: **${f.top || "?"}** with **${f.bottom || "?"}** · ${f.act}`);
+  } else if (kind === "hint" && f.card === "solo") {
+    out.push(`- Shown as a solo act by **${f.top || "?"}** · ${f.act}`);
+  } else if (kind === "hint") {
+    out.push(`- Shown as: **${f.top || "?"}** points toward ${f.bottom || "?"} · ${f.act}`);
+  } else {
+    out.push(`- Rating shown: **${f.top}** is **${f.act}**`);
+  }
+  const how = [f.basis ? `people found ${f.basis === "named" ? "by name" : f.basis === "pronoun" ? "through pronouns" : "by inference"}` : "", f.confidence !== undefined ? `${kind === "scene" ? "scene " : ""}confidence ${Math.round(f.confidence * 100)}%` : "", f.where ?? ""].filter(Boolean);
+  if (how.length) out.push(`- ${how.join(" · ")}`);
+  if (f.confidenceReasons?.length) out.push(`- Why it scored that: ${f.confidenceReasons.join("; ")}`);
+  for (const x of f.extra ?? []) out.push(`- ${x}`);
+  if (f.pattern) out.push(`- Pattern: ${f.pattern}`);
+  if (f.evidence) out.push(`- Sentence: “${f.evidence}”`);
+  if (f.context && f.context !== f.evidence) out.push(`- Around it: ${f.context.replace(/\s+/g, " ")}`);
+  if (!right) out.push(`- What is wrong: ${f.reasons.length ? f.reasons.map(reasonLabel).join("; ") : "(nothing ticked)"}`);
+  if (f.note.trim()) out.push(`- ${right ? "My note" : "My explanation"}: ${f.note.trim()}`);
+}
 
 export function buildReport(r: ReportInput): string {
   const out: string[] = [];
@@ -105,7 +136,8 @@ export function buildReport(r: ReportInput): string {
     "I ran a fanfic through the analyzer and some results look wrong. For each item below, work out why the " +
       `${r.source === "claude" ? "second opinion" : "pattern engine"} read it that way, say whether it is a false positive (flagged but wrong) or a false negative (missed), ` +
       "and suggest a specific fix: a pattern or guard to change, with a short paraphrased test case. " +
-      "Check the surrounding passage, not just the one sentence. If my explanation and the text disagree, tell me.",
+      "Check the surrounding passage, not just the one sentence. If my explanation and the text disagree, tell me." +
+      ((r.right ?? []).some((f) => f.included !== false) ? " I also list readings I checked and found correct; a fix must not change those." : ""),
   );
   out.push("");
   out.push("## The work");
@@ -126,33 +158,16 @@ export function buildReport(r: ReportInput): string {
   if (flags.length) {
     out.push("");
     out.push(`## Things I think are wrong (${flags.length})`);
-    flags.forEach((f, n) => {
-      out.push("");
-      const kind = f.kind ?? "scene";
-      out.push(`### ${n + 1}. ${f.pairing} · ${kind === "vibe" ? (f.card === "dynamic" ? "everyday-dynamic rating" : "vibe rating") : kind === "hint" ? (f.card === "solo" ? "solo act" : f.card === "manual" ? "handjob / frottage" : f.card === "tagcheck" ? "tag check" : `${f.card} hint`) : f.card}`);
-      if (kind === "scene") {
-        out.push(`- Shown as: **${f.top || "?"}** ${f.topVerb ?? "tops"} (top), **${f.bottom || "?"}** ${f.bottomVerb ?? "bottoms"} (bottom) · ${f.act}`);
-      } else if (kind === "hint" && f.card === "tagcheck") {
-        out.push(`- Tag(s): **${f.top}** shown as: ${f.bottom} · ${f.act}`);
-      } else if (kind === "hint" && f.card === "manual") {
-        out.push(`- Shown as a hand-sex moment: **${f.top || "?"}** with **${f.bottom || "?"}** · ${f.act}`);
-      } else if (kind === "hint" && f.card === "solo") {
-        out.push(`- Shown as a solo act by **${f.top || "?"}** · ${f.act}`);
-      } else if (kind === "hint") {
-        out.push(`- Shown as: **${f.top || "?"}** points toward ${f.bottom || "?"} · ${f.act}`);
-      } else {
-        out.push(`- Rating shown: **${f.top}** is **${f.act}**`);
-      }
-      const how = [f.basis ? `people found ${f.basis === "named" ? "by name" : f.basis === "pronoun" ? "through pronouns" : "by inference"}` : "", f.confidence !== undefined ? `${kind === "scene" ? "scene " : ""}confidence ${Math.round(f.confidence * 100)}%` : "", f.where ?? ""].filter(Boolean);
-      if (how.length) out.push(`- ${how.join(" · ")}`);
-      if (f.confidenceReasons?.length) out.push(`- Why it scored that: ${f.confidenceReasons.join("; ")}`);
-      for (const x of f.extra ?? []) out.push(`- ${x}`);
-      if (f.pattern) out.push(`- Pattern: ${f.pattern}`);
-      if (f.evidence) out.push(`- Sentence: “${f.evidence}”`);
-      if (f.context && f.context !== f.evidence) out.push(`- Around it: ${f.context.replace(/\s+/g, " ")}`);
-      out.push(`- What is wrong: ${f.reasons.length ? f.reasons.map(reasonLabel).join("; ") : "(nothing ticked)"}`);
-      if (f.note.trim()) out.push(`- My explanation: ${f.note.trim()}`);
-    });
+    flags.forEach((f, n) => describeItem(out, f, n + 1, false));
+  }
+
+  const rights = (r.right ?? []).filter((f) => f.included !== false);
+  if (rights.length) {
+    out.push("");
+    out.push(`## Things I checked that look right (${rights.length})`);
+    out.push("");
+    out.push("These readings are correct. Whatever fix you suggest must leave them as they are; treat them as test cases that have to keep passing.");
+    rights.forEach((f, n) => describeItem(out, f, n + 1, true));
   }
 
   if (r.missed.length) {

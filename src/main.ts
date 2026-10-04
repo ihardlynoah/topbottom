@@ -193,6 +193,10 @@ async function handleFile(file: File) {
 // ---- mistake report ----
 
 const flagged = new Map<string, FlaggedScene>();
+/** Items the reader checked and marked "Looks right", kept for the report so a fix doesn't break them. */
+const rightItems = new Map<string, FlaggedScene>();
+/** Repaints an item's "Looks right" button when it is marked or unmarked from the report list. */
+const rightPaint = new Map<string, () => void>();
 const missedScenes: MissedScene[] = [];
 let shown: { source: string; analysis: Analysis } | null = null;
 
@@ -225,6 +229,7 @@ function reportText(): string {
     source: shown?.source ?? "patterns",
     summaries: shown ? cardSummaries(shown.analysis) : [],
     flags: [...flagged.values()],
+    right: [...rightItems.values()],
     missed: missedScenes,
     general: els.reportGeneral.value,
     calibration: calibrationLines(labels),
@@ -233,10 +238,11 @@ function reportText(): string {
 
 function refreshReport() {
   const n = [...flagged.values()].filter((f) => f.included !== false).length + missedScenes.length;
-  els.reportCount.textContent = n ? `${n} item${n === 1 ? "" : "s"}` : "none yet";
-  els.reportCopy.disabled = !n && !els.reportGeneral.value.trim();
-  els.reportClear.disabled = !n;
-  els.reportTests.disabled = !n;
+  const nr = rightItems.size;
+  els.reportCount.textContent = n || nr ? [n ? `${n} item${n === 1 ? "" : "s"}` : "", nr ? `${nr} look${nr === 1 ? "s" : ""} right` : ""].filter(Boolean).join(" · ") : "none yet";
+  els.reportCopy.disabled = !n && !nr && !els.reportGeneral.value.trim();
+  els.reportClear.disabled = !n && !nr;
+  els.reportTests.disabled = !n && !nr;
   els.reportList.replaceChildren();
   for (const f of flagged.values()) {
     const li = el("li");
@@ -254,6 +260,16 @@ function refreshReport() {
     li.append(" ", rm);
     els.reportList.append(li);
   }
+  for (const f of rightItems.values()) {
+    const li = el("li", "report-right");
+    const label = f.kind === "vibe" || f.kind === "factor" ? `${f.top}: ${f.act}` : f.kind === "hint" ? `${f.top} · ${f.bottom}` : `${f.top || "?"} → ${f.bottom || "?"}`;
+    li.append(el("strong", undefined, "✓ Looks right: "), label, ` · ${f.kind === "vibe" ? "vibe rating" : f.kind === "factor" ? "rating factor" : f.act}${f.evidence ? ": " : ""}`, el("span", "evidence", f.evidence));
+    const rm = el("button", "linklike", "remove");
+    rm.type = "button";
+    rm.addEventListener("click", () => { unmarkRight(f.id); });
+    li.append(" ", rm);
+    els.reportList.append(li);
+  }
   missedScenes.forEach((m, i) => {
     const li = el("li");
     li.append(el("strong", undefined, "Missed: "), el("span", "evidence", m.passage.slice(0, 160)));
@@ -263,7 +279,7 @@ function refreshReport() {
     li.append(" ", rm);
     els.reportList.append(li);
   });
-  els.reportPreview.textContent = n || els.reportGeneral.value.trim() ? reportText() : "";
+  els.reportPreview.textContent = n || nr || els.reportGeneral.value.trim() ? reportText() : "";
 }
 
 /** Vibe factors the reader ticked as worth showing Claude, by vibe id and factor number, with any problems they named. */
@@ -368,7 +384,23 @@ function renderCalibration(): HTMLElement {
   return det;
 }
 
-/** The "Report a mistake" button on a scene, hint or vibe rating, and the little form it opens. */
+
+/** Take an item off the "looks right" list (and its calibration mark), repainting its button. */
+function unmarkRight(id: string) {
+  const f = rightItems.get(id);
+  if (!f) return;
+  rightItems.delete(id);
+  if (labelable(f)) {
+    const key = labelKey(f.kind === "hint" ? "line" : "scene", f.card, f.evidence);
+    labels = labels.filter((l) => l.key !== key);
+    saveLabels(labels);
+    refreshCalibration();
+  }
+  rightPaint.get(id)?.();
+  refreshReport();
+}
+
+/** The "Report a mistake" and "Looks right" buttons on a scene, hint or vibe rating, and the little form the first opens. */
 type FlagSpec = Omit<FlaggedScene, "reasons" | "note" | "included">;
 function flagControl(li: HTMLElement, spec: FlagSpec) {
   const id = spec.id;
@@ -378,9 +410,25 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
   btn.type = "button";
   const okBtn = el("button", "linklike ok-btn", "✓ Looks right");
   okBtn.type = "button";
-  okBtn.title = "Mark this as correct, to help check how well the confidence numbers match";
-  if (labelable(spec) && labels.some((l) => l.key === labelKey(spec.kind === "hint" ? "line" : "scene", spec.card, spec.evidence) && l.right)) okBtn.textContent = "✓ Marked right";
-  okBtn.addEventListener("click", () => { recordLabel(spec, true); okBtn.textContent = "✓ Marked right"; });
+  okBtn.title = "Mark this as correct: it goes in the report as a reading to keep" + (labelable(spec) ? ", and helps check how well the confidence numbers match" : "");
+  // A mark saved from an earlier visit still counts: it shows as marked, so it goes in the report too.
+  if (labelable(spec) && !rightItems.has(id) && labels.some((l) => l.key === labelKey(spec.kind === "hint" ? "line" : "scene", spec.card, spec.evidence) && l.right)) rightItems.set(id, { ...spec, reasons: [], note: "" });
+  const paintRight = () => {
+    const on = rightItems.has(id);
+    okBtn.textContent = on ? "✓ Marked right" : "✓ Looks right";
+    okBtn.setAttribute("aria-pressed", String(on));
+    li.classList.toggle("marked-right", on);
+  };
+  rightPaint.set(id, paintRight);
+  okBtn.addEventListener("click", () => {
+    if (rightItems.has(id)) { unmarkRight(id); return; }
+    // Right and wrong can't both be said of one item: marking it right takes it off the mistake list.
+    if (flagged.delete(id)) { li.classList.remove("flagged"); add.textContent = "Add to report"; form.hidden = true; }
+    rightItems.set(id, { ...spec, extra: vibeSpec.get(id) ? vibeExtra(id, vibeSpec.get(id)!) : spec.extra, kind, reasons: [], note: "" });
+    recordLabel(spec, true);
+    paintRight();
+    refreshReport();
+  });
   const form = el("form", "flag-form");
   form.hidden = true;
   const ticks = new Map<FlagReason, HTMLInputElement>();
@@ -418,10 +466,12 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
     li.classList.add("flagged");
     form.hidden = true;
     add.textContent = "Update report";
-    if (reasons.some((r) => WRONG_REASONS.has(r))) { recordLabel(spec, false); okBtn.textContent = "✓ Looks right"; }
+    if (rightItems.delete(id)) paintRight();
+    if (reasons.some((r) => WRONG_REASONS.has(r))) recordLabel(spec, false);
     refreshReport();
   });
-  li.append(" ", labelable(spec) ? okBtn : "", " ", btn, form);
+  paintRight();
+  li.append(" ", okBtn, " ", btn, form);
 }
 
 // Remember the last passage the reader selected outside the report panel; opening the form would otherwise clear it.
@@ -447,6 +497,7 @@ els.missedAdd.addEventListener("click", () => {
 els.reportGeneral.addEventListener("input", refreshReport);
 els.reportClear.addEventListener("click", () => {
   flagged.clear();
+  for (const id of [...rightItems.keys()]) { rightItems.delete(id); rightPaint.get(id)?.(); }
   pickedFactors.clear();
   missedScenes.length = 0;
   els.reportGeneral.value = "";
@@ -468,7 +519,7 @@ els.reportCopy.addEventListener("click", async () => {
 });
 
 els.reportTests.addEventListener("click", async () => {
-  const text = testSkeletons([...flagged.values()], missedScenes);
+  const text = testSkeletons([...flagged.values()], missedScenes, [...rightItems.values()]);
   try {
     await navigator.clipboard.writeText(text);
     els.reportTests.textContent = "Copied!";
@@ -926,15 +977,32 @@ function renderVibe(
             e.preventDefault();
             const reasons = [...ticks].filter(([, x]) => x.checked).map(([k]) => k);
             cb.checked = true;
+            if (rightItems.delete(fid)) paintF();
             setFactor(idx, f, true, reasons, note.value);
             form.hidden = true;
           });
           // Ticking or unticking the box keeps any problems already named.
           cb.addEventListener("change", () => {
+            if (cb.checked && rightItems.delete(fid)) paintF();
             const cur = pickedFactors.get(vid)?.get(idx);
             setFactor(idx, f, cb.checked, cur?.reasons ?? [], cur?.note ?? "");
           });
-          fi.append(btn, form);
+          // This factor is right as it stands: it goes in the report as a reading to keep.
+          const fid = `${vid}|factor|${idx}`;
+          const okF = el("button", "linklike ok-btn", "✓ Looks right");
+          okF.type = "button";
+          okF.title = "Mark this factor as correct: it goes in the report as a reading to keep";
+          const paintF = () => { const on = rightItems.has(fid); okF.textContent = on ? "✓ Marked right" : "✓ Looks right"; okF.setAttribute("aria-pressed", String(on)); fi.classList.toggle("marked-right", on); };
+          rightPaint.set(fid, paintF);
+          okF.addEventListener("click", () => {
+            if (rightItems.has(fid)) { unmarkRight(fid); return; }
+            if (pickedFactors.get(vid)?.has(idx)) { cb.checked = false; setFactor(idx, f, false); }
+            rightItems.set(fid, { id: fid, kind: "factor", pairing, card: opts.key, top: v.name, bottom: "", act: v.label, confidence: v.confidence.score, extra: [`Factor that looks right: ${factorLine(f)}`], evidence: f.source ?? "", reasons: [], note: "" });
+            paintF();
+            refreshReport();
+          });
+          paintF();
+          fi.append(okF, " ", btn, form);
           fl.append(fi);
         }
         det.append(fl);
@@ -961,6 +1029,7 @@ function renderAnalysis(a: Analysis, target: HTMLElement, notesEl: HTMLElement, 
   target.replaceChildren();
   // A new analysis replaces the reading the flags pointed at (switching the vibe display doesn't).
   if (!keepFlags && shown?.source === a.source) { for (const k of [...flagged.keys()]) if (k.startsWith(`${a.source}|`)) flagged.delete(k);
+    for (const k of [...rightItems.keys()]) if (k.startsWith(`${a.source}|`)) rightItems.delete(k);
     for (const k of [...pickedFactors.keys()]) if (k.startsWith(`${a.source}|`)) pickedFactors.delete(k);
   }
   shown = { source: a.source, analysis: a };

@@ -146,8 +146,12 @@ word count is estimated and the main characters are guessed from frequently capi
    stretch, a sentence that opens with “He felt / wanted / thought…” or “His heart raced…” is them, whoever was named in the
    line before; and in alternating first person a chapter headed with the narrator's name says whose “I” follows. Also new:
    “He wanted to be fucked” / “needed to get fucked” (no one named) is a bottom desire.
-   **Checking the confidence numbers.** Each scene and each desire/hint line has a “✓ Looks right” button next to “Report a
-   mistake”. Pressing it marks the item right; reporting a mistake that says it was misread (wrong top/bottom, wrong speaker,
+   **Checking the confidence numbers.** Everything that has a “Report a mistake” button (scenes, hint lines, solo and
+   hand-play lines, tag checks, vibe and everyday-dynamic ratings, and each factor under a rating) also has a “✓ Looks right”
+   button. Pressing it again undoes it, and marking an item right takes it off the mistake list (and the other way round).
+   Items marked right go into the copied report in their own section, “Things I checked that look right”, with the
+   instruction that a fix must leave them alone, and “Copy test skeletons” turns them into tests that must keep passing.
+   Scenes and lines that carry a confidence number also feed the calibration table: pressing it marks the item right; reporting a mistake that says it was misread (wrong top/bottom, wrong speaker,
    wrong pronoun, not a sex act, a wish…) marks it wrong. Marks are kept in your browser only (never sent anywhere), and the
    “Is the confidence calibrated?” panel at the bottom shows stated confidence against how often those items were right, in
    bins, with the average gap. Export them as JSON, import them back or clear them; a summary also goes into the copied
