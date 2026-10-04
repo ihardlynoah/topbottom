@@ -23,6 +23,20 @@ export function contextAround(para: string, sentence: string): string {
   const to = Math.min(para.length, at + sentence.length + 250);
   return (from > 0 ? "…" : "") + para.slice(from, to).trim() + (to < para.length ? "…" : "");
 }
+/** The passage around a line for a mistake report. A quoted line also gets the paragraph before and after, where the speaker is usually named. */
+export function contextFor(paras: string[], pi: number, sentence: string): string {
+  const quoted = /^[“"‘]/.test(sentence.trim());
+  const bare = sentence.replace(/^[“"‘]|[”"’]$/g, "");
+  const para = paras[pi] ?? "";
+  let own = contextAround(para, sentence) || contextAround(para, bare);
+  if (!own && para) own = para.length > 520 ? `${para.slice(0, 519)}…` : para;
+  if (!quoted) return own;
+  const tail = (s: string) => (s.length > 220 ? `…${s.slice(-219)}` : s);
+  const head = (s: string) => (s.length > 220 ? `${s.slice(0, 219)}…` : s);
+  const before = pi > 0 ? paras[pi - 1] ?? "" : "";
+  const after = paras[pi + 1] ?? "";
+  return [before && tail(before.trim()), own, after && head(after.trim())].filter(Boolean).join(" ¶ ");
+}
 export const SOLO_TOY = /\b(?:dildos?|vibrators?|vibes?|butt\s*plugs?|plugs?|anal beads|beads|toys?|wand)\b/i;
 export const REFLEXIVE = /\b(?:himself|herself|themselves|themself|myself|(?:his|her|their|my)\s+own)\b/i;
 /** How much a toy used on yourself counts: certain when worded “himself” / “his own” or when a plug is worn, less when only inferred from there being no one else in the sentence. */
