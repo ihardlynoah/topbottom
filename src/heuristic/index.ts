@@ -603,6 +603,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       if (seen.has(key)) continue;
       seen.add(key);
       const before = lower.slice(Math.max(0, m.index - 30), m.index);
+      // "I think you need to be filled", "you want to get fucked": the want belongs to the listener, so the speaker is the one who
+      // would do it. "He needs to be fucked" is about someone else and says nothing about the speaker.
+      let role = d.role;
+      if (d.cat === "anal" && d.role === "bottom" && /^(?:want|need|wanna)\w*\s+(?:to\s+)?(?:get|be|getting|being)\b/.test(m[0])) {
+        const subj = /\b(you|u|he|she|they)\s+(?:(?:really|just|so|clearly|obviously|definitely|still|also|totally|fucking)\s+)*$/.exec(lower.slice(Math.max(0, m.index! - 40), m.index!));
+        if (subj) { if (/^(?:you|u)$/.test(subj[1])) role = "top"; else continue; }
+      }
       // "Won't you fuck me?" / "Sure you won't fuck me?" are requests, not refusals.
       const question = /\?\s*$/.test(lower.slice(m.index)) && !/[.!]/.test(lower.slice(m.index, m.index + m[0].length + 40).split("?")[0]);
       const negated =
@@ -614,7 +621,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         act: d.act,
         who: speaker,
         partner: ctx.partnerOf(speaker),
-        role: d.role,
+        role,
         wants: !negated,
         kind: d.kind,
         weight: (d.weight ?? (d.kind === "ogling" ? 0.6 : 1)) * reliabilityOf(`dialogue:${d.act}`) * (around.explicit === false ? 0.5 : 1),
@@ -786,6 +793,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.id.startsWith("sinks-to-floor") && /^\s*(?:and\s+)?(?:began|started|proceeded)?\s*(?:to\s+)?(?:pull|pick|grab|search|dig|rummag|check|examin|tie|tend|fix|bandag|gather|collect|retriev|scrabbl)/i.test(sent.slice(m.index! + m[0].length))) return;
     // Kneeling at a ceremony is not spreading for a lover.
     if (pat.id.startsWith("spread-legs") && !SEX_CTX.test(`${paras[pi - 1] ?? ""} ${para} ${paras[pi + 1] ?? ""}`) && /\bkneel\w*|\bknees\s+further\b/i.test(sent)) return;
+    // "palm a dragon egg from top to bottom": the end of a thing, not a role.
+    if (pat.id.startsWith("bottomed-for") && /\b(?:top|tops)\s+(?:to|and)\s+$/i.test(sent.slice(0, m.index!) + (/^\s*(?:to|and)\s+/i.exec(m[0])?.[0] ?? ""))) return;
+    // "still slightly sore from being stretched open" is a bodily sign after sex, not a scene: it belongs with the soreness hints.
+    if (pat.cat === "anal" && !pat.signal && /\b(?:sore|aching|achy|tender|raw)\s+(?:from|after)\s+(?:being\s+|having\s+been\s+)(?:stretched|fucked|opened|taken|filled|used|ridden|pounded|bred|knotted|plowed|wrecked)\b/i.test(sent.slice(Math.max(0, m.index! - 40), m.index! + m[0].length))) return;
+    // "He fists Cregan from root to tip": a hand on a cock, not a fist in an ass.
+    if (pat.id.startsWith("fisting") && /\b(?:root to tip|base to tip|tip to base|from the base|up and down|his (?:cock|dick|length|shaft)|(?:cock|dick|prick|shaft|length|erection))\b/i.test(sent.slice(m.index!, m.index! + m[0].length + 40)) && !/\b(?:ass|arse|hole|anus|rim|inside)\b/i.test(sent)) return;
     // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
     if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
@@ -1273,13 +1286,15 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // neither says the act doesn't happen.
     const negWindow = (/^\s*,/.test(m[0]) ? "" : window.slice(-40)).replace(/^.*,\s*/, "").replace(/\bwithout\s+(?:any\s+|much\s+|further\s+|more\s+|so much as\s+|a\s+)*(?:preamble|ado|hesitation|hesitating|warning|ceremony|delay|word|sound|protest|pause|question|complaint|fanfare|prelude|resistance|effort|being asked|asking|waiting|thought)\b|\b(?:just\s+)?not\s+(?:just\s+)?(?:yet|before|until|quite|now)\b|\b(?:did|does|do|would|will|won|could)(?:n['’]t| not)\s+take\s+(?:long|much|any time|a lot)\b/gi, " ");
     // "if Cas doesn't fuck him soon, he might die": a conditional, which says it is wanted, not refused.
+    // "as though he hasn't just been fucked into a new realm": he looks untouched, and has been. The negation is the pretence.
+    const pretence = /\bas\s+(?:if|though)\s+(?:he|she|they|\w+)\s+(?:hasn['’]t|hadn['’]t|has not|had not)\s+(?:just\s+|only\s+|even\s+)*(?:been\s+)?$/i.test(prefix.slice(-60));
     const ifNot = /\bif\s+(?:[\w'’-]+\s+){0,2}(?:doesn['’]t|don['’]t|didn['’]t|won['’]t|hadn['’]t|isn['’]t|wasn['’]t)\s*$/i.test(window) || (/\bif\s+(?:[\w'’-]+\s+){0,2}$/i.test(window) && NEG.test(aux));
     // "tried not to suppress the urge to pull out and snap back in": not resisting a wish means having it.
     const doubleNeg = /\b(?:not|n['’]t|never|without)\s+(?:to\s+)?(?:\w+\s+){0,2}?(?:suppress|resist|fight|hold back|stifle|restrain|deny|ignore|squash|stop|hide|push down|swallow|fight off)\w*\s+(?:\w+\s+){0,2}(?:urge|desire|need|want|impulse|temptation|craving)/i.test(window);
     // "Not without taking Eddie's dick out of his mouth": not … without cancels out.
     const notWithout = /\bnot\s+without\s+(?:\w+\s+){0,2}$/i.test(window);
     // "Eddie's cock never slid between his lips": a never inside the match, between the subject and the verb.
-    const negated = !ifNot && !doubleNeg && !notWithout && (NEG.test(aux) || NEG.test(negWindow) || NEG.test(negWindow.slice(-14) + matchText.slice(0, 8)) || /\b(?:never|refus(?:ed|es|e|ing) to|declin(?:ed|es|e|ing) to)\b/i.test(matchText));
+    const negated = !ifNot && !doubleNeg && !notWithout && !pretence && (NEG.test(aux) || NEG.test(negWindow) || NEG.test(negWindow.slice(-14) + matchText.slice(0, 8)) || /\b(?:never|refus(?:ed|es|e|ing) to|declin(?:ed|es|e|ing) to)\b/i.test(matchText));
     let kind: Desire["kind"] | "act" = "act";
     if (fantasyPara || FANTASY.test(window) || STRONG_FANTASY.test(prefix)) kind = "fantasy";
     else if (DESIRE_LEAD.test(sent) || DESIRE.test(window) || DESIRE_TAIL.test(window) || DESIRE.test(aux) || DESIRE.test(m.groups?.lead ?? "")) kind = "wanted";
@@ -1287,6 +1302,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     else if (/\b(?:want|need|wish|hope|long|crave)\w*\s+(?:\w+\s+){0,3}?to\b[^.!?]*\band\s+\w*(?:\s+\w*){0,2}$/i.test(prefix + matchText.slice(0, 14))) kind = "wanted";
     else if (HABIT_AUX.test(aux) && (pat.id === "bottomed-for" || pat.id === "topped")) kind = "identity";
     else if (
+      !pretence &&
       !/\bas (?:if|though)\s+(?:he|she|they)\s+(?:wasn['’]t|weren['’]t|was not|were not|hadn['’]t been|had not been)\s+(?:the\s+(?:man|guy|one|person|boy|woman|girl)|Epithet\d+)\s+(?:who|that)\b/i.test(prefix) &&
       !(/\bas (?:if|though)\s*$/i.test(prefix) && /\b(?:isn['’]t|wasn['’]t|aren['’]t|weren['’]t|is not|was not|were not|not)\b[^.!?]*\benough\b/i.test(sent.slice(m.index!))) &&
       ((HYPO_AUX.test(aux) && !/\bcould\s+(?:\w+\s+)?(?:taste|feel|smell|hear|see)\b/i.test(prefix.slice(-25) + matchText.slice(0, 30))) || HYPO_MATCH.test(prefix.slice(-25) + matchText) || /\b(?:can|could|would|should)\s+(?:just\s+)?\w+\b[^.!?]*\band\s*\w*$/i.test(prefix + matchText.slice(0, 6)) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) || (/\bthan\s+(?:it\s+was\s+|it's\s+)?$/i.test(prefix) && /^to\b/i.test(matchText)) || /\bthan\s+(?:it\s+was\s+|it's\s+)?to\s*$/i.test(prefix) || /\b(?:like|as if|as though)\s+(?:he|she|they|I)(?:['’]s|['’]d|\s+(?:is|was|were|are|had|has|would))?\s*$/i.test(prefix) || (/\b(?:like|as if|as though)\s*$/i.test(prefix) && /^(?:he|she|they|I)\b/.test(matchText)) ||
