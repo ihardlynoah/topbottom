@@ -87,6 +87,23 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   const gateSeen = new Uint8Array(patterns.reduce((m, p) => Math.max(m, (p.gateId ?? -1) + 1), 0));
   const NAMES = cast.aliasPattern || "(?!)";
   const nameRe = new RegExp(`\\b(?:${NAMES})(?:['’]s)?\\b`, "g");
+  // Who is on the page besides the cast: names that keep turning up as the subject of a sentence ("Sam smiled", "Greg had pulled") but
+  // aren't cast members, and stand-ins for strangers ("the waiter", "the twink"). A he or a left-out subject right after one of
+  // these is that person, not whichever lead was named before.
+  const STRANGER_LABELS = "twink|twunk|bottom boy|slut|whore|virgin|newbie|stranger|brat|plaything|boy toy|hooker|escort|jock|waiter|waitress|bartender|barista|doctor|nurse|cop|officer|guard|driver|clerk|neighbou?r|landlord|teacher|bouncer|stripper|dancer|client|customer|cashier|receptionist";
+  const outsiderNames = (() => {
+    const counts = new Map<string, number>();
+    const subj = /(?:^|[.!?”"]\s+|[,;]\s*(?:and|but|then|while|as)\s+)([A-Z][a-z]{2,})\s+(?:[a-z]{2,}(?:ed|s)|was|had|did|said|asked|would|could|will|looked|laughed|smiled|grinned)\b/gm;
+    const castKnown = (n: string) => !!cast.byAlias.get(n);
+    for (const mm of narration.matchAll(subj)) if (!castKnown(mm[1])) counts.set(mm[1], (counts.get(mm[1]) ?? 0) + 1);
+    const SKIP = /^(?:The|This|That|These|Those|Then|There|Here|When|While|After|Before|And|But|Now|Just|Maybe|Not|His|Her|Their|Its|Our|Your|My|God|Jesus|Christ|Fuck|Shit|Oh|Yes|Okay|Please|Still|Again|Next|Later|Soon|Once|Some|Everyone|Someone|Anyone|Nobody|Everything|Something|Nothing|Both|Each|Every|Another|Other|Suddenly|Slowly|Finally|Instead|Always|Never|Today|Tonight|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/;
+    // A name is never written in lower case, so a word that also shows up that way ("more", "even", "she") is just a sentence opener.
+    const PRON = /^(?:She|He|They|We|You|It|I|Her|Him|Them|Who|What|Why|How|Which|Where|Whose|With|From|Despite|Being|Only|Even|More|Most|Two|Three|Four|Five|Six|One|Silence|Really|Like)$/;
+    // …and an outsider is a minor character: if the name comes up about as often as the cast does, it's a lead the cast missed.
+    const castMentions = (narration.match(nameRe) ?? []).length / Math.max(1, cast.chars.length);
+    const mentions = (n: string) => (narration.match(new RegExp(`\\b${n}\\b`, "g")) ?? []).length;
+    return [...counts].filter(([n, c]) => c >= 3 && !SKIP.test(n) && !PRON.test(n) && !new RegExp(`\\b${n.toLowerCase()}\\b`).test(narration) && mentions(n) < 0.3 * castMentions).map(([n]) => n);
+  })();
   const subjectRe = new RegExp(`(?:^|[\\s(—–-])((?:${NAMES}|${EPITHET_TOKEN})(?:['’]s)?|[Hh]e|[Ss]he|[Tt]hey|I|[Hh]is|[Hh]er|[Tt]heir|[Mm]y)\\b`);
   const epithetRe = new RegExp(EPITHET, "g");
   const ING_NOUNS =
@@ -634,7 +651,13 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         (!question && /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:(?!hesitate|forget|stop|let)\w+\s+){0,3}$/.test(before)) ||
         /\bas if\b[^.!?]*$/.test(before);
       // "Because if I win, I want to breed you": a wish that hangs on a condition is a "what if", not a request now.
-      const kind = d.kind === "said" && /\bif\b[^.!?;]{2,70},\s*(?:(?:then|and|so)\s+)?(?:i|we|you)\b[^.!?;]{0,30}$/.test(lower.slice(Math.max(0, m.index! - 110), m.index! + m[0].length)) ? "hypothetical" : d.kind;
+      // Other ways of putting it off or wondering: "someday I'll fuck you", "maybe next time I could", "what if I fucked you", "once we're married".
+      const lead = lower.slice(Math.max(0, m.index! - 110), m.index! + m[0].length);
+      const sentLead = lead.split(/[.!?;]\s+/).pop() ?? lead;
+      const conditional =
+        /\bif\b[^.!?;]{2,70},\s*(?:(?:then|and|so)\s+)?(?:i|we|you)\b[^.!?;]{0,30}$/.test(lead) ||
+        /\b(?:what if|some ?day|one day|one of these days|next time|sometime|someday|maybe|perhaps|once (?:i|we|you|this)|when(?:ever)? (?:i|we|you) (?:get|got|can|could|finally|win|won|lose|lost|are|am)|i wonder|i bet|imagine|suppose|pretend|if i ever|if we ever|some other time)\b/.test(sentLead);
+      const kind = d.kind === "said" && conditional ? "hypothetical" : d.kind;
       desires.push({
         via: `dialogue:${d.act}`,
         cat: d.cat,
@@ -784,6 +807,19 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const g = new RegExp(`(?:^|[,;]\\s*|\\b(?:and|but|as|while|then|when|before|after)\\s+)the\\s+(twink|twunk|bottom boy|bottom|slut|whore|virgin|newbie|stranger|brat|slave|plaything|boy toy|hooker|escort|jock)(?:['’]s)?\\b(?![^.!?]*\\b(?:${NAMES})\\b[^.!?]*$)`, "i").exec(sent.slice(0, m.index! + (/^\s*(?:and\b|,)\s*/.exec(m[0])?.[0].length ?? 0)));
       if (g && !cast.byAlias.get(g[1]) && !new RegExp(`\\b(?:${NAMES})\\b`).test(sent.slice(g.index! + g[0].length, m.index!)) &&
           (paras.join(" ").match(new RegExp(`\\bthe ${g[1]}\\b`, "gi")) ?? []).length < 5) return;
+    }
+    // "Greg frowned. He pushed Dean against the wall": the he after a clause whose subject is someone outside the cast is that person,
+    // and so is a left-out subject in a sentence that someone outside the cast starts.
+    if (pat.elided || /^(?:he|him|she|her)$/i.test(tTok ?? "") || /^(?:he|him|she|her)$/i.test(bTok ?? "")) {
+      const startOf = (s: string): "out" | "cast" | "pron" | undefined => {
+        const sm = new RegExp(`^\\W*(?:(?:and|but|then|so|when|while|as|after|before)\\s+)?(?:(?<cast>${NAMES})|(?<out>${outsiderNames.length ? outsiderNames.join("|") : "(?!)"})|(?<lab>[Tt]he (?:${STRANGER_LABELS}))|(?<pron>[Hh]e|[Ss]he))(?!['’])\\b\\s+[a-z]`).exec(s);
+        const g = sm?.groups;
+        return !g ? undefined : g.cast ? "cast" : g.pron ? "pron" : "out";
+      };
+      const at = para.indexOf(sent);
+      const prevSent = at > 0 ? para.slice(Math.max(0, at - 240), at).trim().split(/(?<=[.!?”])\s+/).pop() ?? "" : "";
+      const cur = startOf(sent);
+      if (cur === "out" || (cur === "pron" && /[.!?”]$/.test(prevSent) && startOf(prevSent) === "out")) return;
     }
     // "He knew his whole focus was on serving him; … as he was getting railed": the he who serves is the one being taken, but the
     // last-named subject is the one served, so the pronoun can't be trusted.
