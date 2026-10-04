@@ -116,5 +116,5 @@ describe("metamorphic checks", () => {
     }
     if (process.env.META_OUT) writeFileSync(process.env.META_OUT, failures.join("\n"));
     expect(failures.map((f) => f.split("|")[0] + "|" + f.split("|")[1].split(":")[0])).toEqual(KNOWN);
-  });
+  }, 120_000);
 });

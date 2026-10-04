@@ -7,5 +7,8 @@ export default defineConfig({
   worker: { format: "iife" },
   test: {
     environment: "jsdom",
+    // GitHub's runners are about twice as slow as a developer machine; the engine tests that scan many sentences
+    // finish in 3 to 5 seconds locally and hit the 5 second default there.
+    testTimeout: 30_000,
   },
 });
