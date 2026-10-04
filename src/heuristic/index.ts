@@ -811,6 +811,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.id.startsWith("arch-back") && !ANAL_CTX.test(para) && !ANAL_CTX.test(paras[pi - 1] ?? "") && /\b(?:suck\w*|blowjob|mouth|throat|lips|tongue|hand(?:job)?|stroke\w*|jerk\w*|cock|dick)\b/i.test(para)) return;
     // "arched his back and stretched": easing a stiff back is not a yielding posture.
     if (pat.id.startsWith("arch-") && /\b(?:stretch\w*|crack\w*|popp\w*|stiff|kink|from sitting|desk|chair)\b/i.test(sent) && !ANAL_CTX.test(para)) return;
+    // Cuddling up while they choose something to watch ("cuddling up against his chest as he reached for the iPad … another episode")
+    // is company, not aftercare.
+    if (pat.id.startsWith("aftercare-") && /\b(?:episodes?|show|movie|film|tv|iPad|remote|netflix|stream\w*|youtube|game|podcast)\b/i.test(para)) return;
     // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
     if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
@@ -858,6 +861,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const askedChar = asker ? ctx.partnerOf(asker) : undefined;
       if (asker && askedChar) asked = { top: askedChar, bottom: asker };
     }
+    // "it made him flush": with only that one person in the pattern, "him" is the one made to flush, i.e. the causer's partner,
+    // not the partner of that person.
+    if (causative && !subjChar && nearSubj && !(pat.subj === "t" ? bTok : tTok)) subjChar = nearSubj;
     const resolved = asked ? { ...asked, basis: "pronoun" as Basis } : resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
     ctx.coSubjects.clear();
     if (!resolved) return;
