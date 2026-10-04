@@ -2794,7 +2794,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.8,
     needsCtx: true,
     signal: { kind: "masturbation", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:got|get|gets|getting|brought|bring|brings|bringing|made|make|makes|making|worked|work|works|working)\\s+${SELF}\\s+(?:off|to\\s+(?:orgasm|climax|completion|the edge)|come|cum)\\b`,
+    src: `\\b{B}\\s+{aux}(?:got|get|gets|getting|brought|bring|brings|bringing|made|make|makes|making|worked|work|works|working)\\s+${SELF}\\s+(?:off(?!\\s+(?:the|a|an|of|his|her|their|my|your|this|that|its|from)\\b)|to\\s+(?:orgasm|climax|completion|the edge)|come|cum)\\b`,
   },
   // ───────────── everyday dynamics between the pair (tier 6, light): caretaking, leading by the hand ─────────────
   {
