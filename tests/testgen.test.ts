@@ -22,3 +22,14 @@ describe("test skeletons from flagged mistakes", () => {
     expect(t).toContain("finds the missed scene 1");
   });
 });
+
+describe("readings that look right", () => {
+  it("become tests that must keep passing", () => {
+    const t = testSkeletons([], [], [flag({ id: "r1", reasons: [] }), flag({ id: "r2", kind: "hint", card: "anal", top: "A", bottom: "top (said)", act: "anal sex", reasons: [] }), flag({ id: "r3", kind: "vibe", card: "vibe", top: "A", act: "Total top", reasons: [] })]);
+    expect(t).toContain("readings that look right (keep these passing)");
+    expect(t).toContain('{ top: "A", bottom: "B" }');
+    expect(t).toContain("toBeGreaterThan(0); // the hint still appears");
+    expect(t).toContain('rating(r, "A").label).toBe("Total top")');
+    expect(t.split("\n").filter((l) => l.includes("secret quoted line") && !l.trim().startsWith("//")).length).toBe(0);
+  });
+});
