@@ -107,3 +107,33 @@ describe("tightened hints (from the reviewed queue)", () => {
     expect(r.pairings.every((p) => !/Basketball|Team/.test(p.pairing))).toBe(true);
   });
 });
+
+describe("fixes from an error report", () => {
+  it("‘you need to be fucked / filled’ is the speaker topping, not wishing to bottom", () => {
+    for (const line of ["“I think you need to be filled,” Dean said.", "“You need to be fucked,” Dean said.", "“You want to get fucked, don’t you?” Dean asked."]) {
+      const { p } = run(line);
+      const roles = p.anal.desires.filter((d) => d.who.startsWith("Dean")).map((d) => d.role);
+      expect(roles).not.toContain("bottom");
+    }
+    expect(run("“I need to be fucked,” Dean said.").p.anal.desires.some((d) => d.who.startsWith("Dean") && d.role === "bottom")).toBe(true);
+    expect(run("“He needs to be fucked,” Dean said.").p.anal.desires.filter((d) => d.who.startsWith("Dean") && d.role === "bottom")).toHaveLength(0);
+  });
+  it("‘as though he hadn’t just been fucked’ means he was", () => {
+    const { p } = run("Castiel rolled him onto his back and kissed him, as though Dean hadn’t just been fucked into the mattress.");
+    expect(p.anal.desires.filter((d) => d.who.startsWith("Dean") && d.role === "bottom" && !d.wants)).toHaveLength(0);
+  });
+  it("‘from top to bottom’ is not bottoming", () => {
+    expect(run("The prince doesn't have hands big enough to palm a dragon egg from top to bottom, but he is quick and smart.").hits.filter((h) => h.via.startsWith("bottomed-for"))).toHaveLength(0);
+    expect(anal("Dean bottomed for Castiel, groaning.")).toEqual(["Castiel>Dean"]);
+  });
+  it("soreness after being stretched open is a bodily sign, not a scene", () => {
+    const { p, hits } = run("Dean squirms in the saddle, still slightly sore from being stretched open, and Castiel’s pupils expand.");
+    expect(p.anal.instances.filter((i) => i.act !== "fingering")).toHaveLength(0);
+    expect(hits.some((h) => h.via.startsWith("body-sore") && h.a.startsWith("Dean"))).toBe(true);
+  });
+  it("fisting someone from root to tip is a handjob, not fisting", () => {
+    const { p, hits } = run("He fists Castiel from root to tip, gasping for air as Castiel comes.");
+    expect(p.anal.instances.filter((i) => /fist/.test(i.act))).toHaveLength(0);
+    expect(hits.some((h) => h.via.startsWith("hj-"))).toBe(true);
+  });
+});
