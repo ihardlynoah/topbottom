@@ -6,6 +6,8 @@ import { FEATURES, MODEL, featuresOf, probability, trustOf } from "../src/heuris
 const M: Ao3Meta = { ...emptyMeta(), rating: "Explicit", categories: ["M/M"], fandoms: ["Supernatural"], relationships: ["Dean Winchester/Castiel"], characters: ["Dean Winchester", "Castiel"] };
 const lead = "Dean and Castiel were in bed, naked and kissing, hard and aching. Dean kissed Castiel. Castiel kissed Dean back, moaning. ".repeat(2) + "\n\n";
 const run = (t: string) => { const hits: AuditHit[] = []; const r = analyzeWithPatterns(lead + t, M, { quiet: true, audit: (h) => hits.push(h) }); return { p: r.pairings[0], hits: hits.filter((h) => h.para >= 1) }; };
+const neutral = "Dean and Castiel were in the kitchen, talking about the show. Dean laughed. Castiel smiled back. ".repeat(2) + "\n\n";
+const runN = (t: string) => { const hits: AuditHit[] = []; analyzeWithPatterns(neutral + t, M, { quiet: true, audit: (h) => hits.push(h) }); return { hits: hits.filter((h) => h.para >= 1) }; };
 const anal = (t: string) => run(t).p.anal.instances.filter((i) => i.act !== "fingering").map((i) => `${i.top.split(" ")[0]}>${i.bottom.split(" ")[0]}`);
 
 describe("who is doing it", () => {
@@ -68,5 +70,40 @@ describe("the context model", () => {
     const t = trustOf("whatever", f);
     expect(t).toBeGreaterThanOrEqual(0.4);
     expect(t).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("tightened hints (from the reviewed queue)", () => {
+  it("after an opening clause the he is the opening clause's subject", () => {
+    const { hits } = run("When Dean looked down and realised that Castiel had stopped listening, he blushed.");
+    expect(hits.filter((h) => h.via.startsWith("flustered-verb")).map((h) => h.a.split(" ")[0])).toEqual(["Dean"]);
+  });
+  it("what an outsider does is not credited to the cast: ‘Eustace placed a hand on his back and guided him’", () => {
+    expect(run("Dean gave the guard a sceptical look, before Eustace placed a hand on his back and guided him out into the hallway.").hits.filter((h) => h.via.startsWith("lead-by-hand"))).toHaveLength(0);
+    expect(run("Dean placed a hand on Castiel’s back and guided him out into the hallway.").hits.some((h) => h.via.startsWith("lead-by-hand"))).toBe(true);
+  });
+  it("a handjob that is wished for, fantasised about or on oneself is not one", () => {
+    expect(run("He wanted to hold Castiel close and continue to stroke his cock until he came, but he couldn’t get his tongue to work.").hits.filter((h) => h.via.startsWith("hj-"))).toHaveLength(0);
+    expect(run("Dean fists his own cock and thinks of Castiel arched beneath him.").hits.filter((h) => h.via.startsWith("hj-"))).toHaveLength(0);
+    expect(run("Dean stroked Castiel’s cock slowly, his thumb circling the head.").hits.some((h) => h.via.startsWith("hj-"))).toBe(true);
+  });
+  it("fantasies of pressing him down are not a hold-down; arms pinning him to a chest are a hug", () => {
+    expect(run("His mind filled with fantasies of Castiel’s kisses, of pressing Castiel onto his back and making him moan.").hits.filter((h) => h.via.startsWith("dom-pin"))).toHaveLength(0);
+    expect(run("Castiel threw himself into Dean’s arms, which wrapped around him and pinned him to the warm mass of chest.").hits.filter((h) => h.via.startsWith("dom-pin"))).toHaveLength(0);
+  });
+  it("rubbing hands together, pouring tea and kneeling to dig in a bag are everyday acts", () => {
+    expect(run("“What are we having?” Dean asks, rubbing his hands together.").hits.filter((h) => h.via.startsWith("care-"))).toHaveLength(0);
+    expect(runN("“So you have no idea,” Sam said as he poured Dean a cup of tea.").hits.filter((h) => h.via.startsWith("care-bring"))).toHaveLength(0);
+    expect(runN("Dean dropped to his knees and began pulling flares out of his backpack.").hits.filter((h) => h.via.startsWith("sinks-to-floor"))).toHaveLength(0);
+  });
+  it("armies to protect him, and kneeling at a ceremony, are not hints", () => {
+    expect(run("He would have armies to protect him and advisors to counsel his decisions.").hits.filter((h) => h.via.startsWith("dom-protect"))).toHaveLength(0);
+    expect(runN("“He kneels improperly,” Sam noted, and Castiel adjusted to spread his knees further.").hits.filter((h) => h.via.startsWith("spread-legs"))).toHaveLength(0);
+  });
+  it("a baby being scooped up is not a hold-and-comfort hint, and a team tag is not a character", () => {
+    expect(runN("Castiel went to the crib and quickly scooped the baby up, holding him close to his chest.").hits.filter((h) => h.via.startsWith("aftercare-held") || h.via.startsWith("dom-carry"))).toHaveLength(0);
+    const meta = { ...M, characters: ["Dean Winchester", "Castiel", "Hawkins High Basketball Team (Stranger Things)"] };
+    const r = analyzeWithPatterns(lead + "Dean protected Castiel from the Hawkins crowd.", meta, { quiet: true });
+    expect(r.pairings.every((p) => !/Basketball|Team/.test(p.pairing))).toBe(true);
   });
 });

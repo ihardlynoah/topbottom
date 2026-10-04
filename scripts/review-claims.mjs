@@ -32,6 +32,10 @@ const T = {
   "sucking on fingers": "{A} is sucking on {B}'s fingers",
   "taking control": "{A} is taking control of {B} in a sexually dominant way",
   "vaginal sex": "{A} is having vaginal sex with {B}",
+  "flustered or blushing": "{A} is blushing or flustered around {B}",
+  "protecting someone": "{A} is protecting {B}",
+  "growling at someone": "{A} is growling at {B}",
+  "spreading their legs": "{A} is spreading their legs for {B}",
   rimming: "{A} is rimming {B}",
   cunnilingus: "{A} is going down on {B}",
 };

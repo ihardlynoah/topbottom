@@ -1507,7 +1507,7 @@ export const PATTERNS: PatternDef[] = [
     needsCtx: true,
     signal: { kind: "prep", actorRole: "bottom" },
     // Not "spreading his legs to stand between them": that's someone else's legs.
-    src: `\\b{B}\\s+{aux}(?:spread|parted|opened|spreads|parts|opens|spreading|parting|opening)\\s+(?:his|her|their|my|your)\\s+(?:legs|thighs|knees)(?!${BETWEEN_THEM})(?:\\s+(?:wider\\s+|wide\\s+)?for\\s+{T})?`,
+    src: `\\b{B}\\s+{aux}(?:spread|parted|opened|spreads|parts|opens|spreading|parting|opening)\\s+(?:his|her|their|my|your)\\s+(?:legs|thighs|knees)(?!(?:\\s+(?:apart|wide|open|further|farther))?${BETWEEN_THEM})(?:\\s+(?:wider\\s+|wide\\s+)?for\\s+{T})?`,
   },
   {
     // "hoisted him onto the counter, spreading his legs to stand between them"
@@ -2793,6 +2793,7 @@ export const PATTERNS: PatternDef[] = [
     act: "looking after someone",
     subj: "t",
     weight: 0.4,
+    needsCtx: true,
     signal: { kind: "behavior", actorRole: "top" },
     src: `\\b{T}\\s+{aux}(?:tuck|drap|wrap|pull|pulled|put|spread|laid|lay|threw|tossed)\\w*\\s+(?:a|the|his|her|their|my|your|an|that|this)\\s+(?:\\w+\\s+){0,2}?(?:blanket|jacket|coat|sweater|hoodie|towel|scarf|quilt|cardigan|comforter)\\s+(?:around|over|across)\\s+{B}\\b`,
   },

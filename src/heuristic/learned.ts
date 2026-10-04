@@ -38,7 +38,15 @@ const SEXW = /\b(?:cock|dick|prick|hole|ass|arse|thrust\w*|moan\w*|gasp\w*|groan
 const HYPO = /\b(?:would|could|might|wish\w*|want\w*|imagin\w*|dream\w*|fantas\w*|if|wonder\w*|maybe|someday|hoped?)\b/i;
 const FIGHT = /\b(?:punch\w*|fight\w*|blood\w*|knife|gun|shot|kill\w*|battle|swung|swing|blow|bruise\w*|bleed\w*|sword|attack\w*|wrestl\w*|tackl\w*|slap\w*)\b/i;
 const CHILD = /\b(?:(?:the|a|their|his|her|my|our)\s+(?:little\s+)?baby|babies|toddler|infant|child|children|kids?|crib|diaper|cradle|newborn|nursery)\b/i;
+/** An actual baby (not a pet name, not a kid brother): the guard in index.ts uses this stricter list. */
+const BABY = /\b(?:(?:the|a|their|his|her|my|our)\s+(?:little\s+|tiny\s+|newborn\s+)?(?:baby|infant|toddler)|babies|infant|toddler|newborn|crib|diaper|cradle|nursery)\b/i;
 const count = (ps: string[]) => ps.reduce((n, p) => n + (p.match(SEXW)?.length ?? 0), 0);
+
+/** A baby or small child is in these paragraphs and the stretch isn't sexual: carrying, feeding or holding means no dynamic. */
+export function babyNear(paras: string[], pi: number): boolean {
+  const near = paras.slice(Math.max(0, pi - 1), pi + 2);
+  return BABY.test(near.join(" ")) && count(near) < 3;
+}
 
 export function featuresOf(i: FeatureInput): number[] {
   const near = i.paras.slice(Math.max(0, i.pi - 1), i.pi + 2);
@@ -83,7 +91,7 @@ export function trustOf(id: string, f: number[]): number {
 
 export const MODEL: { enabled: boolean; bias: number; prior: number; weights: number[] } = {
   enabled: true,
-  bias: 1.3029,
-  prior: 0.7560,
-  weights: [0.3278, 0.2765, 0.3894, 0.0364, -0.3822, -0.0268, -0.0240, -0.1441, -0.0092, -0.8291, 1.2335, 0.4745, -0.3269, -0.1368, 0.0238],
+  bias: 1.7153,
+  prior: 0.5900,
+  weights: [0.2992, 0.2581, 0.3028, 0.1107, -0.2751, -0.0672, 0.0582, -0.1963, -0.0045, -0.8124, 1.2269, 0.4358, -0.2526, -0.0911, 0.0216],
 };
