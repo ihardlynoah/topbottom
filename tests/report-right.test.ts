@@ -13,7 +13,8 @@ describe("the mistake report keeps what looks right", () => {
     expect(right).toContain("A sentence that is fine.");
     expect(right).toContain("Pattern: lips-around");
     expect(right).not.toContain("What is wrong");
-    expect(text).toContain("a fix must not change those");
+    expect(text).toContain("Give those more weight than the rest");
+    expect(text).toContain("not readings that are correct in every circumstance");
   });
   it("works with only right items, and with a note, a hint, a vibe rating and a factor", () => {
     const text = buildReport({ ...base, flags: [], right: [
@@ -33,7 +34,7 @@ describe("the mistake report keeps what looks right", () => {
   it("leaves the section and the extra sentence out when nothing is marked right", () => {
     const text = buildReport({ ...base, flags: [flag({ reasons: ["swapped"] })] });
     expect(text).not.toContain("look right");
-    expect(text).not.toContain("a fix must not change those");
+    expect(text).not.toContain("Give those more weight");
   });
   it("leaves out an item taken out of the report", () => {
     expect(buildReport({ ...base, flags: [], right: [flag({ included: false })] })).not.toContain("look right (");

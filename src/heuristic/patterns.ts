@@ -1715,6 +1715,30 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{T}\\s+{aux}(?:bend|bent|bending|bends)\\s+{B}\\s+over\\b`,
   },
   {
+    // "arched his back", "his back arched off the bed", "arching up into him": a bottom's yielding posture
+    id: "arch-back",
+    cat: "anal",
+    kw: "arch",
+    act: "arching their back",
+    subj: "b",
+    weight: 0.3,
+    needsCtx: true,
+    signal: { kind: "touch", actorRole: "bottom" },
+    src: `\\b(?:{B}\\s+{aux}arch\\w*\\s+(?:his|her|their|my|your)\\s+(?:back|spine)|{B:poss}\\s+(?:back|spine)\\s+(?:arch|bow)\\w*)(?![\\w-])`,
+  },
+  {
+    // "arched his ass up", "arching his hips back toward Dean": offering the ass
+    id: "arch-ass",
+    cat: "anal",
+    kw: "arch",
+    act: "arching their ass up",
+    subj: "b",
+    weight: 0.5,
+    needsCtx: true,
+    signal: { kind: "touch", actorRole: "bottom" },
+    src: `\\b{B}\\s+{aux}arch\\w*\\s+(?:his|her|their|my|your)\\s+(?:ass|arse|butt|bum|hips|backside)\\s+(?:up|back|higher|toward|towards|into|against|off|for)(?![\\w-])`,
+  },
+  {
     id: "grind-ass-back",
     cat: "anal",
     act: "grinding back",

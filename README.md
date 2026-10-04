@@ -150,7 +150,8 @@ word count is estimated and the main characters are guessed from frequently capi
    hand-play lines, tag checks, vibe and everyday-dynamic ratings, and each factor under a rating) also has a “✓ Looks right”
    button. Pressing it again undoes it, and marking an item right takes it off the mistake list (and the other way round).
    Items marked right go into the copied report in their own section, “Things I checked that look right”, with the
-   instruction that a fix must leave them alone, and “Copy test skeletons” turns them into tests that must keep passing.
+   note that they deserve more confidence than the rest but are not right in every context, and “Copy test skeletons” turns
+   them into tests that a fix should keep passing unless there is a reason.
    Scenes and lines that carry a confidence number also feed the calibration table: pressing it marks the item right; reporting a mistake that says it was misread (wrong top/bottom, wrong speaker,
    wrong pronoun, not a sex act, a wish…) marks it wrong. Marks are kept in your browser only (never sent anywhere), and the
    “Is the confidence calibrated?” panel at the bottom shows stated confidence against how often those items were right, in

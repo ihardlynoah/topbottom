@@ -137,7 +137,7 @@ export function buildReport(r: ReportInput): string {
       `${r.source === "claude" ? "second opinion" : "pattern engine"} read it that way, say whether it is a false positive (flagged but wrong) or a false negative (missed), ` +
       "and suggest a specific fix: a pattern or guard to change, with a short paraphrased test case. " +
       "Check the surrounding passage, not just the one sentence. If my explanation and the text disagree, tell me." +
-      ((r.right ?? []).some((f) => f.included !== false) ? " I also list readings I checked and found correct; a fix must not change those." : ""),
+      ((r.right ?? []).some((f) => f.included !== false) ? " I also list readings I checked and found right. Give those more weight than the rest, but they are not guaranteed correct in every context." : ""),
   );
   out.push("");
   out.push("## The work");
@@ -166,7 +166,7 @@ export function buildReport(r: ReportInput): string {
     out.push("");
     out.push(`## Things I checked that look right (${rights.length})`);
     out.push("");
-    out.push("These readings are correct. Whatever fix you suggest must leave them as they are; treat them as test cases that have to keep passing.");
+    out.push("These readings looked right when I checked them. Treat them with greater confidence than the rest: they are likely examples of correct readings, not readings that are correct in every circumstance. If a fix would change one, say so and say why.");
     rights.forEach((f, n) => describeItem(out, f, n + 1, true));
   }
 

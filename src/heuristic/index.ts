@@ -807,6 +807,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.id.startsWith("fisting") && /\b(?:root to tip|base to tip|tip to base|from the base|up and down|his (?:cock|dick|length|shaft)|(?:cock|dick|prick|shaft|length|erection))\b/i.test(sent.slice(m.index!, m.index! + m[0].length + 40)) && !/\b(?:ass|arse|hole|anus|rim|inside)\b/i.test(sent)) return;
     // "he tugged him gently to where he wanted him": a pull, not a handjob. Only "tugged him off" is.
     if (pat.id.startsWith("hj-jerk-him") && /\btugg?\w*\s+\S+\s+(?!off\b)/i.test(m[0])) return;
+    // Arching a back while being sucked or stroked is pleasure, not offering an ass: only count it in a stretch about the ass.
+    if (pat.id.startsWith("arch-back") && !ANAL_CTX.test(para) && !ANAL_CTX.test(paras[pi - 1] ?? "") && /\b(?:suck\w*|blowjob|mouth|throat|lips|tongue|hand(?:job)?|stroke\w*|jerk\w*|cock|dick)\b/i.test(para)) return;
+    // "arched his back and stretched": easing a stiff back is not a yielding posture.
+    if (pat.id.startsWith("arch-") && /\b(?:stretch\w*|crack\w*|popp\w*|stiff|kink|from sitting|desk|chair)\b/i.test(sent) && !ANAL_CTX.test(para)) return;
     // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
     if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.

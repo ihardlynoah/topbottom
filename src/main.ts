@@ -410,7 +410,7 @@ function flagControl(li: HTMLElement, spec: FlagSpec) {
   btn.type = "button";
   const okBtn = el("button", "linklike ok-btn", "✓ Looks right");
   okBtn.type = "button";
-  okBtn.title = "Mark this as correct: it goes in the report as a reading to keep" + (labelable(spec) ? ", and helps check how well the confidence numbers match" : "");
+  okBtn.title = "Mark this as looking right: the report lists it as a reading to trust more, not as certainly correct everywhere" + (labelable(spec) ? ", and helps check how well the confidence numbers match" : "");
   // A mark saved from an earlier visit still counts: it shows as marked, so it goes in the report too.
   if (labelable(spec) && !rightItems.has(id) && labels.some((l) => l.key === labelKey(spec.kind === "hint" ? "line" : "scene", spec.card, spec.evidence) && l.right)) rightItems.set(id, { ...spec, reasons: [], note: "" });
   const paintRight = () => {
@@ -991,7 +991,7 @@ function renderVibe(
           const fid = `${vid}|factor|${idx}`;
           const okF = el("button", "linklike ok-btn", "✓ Looks right");
           okF.type = "button";
-          okF.title = "Mark this factor as correct: it goes in the report as a reading to keep";
+          okF.title = "Mark this factor as looking right: the report lists it as a reading to trust more, not as certainly correct everywhere";
           const paintF = () => { const on = rightItems.has(fid); okF.textContent = on ? "✓ Marked right" : "✓ Looks right"; okF.setAttribute("aria-pressed", String(on)); fi.classList.toggle("marked-right", on); };
           rightPaint.set(fid, paintF);
           okF.addEventListener("click", () => {
