@@ -807,6 +807,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (pat.id.startsWith("fisting") && /\b(?:root to tip|base to tip|tip to base|from the base|up and down|his (?:cock|dick|length|shaft)|(?:cock|dick|prick|shaft|length|erection))\b/i.test(sent.slice(m.index!, m.index! + m[0].length + 40)) && !/\b(?:ass|arse|hole|anus|rim|inside)\b/i.test(sent)) return;
     // "he tugged him gently to where he wanted him": a pull, not a handjob. Only "tugged him off" is.
     if (pat.id.startsWith("hj-jerk-him") && /\btugg?\w*\s+\S+\s+(?!off\b)/i.test(m[0])) return;
+    // Cuddling up while they choose something to watch ("cuddling up against his chest as he reached for the iPad … another episode")
+    // is company, not aftercare.
+    if (pat.id.startsWith("aftercare-") && /\b(?:episodes?|show|movie|film|tv|iPad|remote|netflix|stream\w*|youtube|game|podcast)\b/i.test(para)) return;
     // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
     if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
@@ -854,6 +857,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const askedChar = asker ? ctx.partnerOf(asker) : undefined;
       if (asker && askedChar) asked = { top: askedChar, bottom: asker };
     }
+    // "it made him flush": with only that one person in the pattern, "him" is the one made to flush, i.e. the causer's partner,
+    // not the partner of that person.
+    if (causative && !subjChar && nearSubj && !(pat.subj === "t" ? bTok : tTok)) subjChar = nearSubj;
     const resolved = asked ? { ...asked, basis: "pronoun" as Basis } : resolvePair(tTok, bTok, pat.subj, cast, ctx, subjChar, nearSubj);
     ctx.coSubjects.clear();
     if (!resolved) return;
