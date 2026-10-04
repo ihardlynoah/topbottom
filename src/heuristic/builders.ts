@@ -34,7 +34,7 @@ export function buildSolo(pair: [Character, Character], hits: DesireHit[], where
     const key = `${d.who.name}\u0000${d.para}\u0000${d.sentence}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    instances.push({ who: d.who.name, act: soloLabel(d), evidence: truncate(d.sentence), where: where(d.para) });
+    instances.push({ who: d.who.name, act: soloLabel(d), evidence: truncate(d.sentence), where: where(d.para), context: d.context });
   }
   const people = pair.map((c) => {
     const mine = instances.filter((i) => i.who === c.name);
@@ -60,7 +60,7 @@ export function buildManual(pair: [Character, Character], hits: DesireHit[], whe
     seen.add(key);
     const mutual = /^(?:mutual|frottage)/i.test(d.act);
     const act = d.act === "frottage" ? "Frottage" : /^thigh/i.test(d.act) ? "Thigh sex" : /^tit/i.test(d.act) ? "Chest sex" : mutual ? "Mutual handjob" : "Handjob";
-    instances.push({ giver: d.who.name, receiver: d.partner.name, act, mutual, evidence: truncate(d.sentence), where: where(d.para) });
+    instances.push({ giver: d.who.name, receiver: d.partner.name, act, mutual, evidence: truncate(d.sentence), where: where(d.para), context: d.context });
   }
   const people = pair.map((c) => ({
     name: c.name,
@@ -561,6 +561,7 @@ export function buildAct(
       act: d.act,
       where: where(d.para),
       evidence: truncate(d.sentence),
+      context: d.context,
       via: d.via,
       confidence: Math.round((lineConf.get(d)?.conf ?? 0.5) * 100) / 100,
       reasons: lineConf.get(d)?.reasons ?? [],

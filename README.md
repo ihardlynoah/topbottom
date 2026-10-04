@@ -367,8 +367,9 @@ AO3_DIR=ao3-samples npx vitest run tests/gold-eval.test.ts                      
   `tests/labels/*.json` by `AO3_DIR=ao3-samples npx vitest run tests/learn.test.ts` (add `WRITE_LEARNED=1` to write the model);
   the report in `LEARN_REPORT.md` gives held-out log loss and AUC against the pattern record alone, and the model is switched on only if
   it wins. On the first training: log loss 0.161 to 0.141, AUC 0.66 to 0.77.
-- **Review queue.** `AO3_DIR=ao3-samples npx vitest run tests/review-queue.test.ts` picks the unlabelled hits the model trusts
-  least (at most three per pattern) plus a few it trusts most, with the paragraph around each, into `REVIEW_QUEUE.json`.
+- **Review queue.** `AO3_DIR=ao3-samples npx vitest run tests/review-queue.test.ts` picks the unlabelled hits where a wrong
+  reading would move a result most (chance it is wrong × its share of the evidence behind its verdict × how close that verdict is
+  to flipping; `QUEUE_RANK=unsure` ranks by the model's doubt alone), at most three per pattern, plus a few it trusts most, with the paragraph around each, into `REVIEW_QUEUE.json`.
   `node scripts/build-review-page.mjs REVIEW_QUEUE.json page.html` makes the page (Wrong / Fine / Not sure per row, saved as you
   click) and `node scripts/import-review-answers.mjs none <saved answers dir> tests/labels/review-DATE.json` turns the answers
   into labels. Then rerun `WRITE_RELIABILITY=1 npx vitest run tests/reliability.test.ts` and the training test.
