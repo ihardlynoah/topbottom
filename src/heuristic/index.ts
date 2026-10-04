@@ -633,6 +633,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const negated =
         (!question && /\b(?:don't|do not|never|won't|will not|not|can't|cannot|no|wouldn't|shouldn't|stop)\s+(?:(?!hesitate|forget|stop|let)\w+\s+){0,3}$/.test(before)) ||
         /\bas if\b[^.!?]*$/.test(before);
+      // "Because if I win, I want to breed you": a wish that hangs on a condition is a "what if", not a request now.
+      const kind = d.kind === "said" && /\bif\b[^.!?;]{2,70},\s*(?:(?:then|and|so)\s+)?(?:i|we|you)\b[^.!?;]{0,30}$/.test(lower.slice(Math.max(0, m.index! - 110), m.index! + m[0].length)) ? "hypothetical" : d.kind;
       desires.push({
         via: `dialogue:${d.act}`,
         cat: d.cat,
@@ -641,7 +643,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         partner: ctx.partnerOf(speaker),
         role,
         wants: !negated,
-        kind: d.kind,
+        kind,
         weight: (d.weight ?? (d.kind === "ogling" ? 0.6 : 1)) * reliabilityOf(`dialogue:${d.act}`) * (around.explicit === false ? 0.5 : 1),
         guessed: around.explicit === false ? true : undefined,
         para: pi,
@@ -775,6 +777,17 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
           !/^(?:Then|Now|Still|Instead|Maybe|Perhaps|God|Please|Fuck|Jesus|Christ|Just|Again|Next|Later|Soon|Once|Yes|No|Oh|Okay|Ok|Fine|Good|Hell|Shit|Damn|But|And|When|While|As|After|Before|If|So|Yet|Until|He|She|They|It|We|You|I|His|Her|Their|The|A|An|This|That|There|Some|Another)$/.test(o[1]) &&
           !new RegExp(`\\b(?:${NAMES})\\b|\\b(?:he|she|they|I|we|you)\\b`, "i").test(o[2])) return;
     }
+    // "The twink did as he was told and gagged on Jordan's length", "The bottom boy's roommates wouldn't hear him plead as he got fucked":
+    // a generic label for someone who isn't in the cast is that stranger, not whichever character came before. Authors who keep
+    // calling one of the leads "the twink" use it often, so only a label that turns up a few times is left alone.
+    if (pat.elided || /^(?:he|him|she|her)$/i.test(tTok ?? "") || /^(?:he|him|she|her)$/i.test(bTok ?? "")) {
+      const g = new RegExp(`(?:^|[,;]\\s*|\\b(?:and|but|as|while|then|when|before|after)\\s+)the\\s+(twink|twunk|bottom boy|bottom|slut|whore|virgin|newbie|stranger|brat|slave|plaything|boy toy|hooker|escort|jock)(?:['’]s)?\\b(?![^.!?]*\\b(?:${NAMES})\\b[^.!?]*$)`, "i").exec(sent.slice(0, m.index! + (/^\s*(?:and\b|,)\s*/.exec(m[0])?.[0].length ?? 0)));
+      if (g && !cast.byAlias.get(g[1]) && !new RegExp(`\\b(?:${NAMES})\\b`).test(sent.slice(g.index! + g[0].length, m.index!)) &&
+          (paras.join(" ").match(new RegExp(`\\bthe ${g[1]}\\b`, "gi")) ?? []).length < 5) return;
+    }
+    // "He knew his whole focus was on serving him; … as he was getting railed": the he who serves is the one being taken, but the
+    // last-named subject is the one served, so the pronoun can't be trusted.
+    if (/^(?:passive-|be-|get-)/.test(pat.id) && /\b(?:serv(?:e|es|ed|ing)|pleas(?:e|es|ed|ing)|obey(?:s|ed|ing)?)\s+him\b/i.test(para.slice(Math.max(0, para.indexOf(sent) - 160), para.indexOf(sent) + sent.length)) && /^(?:he|him)$/i.test(tTok || bTok || "")) return;
     // "Sam said as he poured Dean a cup of tea": a he right after an outsider's name and "as / while / when" is that outsider.
     if (!pat.elided && /^(?:he|she)$/i.test(pat.subj === "t" ? tTok ?? "" : bTok ?? "")) {
       const o = /\b([A-Z][a-z]+)\s+(?:[\w'’-]+\s+){0,3}?(?:as|while|when|and|but|before|after)\s+$/.exec(sent.slice(0, m.index!));
