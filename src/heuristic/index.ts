@@ -18,7 +18,7 @@ import { ORAL_KINDS, oralKindOf } from "../roles";
 import { escapeMarker, splitParagraphs, UNCERTAIN_NOTE_END, UNCERTAIN_NOTE_START } from "../text";
 import { ActHit, Basis, DesireHit } from "./hits";
 import { CHAPTER_RE, Quote, maskQuotes, sentenceSpans } from "./quotes";
-import { ANAL_NEAR_RE, ANIMAL_NEAR, DANGER, DESIRE, DESIRE_LEAD, DESIRE_TAIL, FANTASY, FANTASY_PARA, HABIT_AUX, HYPO_AUX, HYPO_MATCH, HYPO_SENT, HYPO_WINDOW, IDIOM_ASS, IDIOM_SAFE, NEG, ORAL_LINE_RE, ORAL_NEAR_RE, REFLEXIVE, SAY, SCENE_BREAK, SEX_STRICT, STRONG_FANTASY, contextAround } from "./markers";
+import { ANAL_NEAR_RE, ANIMAL_NEAR, DANGER, DESIRE, DESIRE_LEAD, DESIRE_TAIL, FANTASY, FANTASY_PARA, HABIT_AUX, HYPO_AUX, HYPO_MATCH, HYPO_SENT, HYPO_WINDOW, IDIOM_ASS, IDIOM_SAFE, NEG, ORAL_LINE_RE, ORAL_NEAR_RE, REFLEXIVE, SAY, SCENE_BREAK, SEX_STRICT, STRONG_FANTASY, contextAround, contextFor } from "./markers";
 import { AddressBook } from "./address";
 import { reliabilityOf } from "./reliability";
 import { babyNear, featuresOf, trustOf } from "./learned";
@@ -907,7 +907,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         ? elidedSubject(sent.slice(0, m.index), sent.slice(m.index!))
         : undefined;
     const causer = causative ? (clauseSubj ?? firstEntity(sent.slice(0, m.index)) ?? ctx.lastSubject) : undefined;
-    const nearSubj = causative ? causer && ctx.partnerOf(causer) : clauseSubj;
+    // "He’s simply staring at Dean as he stretches himself": a body act on oneself, in a clause that follows a watching clause, is done by the one watched.
+    const watched = !causative && !pat.elided && /^(?:he|she)$/i.test(subjTok ?? "") && REFLEXIVE.test(m[0])
+      ? new RegExp(`\\b(?:star(?:e|es|ed|ing)|watch(?:es|ed|ing)?|look(?:s|ed|ing)?|gaz(?:e|es|ed|ing)|eye(?:s|d|ing)?|ogl(?:e|es|ed|ing))\\s+(?:at\\s+)?(${NAMES})\\s*,?\\s*(?:as|while|when)\\s*$`).exec(sent.slice(0, m.index))
+      : null;
+    const watchedChar = watched ? cast.byAlias.get(watched[1]) : undefined;
+    const nearSubj = watchedChar ?? (causative ? causer && ctx.partnerOf(causer) : clauseSubj);
     const co = /([\p{L}'’]+)\s+and\s+$/u.exec(sent.slice(0, m.index));
     const coChar = co ? resolveToken(co[1]) : undefined;
     ctx.coSubjects = new Set(coChar ? [coChar] : []);
@@ -1120,6 +1125,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       [top, bottom] = [owner, other];
       act = "fingering";
     }
+    // "the fingers he presses inside himself": his own hand in his own ass, which the solo card covers, not one partner fingering the other.
+    if (pat.id.startsWith("pushed-in") && /\b(?:inside|into|in)$/i.test(matchText) && /^\s+(?:himself|herself|themselves)\b/i.test(sent.slice(m.index! + m[0].length))) return;
     // "Alex shudders and presses in harder" while kissing: not penetration.
     if (pat.id.startsWith("pushed-in") && /\bkiss/i.test(sent) && !ANAL_CTX.test(sent)) return;
     // "…parted his lips, allowing Dunk's tongue to slip inside": a tongue in a kiss.
@@ -1157,7 +1164,8 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     if (/^(?:him|her|them)$/i.test(tTok ?? "") || /^(?:him|her|them)$/i.test(bTok ?? "")) {
       const pre = sent.slice(0, m.index! + m[0].length);
       const np = [...pre.matchAll(/\b(?:a|an|some|this|that|one|another)\s+(?:[\w-]+\s+){0,3}(?:guy|man|men|dude|ex|boyfriend|girlfriend|lover|client|stranger|woman|girl|bloke|fellow|sugar daddy|daddy|patron|date|customer)\b/gi)].pop();
-      if (np && !nameRe.test(pre.slice(np.index! + np[0].length)) && /\b(?:he|she|they|who|that|whom)\b/i.test(pre.slice(np.index! + np[0].length))) {
+      // The relative clause follows the noun directly ("a guy he dated while…"); "this man and as he rides him" is the partner in front of him.
+      if (np && !/^this\b/i.test(np[0]) && !nameRe.test(pre.slice(np.index! + np[0].length)) && /^\s*,?\s*(?:(?:that|whom|who)\s+)?(?:he|she|they|who|that|whom)\b/i.test(pre.slice(np.index! + np[0].length))) {
         // Past experience with someone else: the actor's own role is what it points at.
         if (pat.subj === "t") addHistory(cat, act, top, "top", bottom, original, pi);
         else addHistory(cat, act, bottom, "bottom", top, original, pi);
@@ -1375,7 +1383,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       /\bnever\s+been\b[^.!?]{0,40}\bwhich\s+(?:is|was)\s+(?:\w+ly\s+)?(?:untrue|false|a lie|not true|laughable|ridiculous|absurd)/i.test(sent);
     const ifNot = /\bif\s+(?:[\w'’-]+\s+){0,2}(?:doesn['’]t|don['’]t|didn['’]t|won['’]t|hadn['’]t|isn['’]t|wasn['’]t)\s*$/i.test(window) || (/\bif\s+(?:[\w'’-]+\s+){0,2}$/i.test(window) && NEG.test(aux));
     // "tried not to suppress the urge to pull out and snap back in": not resisting a wish means having it.
-    const doubleNeg = /\b(?:not|n['’]t|never|without)\s+(?:to\s+)?(?:\w+\s+){0,2}?(?:suppress|resist|fight|hold back|stifle|restrain|deny|ignore|squash|stop|hide|push down|swallow|fight off)\w*\s+(?:\w+\s+){0,2}(?:urge|desire|need|want|impulse|temptation|craving)/i.test(window);
+    // "Dean would be lying if he said he didn't get flashes of it": denying the denial means it's true.
+    const lyingDenial = /\b(?:would|'d|will|'ll|be|am|are|is|was|were)\s+(?:be\s+)?lying\s+(?:if|when)\s+(?:he|she|they|i|we|you)\s+(?:said|say|claimed|claim|told|tell)\s+(?:he|she|they|i|we|you)\s+(?:didn['’]t|did not|wasn['’]t|was not|never|doesn['’]t|does not|don['’]t|do not)\b/i.test(window);
+    const doubleNeg = lyingDenial || /\b(?:not|n['’]t|never|without)\s+(?:to\s+)?(?:\w+\s+){0,2}?(?:suppress|resist|fight|hold back|stifle|restrain|deny|ignore|squash|stop|hide|push down|swallow|fight off)\w*\s+(?:\w+\s+){0,2}(?:urge|desire|need|want|impulse|temptation|craving)/i.test(window);
     // "Not without taking Eddie's dick out of his mouth": not … without cancels out.
     const notWithout = /\bnot\s+without\s+(?:\w+\s+){0,2}$/i.test(window);
     // "Eddie's cock never slid between his lips": a never inside the match, between the subject and the verb.
@@ -1450,8 +1460,19 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // no one else named as wanting it, the one imagining it is the point-of-view character, who is the one it would be done to.
     const povWisher = kind === "hypothetical" && ctx.povNow && (ctx.povNow === top || ctx.povNow === bottom) &&
       !/\b(?:want|need|wish|hope|long|crave|desire|yearn|beg|plead|ache|itch|hungry|dying)\w*/i.test(window) ? ctx.povNow : undefined;
-    const exp = (ifOnly ? cast.byAlias.get(ifOnly[1]) : undefined) ?? povWisher ?? (wantAnd ? firstEntity(sent) : undefined) ?? firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
-    const role: Role | undefined = exp === top ? "top" : exp === bottom ? "bottom" : undefined;
+    // "All he wants and needs right now is to get to a room where Castiel can fuck him": a pronoun doing the wanting, in one person's point of
+    // view, is that person, whoever else is named in the wish.
+    const pronounWisher = (kind === "hypothetical" || kind === "wanted") && ctx.povNow && (ctx.povNow === top || ctx.povNow === bottom) &&
+      /(?:^|[\s,])(?:all |what |everything )?(?:he|she|they|i)\s+(?:(?:still|really|just|only|simply|so|desperately|badly|also|always)\s+)*(?:want|need|wish|hope|long|crave|desire|yearn|ache)\w*/i.test(prefix) &&
+      !new RegExp(`\\b(?:${NAMES})\\s+(?:\\w+\\s+){0,2}(?:want|need|wish|hope|long|crave|desire|yearn|ache)\\w*`, "i").test(prefix) ? ctx.povNow : undefined;
+    // "Dean’s whole body thrums with arousal just imagining himself cuffed … while Castiel plows him": a body or mind that imagines belongs to its owner.
+    const ownerImagines = (kind === "fantasy" || kind === "hypothetical" || kind === "wanted") && /imagin\w*\s+(?:himself|herself|themselves|being|how|what)\b|fantasi[sz]\w*\s+(?:about|of)|picturing\s+(?:himself|herself|themselves)/i.test(prefix)
+      ? (() => { const bm = new RegExp(`^\\W*(${NAMES})['’]s\\s+(?:whole\\s+|entire\\s+)?(?:body|mind|brain|head|heart|skin|stomach|cock|dick)\\b`).exec(sent); return bm ? cast.byAlias.get(bm[1]) : undefined; })()
+      : undefined;
+    const exp = ownerImagines ?? pronounWisher ?? (ifOnly ? cast.byAlias.get(ifOnly[1]) : undefined) ?? povWisher ?? (wantAnd ? firstEntity(sent) : undefined) ?? firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
+    // "Dean … flashes of him getting fucked against the glass": a wish about being taken, in the words of the one wishing, is about themselves.
+    const passiveSelf = (kind === "fantasy" || kind === "hypothetical" || kind === "wanted") && /^(?:passive-|be-|get-)/.test(pat.id) && /^(?:him|he|her|she)$/i.test(bTok ?? "") && !!exp && (exp === top || exp === bottom);
+    const role: Role | undefined = passiveSelf ? "bottom" : exp === top ? "top" : exp === bottom ? "bottom" : undefined;
     if (!role) return;
     // "There was no way Steve was asking him to fuck him": disbelief about a claim, not a dislike of the act.
     if (negated && /\bno\s+(?:fucking\s+|damn\s+)?(?:way|chance)\b|\bnot\s+a\s+chance\b|\bas\s+if\b|\bthere\s+(?:was|is)\s+no\s+(?:possible\s+)?(?:way|chance)\b/i.test(prefix.slice(-90))) return;
@@ -1461,7 +1482,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       cat,
       act,
       who: exp,
-      partner: role === "top" ? bottom : top,
+      partner: role === "top" ? (exp === bottom ? top : bottom) : (exp === top ? bottom : top),
       role,
       wants: !negated,
       kind,
@@ -1560,6 +1581,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
   }
 
   const narratedTexts = detectTexts(paras, cast).messages.filter((m) => m.how === "narrated" && !texting.rewritten.has(m.para));
+  for (const d of desires) if (!d.context) d.context = contextFor(paras, d.para, d.sentence);
   const where = (pi: number) => chapters[pi] || `~${Math.round((pi / Math.max(1, paras.length)) * 100)}% through`;
   const pairKey = (a: Character, b: Character) => [a.name, b.name].sort().join("\u0000");
   const pairOrder = new Map<string, [Character, Character]>();

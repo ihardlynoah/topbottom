@@ -39,6 +39,8 @@ export interface DesireHit {
   weight: number;
   para: number;
   sentence: string;
+  /** The passage around the sentence (filled in once all hits are found, for mistake reports). */
+  context?: string;
   /** A solo act worded with “himself” / “his own”: certainly the actor’s own body, no partner in it. */
   reflexive?: boolean;
   /** How the people in the sentence were found (names, pronouns, inference). */

@@ -661,7 +661,7 @@ function renderDesires(desires: Desire[], kind: ActKind, pairing: string, source
       li.append(c);
     }
     li.append(el("div", "evidence", d.evidence));
-    flagControl(li, { id: `${source}|${pairing}|${kind}|hint|${n}`, kind: "hint", pairing, card: kind, top: d.who, bottom: `${d.wants ? "" : "NOT "}${d.role} (${d.kind})`, act: d.act, confidence: d.confidence, confidenceReasons: d.reasons, where: d.where, pattern: d.via, evidence: d.evidence });
+    flagControl(li, { id: `${source}|${pairing}|${kind}|hint|${n}`, kind: "hint", pairing, card: kind, top: d.who, bottom: `${d.wants ? "" : "NOT "}${d.role} (${d.kind})`, act: d.act, confidence: d.confidence, confidenceReasons: d.reasons, where: d.where, pattern: d.via, evidence: d.evidence, context: d.context });
     ul.append(li);
   });
   det.append(ul);
@@ -852,7 +852,7 @@ function renderManual(v: ManualResult, pairing: string, source: string): HTMLEle
     li.append(el("strong", undefined, i.mutual ? `${i.giver} & ${i.receiver}` : `${i.giver} → ${i.receiver}`), ` · ${i.act}`);
     if (i.where) li.append(el("span", "where", ` · ${i.where}`));
     if (i.evidence) li.append(el("div", "evidence", i.evidence));
-    flagControl(li, { id: `${source}|${pairing}|manual|${n}`, kind: "hint", pairing, card: "manual", top: i.giver, bottom: i.receiver, act: i.act, where: i.where, evidence: i.evidence });
+    flagControl(li, { id: `${source}|${pairing}|manual|${n}`, kind: "hint", pairing, card: "manual", top: i.giver, bottom: i.receiver, act: i.act, where: i.where, evidence: i.evidence, context: i.context });
     ul.append(li);
   });
   det.append(ul);
@@ -875,7 +875,7 @@ function renderSolo(v: SoloResult, pairing: string, source: string): HTMLElement
     li.append(el("strong", undefined, i.who), ` · ${i.act}`);
     if (i.where) li.append(el("span", "where", ` · ${i.where}`));
     if (i.evidence) li.append(el("div", "evidence", i.evidence));
-    flagControl(li, { id: `${source}|${pairing}|solo|${n}`, kind: "hint", pairing, card: "solo", top: i.who, bottom: "", act: i.act, where: i.where, evidence: i.evidence });
+    flagControl(li, { id: `${source}|${pairing}|solo|${n}`, kind: "hint", pairing, card: "solo", top: i.who, bottom: "", act: i.act, where: i.where, evidence: i.evidence, context: i.context });
     ul.append(li);
   });
   det.append(ul);

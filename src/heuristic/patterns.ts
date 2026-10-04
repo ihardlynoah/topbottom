@@ -2787,7 +2787,7 @@ export const PATTERNS: PatternDef[] = [
     src: `\\b{B}\\s+{aux}(?:jerk|jack|stroke|strok|pump|wank|fist|tug|touch|rub|pleasur|play|squeez|grip|palm|fondl|caress|tease|grind|ground|rock|thrust)\\w*\\s+${SELF}(?:\\s+off)?(?![\\w-])(?!\\s+(?:up|open|wide|loose|on|onto|against|into|with\\s+(?:a|the|his|her|their|my|your)\\s+(?:dildo|toy|vibrator|plug|fingers?))\\b)`,
   },
   {
-    // "stroked his own cock", "rubbed her own clit", "squeezed his own nipples"
+    // "stroked his own cock", "rubbed her own clit" (touching one's own nipples is nipple play, not masturbation)
     id: "mast-own",
     cat: "vibe",
     kw: "own",
@@ -2796,7 +2796,7 @@ export const PATTERNS: PatternDef[] = [
     weight: 0.9,
     needsCtx: true,
     signal: { kind: "masturbation", actorRole: "bottom" },
-    src: `\\b{B}\\s+{aux}(?:strok|jerk|pump|fist|tug|squeez|grip|palm|rubb?|work|fondl|touch|play(?:ed|s|ing)?\\s+with|pleasur|circl|flick|teas)\\w*\\s+(?:at\\s+|on\\s+)?(?:his|her|their)\\s+own\\s+(?:[\\w-]+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection|clit|clitoris|pussy|cunt|folds|nipples?)\\b`,
+    src: `\\b{B}\\s+{aux}(?:strok|jerk|pump|fist|tug|squeez|grip|palm|rubb?|work|fondl|touch|play(?:ed|s|ing)?\\s+with|pleasur|circl|flick|teas)\\w*\\s+(?:at\\s+|on\\s+)?(?:his|her|their)\\s+own\\s+(?:[\\w-]+\\s+){0,2}?(?:cock|dick|prick|length|shaft|erection|clit|clitoris|pussy|cunt|folds)\\b`,
   },
   {
     // "thrust up into his own fist"

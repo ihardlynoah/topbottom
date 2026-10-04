@@ -43,6 +43,8 @@ export interface Desire {
   reasons?: string[];
   /** The internal pattern behind this line (for mistake reports, so the right pattern can be fixed). */
   via?: string;
+  /** The passage around the line (for mistake reports). Quoted lines also carry the paragraphs on either side. */
+  context?: string;
 }
 
 export interface Confidence {
@@ -116,6 +118,7 @@ export interface SoloAct {
   act: string;
   evidence: string;
   where: string;
+  context?: string;
 }
 
 /** Text messages between characters (chat-log lines or narrated texting). */
@@ -151,6 +154,7 @@ export interface ManualAct {
   mutual: boolean;
   evidence: string;
   where: string;
+  context?: string;
 }
 
 export interface ManualResult {
