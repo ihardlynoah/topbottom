@@ -419,6 +419,12 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       const wish = new RegExp(`\\bif\\s+only\\s+(${NAMES})\\b[^.!?;]*?(?:,\\s*)?$`, "i").exec(prefix);
       if (wish && /^[\s,]*\w+(?:ed|ing)\b/.test(suffix)) { const c = cast.byAlias.get(wish[1]); if (c) return c; }
     }
+    // "Anakin was actually pretty sure he'd meant to feed him and fuck him": a he inside "X was sure he…" is the other one.
+    {
+      const sure = new RegExp(`(${NAMES})\\s+(?:(?:was|is|were|are|felt|feels|seemed|seems)\\s+)?(?:\\w+\\s+){0,2}?(?:sure|certain|convinced|positive|suspected)\\s+(?:that\\s+)?(?:he|she|they)(?:['’]d|['’]ll|['’]s)?\\b[^.!?;]*$`, "i").exec(prefix);
+      // …but "sure he'd like to be fucked" is about himself: a passive wish keeps the same person.
+      if (sure && !/\b(?:be|get|being|getting|been)\s+(?:\w+ly\s+)?(?:fucked|taken|filled|screwed|pounded|railed|bred|knotted|ridden|used|claimed|had|held|touched)\b/i.test(suffix.slice(0, 60))) { const x = cast.byAlias.get(sure[1]); const o = x && ctx.partnerOf(x); if (o) return o; }
+    }
     // "Cas didn't wait for Dean to say anything else, he just pushed inside": the he after the comma is the main clause's
     // subject, not the name inside "for Dean to…".
     {
@@ -595,6 +601,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       // Suggestive lines ("take it", "you're so tight", "you're huge") only count when the narration around them
       // is sexual: "please take it" can be a gift, "too proud to take it" help.
       if (d.weight !== undefined && d.weight < 1 && (d.kind === "said" || d.kind === "petname" || d.kind === "position" || d.kind === "aftercare") && !around.sexy) continue;
+      // "How do you take it?" is coffee; "you were both trying to fuck me" is a report, not a request.
+      if (d.kind === "said" && /\bhow (?:do|would|did|d['’]you)\s+(?:you\s+)?take (?:it|your \w+)\b/.test(lower)) continue;
+      if (/^fuck me$/.test(m[0]) && /\b(?:trying|tried|tries|try|attempting|attempted)\s+to\s+$/.test(lower.slice(Math.max(0, m.index! - 24), m.index!))) continue;
       // "Good boy" said to a dog is a dog.
       if (d.kind === "petname" && around.animal) continue;
       // Pet names, care, check-ins and "I like to…" lines only count when the speaker was actually named, not guessed.
@@ -814,6 +823,10 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     // Cuddling up while they choose something to watch ("cuddling up against his chest as he reached for the iPad … another episode")
     // is company, not aftercare.
     if (pat.id.startsWith("aftercare-") && /\b(?:episodes?|show|movie|film|tv|iPad|remote|netflix|stream\w*|youtube|game|podcast)\b/i.test(para)) return;
+    // "Anakin spreads his legs until they're bracketing Obi-Wan's knees": his own legs.
+    if (pat.id.startsWith("spread-their-legs") && /^\s*(?:apart\s+|wide\s+)?until\s+(?:they|his legs|her legs|their legs)(?:['’]re|\s+(?:are|were))\s+(?:bracketing|framing|around|on either side)/i.test(sent.slice(m.index! + m[0].length))) return;
+    // "he sucks on Obi-Wan's tongue": kissing, not a blowjob.
+    if (pat.id.startsWith("sucked") && /\bsuck\w*\s+(?:on\s+|at\s+)?(?:[\w'’-]+['’]s\s+|his\s+|her\s+|their\s+)?(?:tongue|lips?|neck|earlobe|ear|collarbone|jaw|shoulder|nipples?|skin|bruise|pulse point)\b/i.test(sent.slice(m.index!))) return;
     // A fight is not dominance: "He slammed Cas up against the wall, fist pulling back to land another blow."
     if (pat.id.startsWith("dom-") && /\b(?:punch\w*|slugg\w*|(?:land|landed|landing|throw|threw|throwing)\s+(?:another\s+|a\s+)?(?:blow|punch|hit)|fist\s+(?:pulling|drawing|cocking|swinging)\s+back|swung|knife|blade|gun|bleed\w*|bruis\w*|broke\s+(?:his|her|their)\s+(?:nose|jaw|ribs?))\b/i.test(sent)) return;
     // "Castiel grabbed his leg and, using it as leverage, he started thrusting": "he" is the nearest clause's subject.
@@ -1084,7 +1097,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
         ORAL_LINE_RE.test(sent.slice(0, m.index! + m[0].length)) && !ANAL_CTX.test(sent.slice(0, m.index! + m[0].length)) && !FINGER_CTX.test(sent.slice(0, m.index! + m[0].length))) return;
     // "fucked open by older men": the one doing it is named, and isn't a character.
     // It isn't an act between these two, but it says the one fucked has been fucked, which points at bottoming.
-    if (pat.id.startsWith("passive-fucked") && !/\bby\b/.test(matchText) && /^\s+(?:\w+\s+){0,4}?by\s+(?!(?:him|her|them|me|you|it)\b)/i.test(sent.slice(m.index! + m[0].length))) {
+    if (pat.id.startsWith("passive-fucked") && !/\bby\b/.test(matchText) && /^\s+(?:\w+\s+){0,4}?by\s+(?!(?:him|her|them|me|you|it)\b)(?!this\s+(?:[\w-]+\s+){0,2}?(?:man|guy|lad|boy|one|beautiful|gorgeous)\b)(?!the same\b)/i.test(sent.slice(m.index! + m[0].length))) {
       addHistory(cat, act, bottom, "bottom", top, original, pi);
       return;
     }
@@ -1305,7 +1318,9 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const negWindow = (/^\s*,/.test(m[0]) ? "" : window.slice(-40)).replace(/^.*,\s*/, "").replace(/\bwithout\s+(?:any\s+|much\s+|further\s+|more\s+|so much as\s+|a\s+)*(?:preamble|ado|hesitation|hesitating|warning|ceremony|delay|word|sound|protest|pause|question|complaint|fanfare|prelude|resistance|effort|being asked|asking|waiting|thought)\b|\b(?:just\s+)?not\s+(?:just\s+)?(?:yet|before|until|quite|now)\b|\b(?:did|does|do|would|will|won|could)(?:n['’]t| not)\s+take\s+(?:long|much|any time|a lot)\b/gi, " ");
     // "if Cas doesn't fuck him soon, he might die": a conditional, which says it is wanted, not refused.
     // "as though he hasn't just been fucked into a new realm": he looks untouched, and has been. The negation is the pretence.
-    const pretence = /\bas\s+(?:if|though)\s+(?:he|she|they|\w+)\s+(?:hasn['’]t|hadn['’]t|has not|had not)\s+(?:just\s+|only\s+|even\s+)*(?:been\s+)?$/i.test(prefix.slice(-60));
+    // "like he's never been fucked before, which is absurdly untrue": the author says the opposite of the simile.
+    const pretence = /\bas\s+(?:if|though)\s+(?:he|she|they|\w+)\s+(?:hasn['’]t|hadn['’]t|has not|had not)\s+(?:just\s+|only\s+|even\s+)*(?:been\s+)?$/i.test(prefix.slice(-60)) ||
+      /\bnever\s+been\b[^.!?]{0,40}\bwhich\s+(?:is|was)\s+(?:\w+ly\s+)?(?:untrue|false|a lie|not true|laughable|ridiculous|absurd)/i.test(sent);
     const ifNot = /\bif\s+(?:[\w'’-]+\s+){0,2}(?:doesn['’]t|don['’]t|didn['’]t|won['’]t|hadn['’]t|isn['’]t|wasn['’]t)\s*$/i.test(window) || (/\bif\s+(?:[\w'’-]+\s+){0,2}$/i.test(window) && NEG.test(aux));
     // "tried not to suppress the urge to pull out and snap back in": not resisting a wish means having it.
     const doubleNeg = /\b(?:not|n['’]t|never|without)\s+(?:to\s+)?(?:\w+\s+){0,2}?(?:suppress|resist|fight|hold back|stifle|restrain|deny|ignore|squash|stop|hide|push down|swallow|fight off)\w*\s+(?:\w+\s+){0,2}(?:urge|desire|need|want|impulse|temptation|craving)/i.test(window);
@@ -1323,7 +1338,7 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
       !pretence &&
       !/\bas (?:if|though)\s+(?:he|she|they)\s+(?:wasn['’]t|weren['’]t|was not|were not|hadn['’]t been|had not been)\s+(?:the\s+(?:man|guy|one|person|boy|woman|girl)|Epithet\d+)\s+(?:who|that)\b/i.test(prefix) &&
       !(/\bas (?:if|though)\s*$/i.test(prefix) && /\b(?:isn['’]t|wasn['’]t|aren['’]t|weren['’]t|is not|was not|were not|not)\b[^.!?]*\benough\b/i.test(sent.slice(m.index!))) &&
-      ((HYPO_AUX.test(aux) && !/\bcould\s+(?:\w+\s+)?(?:taste|feel|smell|hear|see)\b/i.test(prefix.slice(-25) + matchText.slice(0, 30))) || HYPO_MATCH.test(prefix.slice(-25) + matchText) || /\b(?:can|could|would|should)\s+(?:just\s+)?\w+\b[^.!?]*\band\s*\w*$/i.test(prefix + matchText.slice(0, 6)) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) || (/\bthan\s+(?:it\s+was\s+|it's\s+)?$/i.test(prefix) && /^to\b/i.test(matchText)) || /\bthan\s+(?:it\s+was\s+|it's\s+)?to\s*$/i.test(prefix) || /\b(?:like|as if|as though)\s+(?:he|she|they|I)(?:['’]s|['’]d|\s+(?:is|was|were|are|had|has|would))?\s*$/i.test(prefix) || (/\b(?:like|as if|as though)\s*$/i.test(prefix) && /^(?:he|she|they|I)\b/.test(matchText)) ||
+      ((HYPO_AUX.test(aux) && !/\bcould\s+(?:\w+\s+)?(?:taste|feel|smell|hear|see)\b/i.test(prefix.slice(-25) + matchText.slice(0, 30))) || (pat.cat === "anal" && /\bcan\s*$/i.test(aux) && /^(?:fuck|take|pound|ride|have|bend|breed|ravish)/i.test(matchText.replace(/^.*?\bcan\s+/i, ""))) || HYPO_MATCH.test(prefix.slice(-25) + matchText) || /\b(?:can|could|would|should)\s+(?:just\s+)?\w+\b[^.!?]*\band\s*\w*$/i.test(prefix + matchText.slice(0, 6)) || HYPO_WINDOW.test(window) || HYPO_SENT.test(prefix) || (/\bthan\s+(?:it\s+was\s+|it's\s+)?$/i.test(prefix) && /^to\b/i.test(matchText)) || /\bthan\s+(?:it\s+was\s+|it's\s+)?to\s*$/i.test(prefix) || /\b(?:like|as if|as though)\s+(?:he|she|they|I)(?:['’]s|['’]d|\s+(?:is|was|were|are|had|has|would))?\s*$/i.test(prefix) || (/\b(?:like|as if|as though)\s*$/i.test(prefix) && /^(?:he|she|they|I)\b/.test(matchText)) ||
       (/\bso\s*$/i.test(window) && /\b(?:can|could|might|may|will|would)\b/i.test(aux)) ||
       /\b(?:would|could|might)\s+(?:want|like|love|wish|prefer|enjoy|rather|fit)\b[^.!?;]{0,70}?\b(?:as|while|when|if|so)\s+(?:[\w'’]+\s+)?$/i.test(prefix))
     ) kind = "hypothetical";
@@ -1379,7 +1394,11 @@ export function analyzeWithPatterns(text: string, meta: Ao3Meta, opts: PatternOp
     const wantAnd = /\b(?:want|need|wish|hope|long|crave)\w*\b[^.!?]*\b(?:and|but)\s+(?:then\s+)?(?:have|let|make|get)\s*$/i.test(prefix);
     // "…, if only Hank could find the courage, buried deep inside him": the one wishing is the one named after "if only".
     const ifOnly = new RegExp(`\\bif\\s+only\\s+(${NAMES})\\b`, "i").exec(window);
-    const exp = (ifOnly ? cast.byAlias.get(ifOnly[1]) : undefined) ?? (wantAnd ? firstEntity(sent) : undefined) ?? firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
+    // "Maybe Obi-Wan can just fuck him here", "it would be hot if Obi-Wan fucked him hard": in one person's point of view, with
+    // no one else named as wanting it, the one imagining it is the point-of-view character, who is the one it would be done to.
+    const povWisher = kind === "hypothetical" && ctx.povNow && (ctx.povNow === top || ctx.povNow === bottom) &&
+      !/\b(?:want|need|wish|hope|long|crave|desire|yearn|beg|plead|ache|itch|hungry|dying)\w*/i.test(window) ? ctx.povNow : undefined;
+    const exp = (ifOnly ? cast.byAlias.get(ifOnly[1]) : undefined) ?? povWisher ?? (wantAnd ? firstEntity(sent) : undefined) ?? firstEntity(window) ?? (pat.subj === "t" ? top : bottom);
     const role: Role | undefined = exp === top ? "top" : exp === bottom ? "bottom" : undefined;
     if (!role) return;
     // "There was no way Steve was asking him to fuck him": disbelief about a claim, not a dislike of the act.
